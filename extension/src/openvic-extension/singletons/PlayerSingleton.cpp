@@ -682,7 +682,7 @@ Array PlayerSingleton::get_production_info() const {
 		if (production_type != nullptr && production_type->template_type == ProductionType::template_type_t::FACTORY &&
 		    player_country->is_building_type_unlocked(building_type)) {
 			factory_types.push_back(
-			    { &building_type, FactoryInstance::calculate_construction_cost(building_type, market_instance) }
+			    { &building_type, building_type.cost } // the goods of the cost come from the national stockpile
 			);
 		}
 	}
@@ -752,7 +752,7 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["wages"] = static_cast<float>(factory.get_wages_yesterday());
 				factory_dict["profit"] = static_cast<float>(factory.get_profit_yesterday());
 				factory_dict["upgrade_cost"] =
-				    static_cast<float>(FactoryInstance::calculate_construction_cost(building_type, market_instance));
+				    static_cast<float>(building_type.cost);
 				factory_dict["can_expand"] = factory.can_be_expanded();
 				factories.push_back(std::move(factory_dict));
 			}
