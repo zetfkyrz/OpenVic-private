@@ -5,25 +5,22 @@ const MODEL_SCALE: float = 1.0 / 256.0
 
 @export var _map_view: MapView
 
-# Unit icons (the flags above units) are drawn 20% closer than the models and are 20% smaller.
-const UNIT_ICON_RANGE_FACTOR: float = 0.8
-const UNIT_ICON_SCALE_FACTOR: float = 0.8
+# Unit models currently on the map by the unique id of the unit group they show, and a signature of what they were
+# generated from (without their position). A model is only regenerated when what it looks like changes, otherwise
+# recreating models whenever an army moves exhausts the renderer's buffer of shader instance variables and the models
+# stop being drawn. Moving units glide to their new position and play their walking animation.
+var _unit_nodes: Dictionary[int, Node3D] = {}
+var _unit_signatures: Dictionary[int, int] = {}
 
-# Flags of the units currently on the map, shown only when the camera is close enough
-var _flag_nodes: Array[Node3D] = []
-var _icons_visible: bool = false
-
-# Unit models currently on the map and the signature of the units they were generated from,
-# the models are regenerated when an army moves, appears or is destroyed
-var _unit_nodes: Array[Node3D] = []
-var _units_signature: int = 0
+# Time the models take to move to the position of the next day
+const _MOVE_TWEEN_TIME: float = 0.6
 
 
 func _process(_delta: float) -> void:
 	if not _map_view:
 		return
 
-	# The draw distance setting (-50..+50 %) scales the distance at which models and unit icons are drawn
+	# The draw distance setting (-50..+50 %) scales the distance at which models are drawn
 	var factor: float = 1.0 + float(GameSettings.get_setting(GameSettings.VIDEO_DRAW_DISTANCE).value()) / 100.0
 	var model_range: float = _map_view.get_detailed_threshold() * factor
 	var height: float = _map_view.get_camera_height()
@@ -32,51 +29,81 @@ func _process(_delta: float) -> void:
 	if visible != models_visible:
 		visible = models_visible
 
-	var icons_visible: bool = height <= model_range * UNIT_ICON_RANGE_FACTOR
-	if icons_visible != _icons_visible:
-		_icons_visible = icons_visible
-		for flag: Node3D in _flag_nodes:
-			if is_instance_valid(flag):
-				flag.visible = _icons_visible
-
 
 func generate_units() -> void:
 	XACLoader.setup_flag_shader()
 
-	var units: Array[Dictionary] = ModelSingleton.get_units()
-	_units_signature = _get_units_signature(units)
-	for unit: Dictionary in units:
-		_generate_unit(unit)
+	_sync_units()
 
-	if not GameSingleton.gamestate_updated.is_connected(_refresh_units):
-		GameSingleton.gamestate_updated.connect(_refresh_units)
+	if not GameSingleton.gamestate_updated.is_connected(_sync_units):
+		GameSingleton.gamestate_updated.connect(_sync_units)
 
 
-func _get_units_signature(units: Array[Dictionary]) -> int:
-	var signature: int = units.size()
-	for unit: Dictionary in units:
-		signature = hash([signature, unit.get(&"position"), unit.get(&"flag_index"), unit.get(&"model")])
-	return signature
+func _get_unit_signature(unit: Dictionary) -> int:
+	return hash([
+		unit.get(&"model"), unit.get(&"mount_model"), unit.get(&"flag_index"), unit.get(&"flag_floating"),
+		unit.get(&"primary_colour"), unit.get(&"secondary_colour"), unit.get(&"tertiary_colour"),
+	])
 
 
-func _refresh_units() -> void:
-	var units: Array[Dictionary] = ModelSingleton.get_units()
-	var signature: int = _get_units_signature(units)
-	if signature == _units_signature:
-		return
-	_units_signature = signature
+func _sync_units() -> void:
+	var present: Dictionary[int, bool] = {}
 
-	for node in _unit_nodes:
-		if is_instance_valid(node):
-			node.queue_free()
-	_unit_nodes.clear()
-	_flag_nodes.clear()
+	for unit: Dictionary in ModelSingleton.get_units():
+		var id: int = unit[&"id"]
+		present[id] = true
 
-	for unit: Dictionary in units:
-		_generate_unit(unit)
+		var signature: int = _get_unit_signature(unit)
+		var node: Node3D = _unit_nodes.get(id)
+		if is_instance_valid(node) and _unit_signatures.get(id, 0) == signature:
+			_update_unit_node(node, unit)
+			continue
+
+		_remove_unit_node(id)
+
+		node = _generate_unit(unit)
+		if node:
+			node.set_meta(&"moving", unit.get(&"moving", false))
+			_unit_nodes[id] = node
+			_unit_signatures[id] = signature
+
+	for id: int in _unit_nodes.keys():
+		if not present.has(id):
+			_remove_unit_node(id)
 
 
-func _generate_unit(unit_dict: Dictionary) -> void:
+# Moves an existing model to the position of its unit and plays the matching animation
+func _update_unit_node(node: Node3D, unit: Dictionary) -> void:
+	var target: Vector3 = _map_view._map_to_world_coords(unit[&"position"]) + Vector3(0, 0.1 * MODEL_SCALE, 0)
+	var moving: bool = unit.get(&"moving", false)
+
+	if not node.position.is_equal_approx(target):
+		var previous_tween: Tween = node.get_meta(&"tween", null)
+		if previous_tween and previous_tween.is_valid():
+			previous_tween.kill()
+		var tween: Tween = create_tween()
+		tween.tween_property(node, "position", target, _MOVE_TWEEN_TIME)
+		node.set_meta(&"tween", tween)
+
+	if moving:
+		node.rotation.y = PI + unit.get(&"rotation", 0.0)
+
+	if node.get_meta(&"moving", false) != moving:
+		node.set_meta(&"moving", moving)
+		if node is UnitModel:
+			node.current_anim = UnitModel.Anim.MOVE if moving else UnitModel.Anim.IDLE
+
+
+func _remove_unit_node(id: int) -> void:
+	var node: Node3D = _unit_nodes.get(id)
+	if is_instance_valid(node):
+		remove_child(node)
+		node.free()
+	_unit_nodes.erase(id)
+	_unit_signatures.erase(id)
+
+
+func _generate_unit(unit_dict: Dictionary) -> Node3D:
 	const culture_key: StringName = &"culture"
 	const model_key: StringName = &"model"
 	const mount_model_key: StringName = &"mount_model"
@@ -91,7 +118,7 @@ func _generate_unit(unit_dict: Dictionary) -> void:
 
 	var model: Node3D = _generate_model(unit_dict[model_key], unit_dict[culture_key])
 	if not model:
-		return
+		return null
 
 	if mount_model_key in unit_dict and mount_attach_node_key in unit_dict:
 		# This must be a UnitModel so we can attach the rider to it
@@ -115,10 +142,7 @@ func _generate_unit(unit_dict: Dictionary) -> void:
 			flag_model.set_flag_index(unit_dict[flag_index_key])
 			flag_model.current_anim = UnitModel.Anim.IDLE
 			flag_model.scale /= model.scale
-			flag_model.scale *= UNIT_ICON_SCALE_FACTOR
 			flag_model.rotate_y(-rotation)
-			flag_model.visible = _icons_visible
-			_flag_nodes.append(flag_model)
 
 			model.add_child(flag_model)
 
@@ -127,14 +151,14 @@ func _generate_unit(unit_dict: Dictionary) -> void:
 	model.set_position(_map_view._map_to_world_coords(unit_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
 
 	if model is UnitModel:
-		model.current_anim = UnitModel.Anim.IDLE
+		model.current_anim = UnitModel.Anim.MOVE if unit_dict.get(&"moving", false) else UnitModel.Anim.IDLE
 
 		model.primary_colour = unit_dict[primary_colour_key]
 		model.secondary_colour = unit_dict[secondary_colour_key]
 		model.tertiary_colour = unit_dict[tertiary_colour_key]
 
 	add_child(model)
-	_unit_nodes.append(model)
+	return model
 
 
 func generate_buildings() -> void:

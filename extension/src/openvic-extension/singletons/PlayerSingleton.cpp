@@ -83,6 +83,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_auto_assign_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_mobilise, { "value" });
 
+	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_production_info);
 	OV_BIND_METHOD(PlayerSingleton::build_factory, { "province_index", "building_type_index" });
 	OV_BIND_METHOD(PlayerSingleton::set_factory_open, { "province_index", "building_type_index", "open" });
@@ -1081,4 +1082,143 @@ bool PlayerSingleton::set_auto_plan(bool enabled) const {
 	ERR_FAIL_NULL_V(instance_manager, false);
 
 	return instance_manager->queue_game_action<set_auto_plan_argument_t>(player_country->index, enabled);
+}
+
+// Map units
+namespace {
+	// Positions (normalised map coordinates) of the path of a moving group, starting at its current province
+	PackedVector2Array get_unit_path_positions(GameSingleton const& game_singleton, UnitInstanceGroup const& unit) {
+		PackedVector2Array positions;
+		if (unit.get_path().empty()) {
+			return positions;
+		}
+
+		positions.push_back(game_singleton.normalise_map_position(unit.get_location().province_definition.get_unit_position()));
+		for (ProvinceInstance const& province : unit.get_path()) {
+			positions.push_back(game_singleton.normalise_map_position(province.province_definition.get_unit_position()));
+		}
+		return positions;
+	}
+
+	// Position of a group on the map, between its province and the next one of its path while it moves
+	Vector2 get_unit_current_position(GameSingleton const& game_singleton, UnitInstanceGroup const& unit) {
+		ProvinceDefinition const& location = unit.get_location().province_definition;
+		Vector2 position = game_singleton.normalise_map_position(location.get_unit_position());
+
+		if (unit.get_path().empty()) {
+			return position;
+		}
+
+		ProvinceInstance const& next = unit.get_path().front().get();
+		ProvinceDefinition::adjacency_t const* adjacency = location.get_adjacency_to(next.province_definition);
+		if (adjacency == nullptr) {
+			return position;
+		}
+
+		const Vector2 target = game_singleton.normalise_map_position(next.province_definition.get_unit_position());
+		const float distance = static_cast<float>(adjacency->get_distance());
+		const float progress = distance > 0.0f ? static_cast<float>(unit.get_movement_progress()) / distance : 0.0f;
+		return position.lerp(target, std::clamp(progress, 0.0f, 1.0f));
+	}
+}
+
+Array PlayerSingleton::get_map_units() const {
+	Array result;
+
+	GameSingleton const* game_singleton = GameSingleton::get_singleton();
+	ERR_FAIL_NULL_V(game_singleton, result);
+	InstanceManager const* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	WarManager const& war_manager = instance_manager->get_war_manager();
+
+	struct CountryGroup {
+		CountryInstance const* country;
+		int32_t army_count = 0, regiments = 0;
+		fixed_point_t strength = 0, max_strength = 0, organisation = 0, max_organisation = 0;
+		bool in_combat = false, moving = false;
+		Array army_ids;
+		Array paths;
+		// Position of the last army of the group, which is also the one drawn on the map
+		Vector2 position;
+		bool has_position = false;
+	};
+	std::vector<CountryGroup> groups;
+
+	for (ProvinceInstance const& province : instance_manager->get_map_instance().get_province_instances()) {
+		if (province.province_definition.is_water() || province.get_armies().empty()) {
+			continue;
+		}
+
+		groups.clear();
+
+		for (ArmyInstance const& army : province.get_armies()) {
+			CountryInstance const* country = &army.get_country();
+
+			CountryGroup* group = nullptr;
+			for (CountryGroup& existing : groups) {
+				if (existing.country == country) {
+					group = &existing;
+					break;
+				}
+			}
+			if (group == nullptr) {
+				groups.push_back({ country });
+				group = &groups.back();
+			}
+
+			group->army_count++;
+			group->regiments += static_cast<int32_t>(army.get_unit_count());
+			group->strength += army.get_total_strength();
+			group->max_strength += army.get_total_max_strength();
+			group->organisation += army.get_total_organisation();
+			group->max_organisation += army.get_total_max_organisation();
+			group->in_combat = group->in_combat || army.is_in_combat();
+			group->moving = group->moving || army.is_moving();
+			group->army_ids.push_back(static_cast<int64_t>(army.unique_id));
+
+			if (army.is_moving()) {
+				PackedVector2Array path_positions = get_unit_path_positions(*game_singleton, army);
+				if (!path_positions.is_empty()) {
+					group->paths.push_back(std::move(path_positions));
+				}
+			}
+			group->position = get_unit_current_position(*game_singleton, army);
+			group->has_position = true;
+		}
+
+		WarManager::Siege const* siege = war_manager.get_siege(province);
+		const bool occupied = province.get_controller() != nullptr && province.get_controller() != province.get_owner();
+
+		for (CountryGroup const& group : groups) {
+			Dictionary entry;
+			entry["province_number"] = static_cast<int32_t>(province.province_definition.get_province_number());
+			entry["position"] = group.has_position
+			    ? group.position
+			    : game_singleton->normalise_map_position(province.province_definition.get_unit_position());
+			entry["paths"] = group.paths;
+			entry["country_identifier"] = convert_to<String>(group.country->get_identifier());
+			entry["country_index"] = static_cast<int32_t>(type_safe::get(group.country->index));
+			entry["is_player"] = group.country == player_country;
+			entry["army_count"] = group.army_count;
+			entry["regiments"] = group.regiments;
+			entry["strength"] = group.max_strength > 0 ? static_cast<float>(group.strength / group.max_strength) : 0.0f;
+			entry["organisation"] =
+			    group.max_organisation > 0 ? static_cast<float>(group.organisation / group.max_organisation) : 0.0f;
+			entry["in_combat"] = group.in_combat;
+			entry["moving"] = group.moving;
+			entry["army_ids"] = group.army_ids;
+			entry["occupied"] = occupied;
+
+			float siege_progress = -1.0f;
+			if (siege != nullptr && siege->besieger == group.country && siege->days_required > 0) {
+				siege_progress = std::min(1.0f, static_cast<float>(siege->days) / static_cast<float>(siege->days_required));
+			}
+			entry["siege_progress"] = siege_progress;
+
+			result.push_back(std::move(entry));
+		}
+	}
+
+	return result;
 }
