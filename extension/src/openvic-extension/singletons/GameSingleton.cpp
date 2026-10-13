@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/core/error_macros.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
@@ -237,10 +238,24 @@ godot::Error GameSingleton::setup_game(int32_t bookmark_index) {
 
 	ret &= MenuSingleton::get_singleton()->_population_menu_update_provinces() == OK;
 
-	// Default player country, the lobby lets the player change it by clicking on the map
-	CountryInstance* default_country = instance_manager->get_country_instance_manager().get_country_instance_by_identifier(
-	    "ENG"
-	);
+	// Default player country, the lobby lets the player change it by clicking on the map.
+	// For testing it can be overridden with the country tag in the file user://dev_player_tag.txt.
+	std::string default_tag = "ENG";
+	if (FileAccess::file_exists("user://dev_player_tag.txt")) {
+		Ref<FileAccess> tag_file = FileAccess::open("user://dev_player_tag.txt", FileAccess::READ);
+		if (tag_file.is_valid()) {
+			const String tag = tag_file->get_as_text().strip_edges();
+			if (!tag.is_empty()) {
+				default_tag = convert_to<std::string>(tag);
+			}
+		}
+	}
+
+	CountryInstance* default_country =
+	    instance_manager->get_country_instance_manager().get_country_instance_by_identifier(default_tag);
+	if (default_country == nullptr) {
+		default_country = instance_manager->get_country_instance_manager().get_country_instance_by_identifier("ENG");
+	}
 
 	PlayerSingleton& player_singleton = *PlayerSingleton::get_singleton();
 	player_singleton.set_player_country(default_country);

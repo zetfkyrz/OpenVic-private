@@ -5,48 +5,62 @@ const MODEL_SCALE: float = 1.0 / 256.0
 
 @export var _map_view: MapView
 
-# Unit models currently on the map and the signature of the units they were generated from,
-# the models are regenerated when an army moves, appears or is destroyed
-var _unit_nodes: Array[Node3D] = []
-var _units_signature: int = 0
+# Unit models currently on the map by the map position of the province they are in, and a signature of what they
+# were generated from. Only the models of provinces whose units changed are regenerated: recreating every model
+# whenever an army moves exhausts the renderer's buffer of shader instance variables and the models stop being drawn.
+var _unit_nodes: Dictionary[Vector2, Node3D] = {}
+var _unit_signatures: Dictionary[Vector2, int] = {}
 
 
 func generate_units() -> void:
 	XACLoader.setup_flag_shader()
 
-	var units: Array[Dictionary] = ModelSingleton.get_units()
-	_units_signature = _get_units_signature(units)
-	for unit: Dictionary in units:
-		_generate_unit(unit)
+	_sync_units()
 
-	if not GameSingleton.gamestate_updated.is_connected(_refresh_units):
-		GameSingleton.gamestate_updated.connect(_refresh_units)
+	if not GameSingleton.gamestate_updated.is_connected(_sync_units):
+		GameSingleton.gamestate_updated.connect(_sync_units)
 
 
-func _get_units_signature(units: Array[Dictionary]) -> int:
-	var signature: int = units.size()
-	for unit: Dictionary in units:
-		signature = hash([signature, unit.get(&"position"), unit.get(&"flag_index"), unit.get(&"model")])
-	return signature
+func _get_unit_signature(unit: Dictionary) -> int:
+	return hash([
+		unit.get(&"model"), unit.get(&"mount_model"), unit.get(&"flag_index"), unit.get(&"flag_floating"),
+		unit.get(&"primary_colour"), unit.get(&"secondary_colour"), unit.get(&"tertiary_colour"),
+	])
 
 
-func _refresh_units() -> void:
-	var units: Array[Dictionary] = ModelSingleton.get_units()
-	var signature: int = _get_units_signature(units)
-	if signature == _units_signature:
-		return
-	_units_signature = signature
+func _sync_units() -> void:
+	var provinces_with_units: Dictionary[Vector2, bool] = {}
 
-	for node in _unit_nodes:
-		if is_instance_valid(node):
-			node.queue_free()
-	_unit_nodes.clear()
+	for unit: Dictionary in ModelSingleton.get_units():
+		var key: Vector2 = unit[&"position"]
+		provinces_with_units[key] = true
 
-	for unit: Dictionary in units:
-		_generate_unit(unit)
+		var signature: int = _get_unit_signature(unit)
+		if _unit_signatures.get(key, 0) == signature and is_instance_valid(_unit_nodes.get(key)):
+			continue
+
+		_remove_unit_node(key)
+
+		var node: Node3D = _generate_unit(unit)
+		if node:
+			_unit_nodes[key] = node
+			_unit_signatures[key] = signature
+
+	for key: Vector2 in _unit_nodes.keys():
+		if not provinces_with_units.has(key):
+			_remove_unit_node(key)
 
 
-func _generate_unit(unit_dict: Dictionary) -> void:
+func _remove_unit_node(key: Vector2) -> void:
+	var node: Node3D = _unit_nodes.get(key)
+	if is_instance_valid(node):
+		remove_child(node)
+		node.free()
+	_unit_nodes.erase(key)
+	_unit_signatures.erase(key)
+
+
+func _generate_unit(unit_dict: Dictionary) -> Node3D:
 	const culture_key: StringName = &"culture"
 	const model_key: StringName = &"model"
 	const mount_model_key: StringName = &"mount_model"
@@ -61,7 +75,7 @@ func _generate_unit(unit_dict: Dictionary) -> void:
 
 	var model: Node3D = _generate_model(unit_dict[model_key], unit_dict[culture_key])
 	if not model:
-		return
+		return null
 
 	if mount_model_key in unit_dict and mount_attach_node_key in unit_dict:
 		# This must be a UnitModel so we can attach the rider to it
@@ -101,7 +115,7 @@ func _generate_unit(unit_dict: Dictionary) -> void:
 		model.tertiary_colour = unit_dict[tertiary_colour_key]
 
 	add_child(model)
-	_unit_nodes.append(model)
+	return model
 
 
 func generate_buildings() -> void:
