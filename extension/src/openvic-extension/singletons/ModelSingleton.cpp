@@ -1,8 +1,11 @@
+#include <algorithm>
+#include <cmath>
 #include "ModelSingleton.hpp"
 
 #include <numbers>
 #include <span>
 
+#include <openvic-simulation/military/UnitInstanceGroup.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include <openvic-simulation/core/memory/String.hpp>
@@ -203,6 +206,42 @@ Dictionary ModelSingleton::get_model_dict(GFX::Actor const& actor) {
 	return dict;
 }
 
+namespace {
+	// Position of a unit group on the map, between its province and the next province of its path while it is moving
+	struct UnitMapPosition {
+		Vector2 position;
+		float rotation = 0.0f;
+		bool moving = false;
+	};
+
+	UnitMapPosition get_unit_map_position(GameSingleton const& game_singleton, UnitInstanceGroup const& unit) {
+		ProvinceDefinition const& location = unit.get_location().province_definition;
+
+		UnitMapPosition result;
+		result.position = game_singleton.normalise_map_position(location.get_unit_position());
+
+		if (unit.get_path().empty()) {
+			return result;
+		}
+
+		ProvinceInstance const& next = unit.get_path().front().get();
+		ProvinceDefinition::adjacency_t const* adjacency = location.get_adjacency_to(next.province_definition);
+		if (adjacency == nullptr) {
+			return result;
+		}
+
+		const Vector2 target = game_singleton.normalise_map_position(next.province_definition.get_unit_position());
+		const float distance = static_cast<float>(adjacency->get_distance());
+		const float progress = distance > 0.0f ? static_cast<float>(unit.get_movement_progress()) / distance : 0.0f;
+
+		const Vector2 direction = target - result.position;
+		result.moving = true;
+		result.rotation = std::atan2(direction.x, direction.y);
+		result.position = result.position.lerp(target, std::clamp(progress, 0.0f, 1.0f));
+		return result;
+	}
+}
+
 /* Returns false if an error occurs while trying to add a unit model for the province, true otherwise.
  * Returning true doesn't necessarily mean a unit was added, e.g. when units is empty. */
 template<unit_branch_t Branch>
@@ -222,6 +261,8 @@ bool ModelSingleton::add_unit_dict(
 	static const StringName flag_floating_key = "flag_floating";
 	static const StringName position_key = "position";
 	static const StringName rotation_key = "rotation";
+	static const StringName id_key = "id";
+	static const StringName moving_key = "moving";
 	static const StringName primary_colour_key = "primary_colour";
 	static const StringName secondary_colour_key = "secondary_colour";
 	static const StringName tertiary_colour_key = "tertiary_colour";
@@ -324,10 +365,18 @@ bool ModelSingleton::add_unit_dict(
 		dict[flag_floating_key] = true;
 	}
 
-	dict[position_key] = game_singleton->normalise_map_position(unit.get_location().province_definition.get_unit_position());
+	const UnitMapPosition map_position = get_unit_map_position(*game_singleton, unit);
+	dict[position_key] = map_position.position;
+	dict[id_key] = static_cast<int64_t>(unit.unique_id);
+	dict[moving_key] = map_position.moving;
 
 	if (display_unit_type->unit_category != UnitType::unit_category_t::INFANTRY) {
 		dict[rotation_key] = -0.25f * std::numbers::pi_v<float>;
+	}
+
+	// While moving the unit faces the direction of its movement
+	if (map_position.moving) {
+		dict[rotation_key] = map_position.rotation;
 	}
 
 	dict[primary_colour_key] = convert_to<Color>(country_definition.get_primary_unit_colour());

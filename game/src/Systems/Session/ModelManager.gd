@@ -5,11 +5,15 @@ const MODEL_SCALE: float = 1.0 / 256.0
 
 @export var _map_view: MapView
 
-# Unit models currently on the map by the map position of the province they are in, and a signature of what they
-# were generated from. Only the models of provinces whose units changed are regenerated: recreating every model
-# whenever an army moves exhausts the renderer's buffer of shader instance variables and the models stop being drawn.
-var _unit_nodes: Dictionary[Vector2, Node3D] = {}
-var _unit_signatures: Dictionary[Vector2, int] = {}
+# Unit models currently on the map by the unique id of the unit group they show, and a signature of what they were
+# generated from (without their position). A model is only regenerated when what it looks like changes, otherwise
+# recreating models whenever an army moves exhausts the renderer's buffer of shader instance variables and the models
+# stop being drawn. Moving units glide to their new position and play their walking animation.
+var _unit_nodes: Dictionary[int, Node3D] = {}
+var _unit_signatures: Dictionary[int, int] = {}
+
+# Time the models take to move to the position of the next day
+const _MOVE_TWEEN_TIME: float = 0.6
 
 
 func generate_units() -> void:
@@ -29,35 +33,60 @@ func _get_unit_signature(unit: Dictionary) -> int:
 
 
 func _sync_units() -> void:
-	var provinces_with_units: Dictionary[Vector2, bool] = {}
+	var present: Dictionary[int, bool] = {}
 
 	for unit: Dictionary in ModelSingleton.get_units():
-		var key: Vector2 = unit[&"position"]
-		provinces_with_units[key] = true
+		var id: int = unit[&"id"]
+		present[id] = true
 
 		var signature: int = _get_unit_signature(unit)
-		if _unit_signatures.get(key, 0) == signature and is_instance_valid(_unit_nodes.get(key)):
+		var node: Node3D = _unit_nodes.get(id)
+		if is_instance_valid(node) and _unit_signatures.get(id, 0) == signature:
+			_update_unit_node(node, unit)
 			continue
 
-		_remove_unit_node(key)
+		_remove_unit_node(id)
 
-		var node: Node3D = _generate_unit(unit)
+		node = _generate_unit(unit)
 		if node:
-			_unit_nodes[key] = node
-			_unit_signatures[key] = signature
+			node.set_meta(&"moving", unit.get(&"moving", false))
+			_unit_nodes[id] = node
+			_unit_signatures[id] = signature
 
-	for key: Vector2 in _unit_nodes.keys():
-		if not provinces_with_units.has(key):
-			_remove_unit_node(key)
+	for id: int in _unit_nodes.keys():
+		if not present.has(id):
+			_remove_unit_node(id)
 
 
-func _remove_unit_node(key: Vector2) -> void:
-	var node: Node3D = _unit_nodes.get(key)
+# Moves an existing model to the position of its unit and plays the matching animation
+func _update_unit_node(node: Node3D, unit: Dictionary) -> void:
+	var target: Vector3 = _map_view._map_to_world_coords(unit[&"position"]) + Vector3(0, 0.1 * MODEL_SCALE, 0)
+	var moving: bool = unit.get(&"moving", false)
+
+	if not node.position.is_equal_approx(target):
+		var previous_tween: Tween = node.get_meta(&"tween", null)
+		if previous_tween and previous_tween.is_valid():
+			previous_tween.kill()
+		var tween: Tween = create_tween()
+		tween.tween_property(node, "position", target, _MOVE_TWEEN_TIME)
+		node.set_meta(&"tween", tween)
+
+	if moving:
+		node.rotation.y = PI + unit.get(&"rotation", 0.0)
+
+	if node.get_meta(&"moving", false) != moving:
+		node.set_meta(&"moving", moving)
+		if node is UnitModel:
+			node.current_anim = UnitModel.Anim.MOVE if moving else UnitModel.Anim.IDLE
+
+
+func _remove_unit_node(id: int) -> void:
+	var node: Node3D = _unit_nodes.get(id)
 	if is_instance_valid(node):
 		remove_child(node)
 		node.free()
-	_unit_nodes.erase(key)
-	_unit_signatures.erase(key)
+	_unit_nodes.erase(id)
+	_unit_signatures.erase(id)
 
 
 func _generate_unit(unit_dict: Dictionary) -> Node3D:
@@ -108,7 +137,7 @@ func _generate_unit(unit_dict: Dictionary) -> Node3D:
 	model.set_position(_map_view._map_to_world_coords(unit_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
 
 	if model is UnitModel:
-		model.current_anim = UnitModel.Anim.IDLE
+		model.current_anim = UnitModel.Anim.MOVE if unit_dict.get(&"moving", false) else UnitModel.Anim.IDLE
 
 		model.primary_colour = unit_dict[primary_colour_key]
 		model.secondary_colour = unit_dict[secondary_colour_key]
