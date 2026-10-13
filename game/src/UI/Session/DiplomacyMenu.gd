@@ -12,19 +12,50 @@ const _ACTION_SIZE: Vector2 = Vector2(160, 24)
 # Actions that cannot be used yet (they depend on systems which do not exist, e.g. wars with allies)
 const _UNAVAILABLE_ACTIONS: PackedStringArray = ["call_ally", "command_units", "justify_war", "expel_advisors"]
 
+# Labels of the country list entries (diplomacy_country_info), filled from the country data
+const _LIST_COLUMNS: Dictionary[NodePath, StringName] = {
+	^"./country_prestige": &"prestige_rank",
+	^"./country_economic": &"industrial_rank",
+	^"./country_military": &"military_rank",
+	^"./country_total": &"total_rank",
+	^"./country_opinion": &"opinion",
+	^"./country_relation": &"relation",
+}
+
+# Labels of the country facts window, filled from the selected country data
+const _FACT_LABELS: Dictionary[StringName, StringName] = {
+	&"country_gov": &"government",
+	&"country_prestige": &"prestige",
+	&"selected_prestige_rank": &"prestige_rank",
+	&"country_economic": &"industrial_power",
+	&"selected_industry_rank": &"industrial_rank",
+	&"country_military": &"military_power",
+	&"selected_military_rank": &"military_rank",
+	&"selected_total_rank": &"total_rank",
+	&"country_population": &"population",
+}
+# Facts that have no data in the simulation yet, cleared so that the raw GUI element names are not displayed
+const _EMPTY_FACT_LABELS: PackedStringArray = [
+	"country_party", "country_tech", "country_primary_cultures", "country_accepted_cultures", "country_total",
+]
+
 var _active: bool = false
 
 var _main_window: Panel
 var _country_listbox: GUIListBox
+var _facts_window: Node
 var _facts_name: GUILabel
 var _facts_relation: GUILabel
 var _facts_status: GUILabel
+var _facts_labels: Dictionary[StringName, GUILabel]
+var _empty_facts_labels: Array[GUILabel]
 
 var _action_identifiers: PackedStringArray
 var _action_buttons: Dictionary[String, GUIIconButton]
 
+var _countries: Array = []
+var _countries_by_index: Dictionary[int, Dictionary]
 var _selected_country_index: int = -1
-var _countries_generated: bool = false
 
 
 func _ready() -> void:
@@ -46,11 +77,22 @@ func _ready() -> void:
 
 	_country_listbox = GUINode.get_gui_listbox_from_node(_main_window.get_node(^"./country_listbox"))
 
-	var facts: Node = _main_window.get_node_or_null(^"./diplomacy_country_facts")
-	if facts:
-		_facts_name = GUINode.get_gui_label_from_node(facts.get_node_or_null(^"./country_name"))
-		_facts_relation = GUINode.get_gui_label_from_node(facts.get_node_or_null(^"./our_relation"))
-		_facts_status = GUINode.get_gui_label_from_node(facts.get_node_or_null(^"./country_status"))
+	_facts_window = _main_window.get_node_or_null(^"./diplomacy_country_facts")
+	if _facts_window:
+		_facts_name = GUINode.get_gui_label_from_node(_facts_window.get_node_or_null(^"./country_name"))
+		_facts_relation = GUINode.get_gui_label_from_node(_facts_window.get_node_or_null(^"./our_relation"))
+		_facts_status = GUINode.get_gui_label_from_node(_facts_window.get_node_or_null(^"./country_status"))
+
+		for label_name: StringName in _FACT_LABELS:
+			var label: GUILabel = _find_facts_label(label_name)
+			if label:
+				_facts_labels[label_name] = label
+
+		for label_name: String in _EMPTY_FACT_LABELS:
+			var label: GUILabel = _find_facts_label(label_name)
+			# country_total is both a label with a value and the total rank, it is filled below if it exists
+			if label and not _FACT_LABELS.has(StringName(label_name)):
+				_empty_facts_labels.append(label)
 
 	_update_info()
 
@@ -76,56 +118,71 @@ func _update_info() -> void:
 	if not _main_window:
 		return
 
-	_generate_country_list()
+	_countries = PlayerSingleton.get_diplomacy_country_list()
+	_countries_by_index.clear()
+	for country: Dictionary in _countries:
+		_countries_by_index[country[&"index"]] = country
+
+	_update_country_list()
 	_generate_action_buttons()
 	_update_selected_country()
 
 
-func _generate_country_list() -> void:
+func _find_facts_label(label_name: String) -> GUILabel:
+	var node: Node = _facts_window.find_child(label_name, true, false)
+	if not node:
+		return null
+	return GUINode.get_gui_label_from_node(node)
+
+
+func _set_label_text(label: GUILabel, text: String) -> void:
+	label.set_auto_translate(false)
+	label.set_text(text)
+
+
+func _update_country_list() -> void:
 	if not _country_listbox:
 		return
 
-	var countries: Array = PlayerSingleton.get_diplomacy_country_list()
+	# Entries are only regenerated when the amount of countries changes, e.g. in a new game session
+	if _country_listbox.get_child_count() != _countries.size():
+		_country_listbox.clear_children(_countries.size())
+		while _country_listbox.get_child_count() < _countries.size():
+			var new_entry: Panel = GUINode.generate_gui_element(_gui_file, "diplomacy_country_info")
+			if not new_entry:
+				break
+			_country_listbox.add_child(new_entry)
 
-	# The list of countries only changes when the player country does, which requires a new game session,
-	# but the player country is not known yet when the menu is created so we regenerate it on first show.
-	if _countries_generated and _country_listbox.get_child_count() == countries.size():
-		return
-	_countries_generated = true
+		for i: int in mini(_country_listbox.get_child_count(), _countries.size()):
+			_setup_list_entry(_country_listbox.get_child(i), _countries[i])
 
-	_country_listbox.clear_children(countries.size())
-	while _country_listbox.get_child_count() < countries.size():
-		var entry: Panel = GUINode.generate_gui_element(_gui_file, "diplomacy_country_info")
-		if not entry:
-			break
-		_country_listbox.add_child(entry)
+	for i: int in mini(_country_listbox.get_child_count(), _countries.size()):
+		_update_list_entry(_country_listbox.get_child(i), _countries[i])
 
-	for i: int in mini(_country_listbox.get_child_count(), countries.size()):
-		var entry: Panel = _country_listbox.get_child(i)
-		var country: Dictionary = countries[i]
-		var country_index: int = country[&"index"]
 
-		var name_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./country_name")
-		if name_label:
-			name_label.set_auto_translate(false)
-			name_label.set_text(country[&"name"])
+# Static parts of an entry: name, flag and the selection button
+func _setup_list_entry(entry: Panel, country: Dictionary) -> void:
+	var country_index: int = country[&"index"]
 
-		var flag: GUIMaskedFlag = GUINode.get_gui_masked_flag_from_node_and_path(entry, ^"./country_flag")
-		if flag:
-			flag.set_flag_country_name(country[&"identifier"])
+	var name_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./country_name")
+	if name_label:
+		_set_label_text(name_label, country[&"name"])
 
-		var select_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(entry, ^"./country_select")
-		if select_button:
-			select_button.pressed.connect(_select_country.bind(country_index))
+	var flag: GUIMaskedFlag = GUINode.get_gui_masked_flag_from_node_and_path(entry, ^"./country_flag")
+	if flag:
+		flag.set_flag_country_name(country[&"identifier"])
 
-		# These columns need data the simulation does not provide yet
-		for column: NodePath in [
-			^"./country_prestige", ^"./country_economic", ^"./country_military", ^"./country_total",
-			^"./country_opinion", ^"./country_relation",
-		]:
-			var label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, column)
-			if label:
-				label.set_text("")
+	var select_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(entry, ^"./country_select")
+	if select_button:
+		select_button.pressed.connect(_select_country.bind(country_index))
+
+
+# Values that change during the game: ranks, opinion and relations
+func _update_list_entry(entry: Panel, country: Dictionary) -> void:
+	for column: NodePath in _LIST_COLUMNS:
+		var label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, column)
+		if label:
+			_set_label_text(label, str(country.get(_LIST_COLUMNS[column], "")))
 
 
 func _generate_action_buttons() -> void:
@@ -154,9 +211,6 @@ func _generate_action_buttons() -> void:
 		_main_window.add_child(option)
 		_action_buttons[identifier] = button
 
-	# Place the visible buttons in _update_selected_country
-	_update_selected_country()
-
 
 func _select_country(country_index: int) -> void:
 	_selected_country_index = country_index
@@ -168,23 +222,24 @@ func _on_action_pressed(action_index: int) -> void:
 		return
 
 	var identifier: String = _action_identifiers[action_index]
-	var sent: bool = PlayerSingleton.send_diplomatic_action(_selected_country_index, action_index)
-	if not sent:
+	if not PlayerSingleton.send_diplomatic_action(_selected_country_index, action_index):
 		push_warning("Diplomatic action \"%s\" was not accepted" % identifier)
 
-	_update_selected_country()
+	# The simulation applies the action immediately, refresh the relation and the available actions
+	_update_info()
 
 
 func _update_selected_country() -> void:
-	var has_selection: bool = _selected_country_index >= 0
+	var country: Dictionary = _countries_by_index.get(_selected_country_index, {})
+	var has_selection: bool = not country.is_empty()
 	var relation: Dictionary = {}
 	if has_selection:
 		relation = PlayerSingleton.get_diplomatic_relation(_selected_country_index)
 		has_selection = not relation.is_empty()
 
-	_update_facts(relation)
+	_update_facts(country, relation)
 
-	# Collect the visible actions, then lay them out in rows of _ACTIONS_PER_ROW
+	# Lay the visible actions out in rows of _ACTIONS_PER_ROW
 	var slot: int = 0
 	for identifier: String in _action_identifiers:
 		var button: GUIIconButton = _action_buttons.get(identifier)
@@ -192,7 +247,7 @@ func _update_selected_country() -> void:
 			continue
 
 		var visible_for_relation: bool = has_selection and _is_action_available(identifier, relation)
-		var option: Control = button.get_parent()
+		var option: Control = button.get_parent() as Control
 		option.visible = visible_for_relation
 		if not visible_for_relation:
 			continue
@@ -204,29 +259,29 @@ func _update_selected_country() -> void:
 		slot += 1
 
 
-func _update_facts(relation: Dictionary) -> void:
+func _update_facts(country: Dictionary, relation: Dictionary) -> void:
 	if _facts_name:
-		_facts_name.set_auto_translate(false)
-		_facts_name.set_text(_get_selected_country_name())
+		_set_label_text(_facts_name, country.get(&"name", ""))
 
 	if _facts_relation:
-		_facts_relation.set_auto_translate(false)
-		_facts_relation.set_text(str(relation.get(&"relation", "")))
+		_set_label_text(_facts_relation, str(relation.get(&"relation", "")))
 
 	if _facts_status:
-		_facts_status.set_auto_translate(false)
-		_facts_status.set_text(_describe_relation(relation))
+		_set_label_text(_facts_status, _describe_relation(relation))
 
+	for label_name: StringName in _facts_labels:
+		var value: Variant = country.get(_FACT_LABELS[label_name], "")
+		var text: String
+		if value is float:
+			text = GUINode.float_to_string_dp(value, 1)
+		elif value is int and _FACT_LABELS[label_name] == &"population":
+			text = GUINode.int_to_string_suffixed(value)
+		else:
+			text = str(value)
+		_set_label_text(_facts_labels[label_name], text)
 
-func _get_selected_country_name() -> String:
-	if _selected_country_index < 0:
-		return ""
-
-	for country: Dictionary in PlayerSingleton.get_diplomacy_country_list():
-		if country[&"index"] == _selected_country_index:
-			return country[&"name"]
-
-	return ""
+	for label: GUILabel in _empty_facts_labels:
+		_set_label_text(label, "")
 
 
 func _describe_relation(relation: Dictionary) -> String:

@@ -9,6 +9,7 @@
 #include <openvic-simulation/country/CountryInstance.hpp>
 #include <openvic-simulation/diplomacy/CountryRelation.hpp>
 #include <openvic-simulation/diplomacy/DiplomaticAction.hpp>
+#include <openvic-simulation/politics/Government.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
 #include <openvic-simulation/misc/GameAction.hpp>
 #include <openvic-simulation/types/TypedIndices.hpp>
@@ -36,6 +37,8 @@ void PlayerSingleton::_bind_methods() {
 	// Player country
 	OV_BIND_METHOD(PlayerSingleton::set_player_country_by_province_number, { "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::get_player_country_capital_position);
+	OV_BIND_METHOD(PlayerSingleton::get_player_country_identifier);
+	OV_BIND_METHOD(PlayerSingleton::get_player_country_name);
 
 	// Selected province
 	OV_BIND_METHOD(PlayerSingleton::set_selected_province_by_number, { "province_number" });
@@ -135,7 +138,28 @@ void PlayerSingleton::set_player_country_by_province_number(int32_t province_num
 	);
 	ERR_FAIL_NULL(province_instance);
 
-	set_player_country(province_instance->get_owner());
+	// Sea and unowned provinces do not change the player country
+	CountryInstance* owner = province_instance->get_owner();
+	if (owner == nullptr) {
+		return;
+	}
+
+	set_player_country(owner);
+}
+
+String PlayerSingleton::get_player_country_identifier() const {
+	if (player_country == nullptr) {
+		return {};
+	}
+	return convert_to<String>(player_country->get_identifier());
+}
+
+String PlayerSingleton::get_player_country_name() const {
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	if (player_country == nullptr || menu_singleton == nullptr) {
+		return {};
+	}
+	return Utilities::get_country_name(*menu_singleton, *player_country);
 }
 
 Vector2 PlayerSingleton::get_player_country_capital_position() const {
@@ -371,6 +395,19 @@ Array PlayerSingleton::get_diplomacy_country_list() const {
 	static const StringName index_key = "index";
 	static const StringName identifier_key = "identifier";
 	static const StringName name_key = "name";
+	static const StringName government_key = "government";
+	static const StringName prestige_key = "prestige";
+	static const StringName prestige_rank_key = "prestige_rank";
+	static const StringName industrial_power_key = "industrial_power";
+	static const StringName industrial_rank_key = "industrial_rank";
+	static const StringName military_power_key = "military_power";
+	static const StringName military_rank_key = "military_rank";
+	static const StringName total_rank_key = "total_rank";
+	static const StringName population_key = "population";
+	static const StringName relation_key = "relation";
+	static const StringName opinion_key = "opinion";
+
+	CountryRelationManager const& relations = instance_manager->get_country_relation_manager();
 
 	std::vector<std::pair<String, Dictionary>> entries;
 
@@ -385,6 +422,30 @@ Array PlayerSingleton::get_diplomacy_country_list() const {
 		entry[index_key] = static_cast<int32_t>(type_safe::get(country.index));
 		entry[identifier_key] = convert_to<String>(country.get_identifier());
 		entry[name_key] = name;
+
+		GovernmentType const* government_type = country.get_government_type_untracked();
+		entry[government_key] =
+		    government_type != nullptr ? menu_singleton->tr(convert_to<String>(government_type->get_identifier())) : String {};
+
+		entry[prestige_key] = static_cast<float>(country.get_prestige_untracked());
+		entry[prestige_rank_key] = static_cast<int32_t>(country.get_prestige_rank());
+		entry[industrial_power_key] = static_cast<float>(country.get_industrial_power_untracked());
+		entry[industrial_rank_key] = static_cast<int32_t>(country.get_industrial_rank());
+		entry[military_power_key] = static_cast<float>(
+		    country.get_military_power_from_land_untracked() + country.get_military_power_from_sea_untracked() +
+		    country.get_military_power_from_leaders_untracked()
+		);
+		entry[military_rank_key] = static_cast<int32_t>(country.get_military_rank());
+		entry[total_rank_key] = static_cast<int32_t>(country.get_total_rank());
+		entry[population_key] = static_cast<int64_t>(country.get_total_population());
+
+		if (player_country != nullptr) {
+			entry[relation_key] = static_cast<int32_t>(relations.get_country_relation(player_country, &country));
+			entry[opinion_key] = menu_singleton->tr(convert_to<String>(
+			    CountryRelationManager::get_opinion_identifier(relations.get_country_opinion(player_country, &country))
+			));
+		}
+
 		entries.emplace_back(std::move(name), std::move(entry));
 	}
 

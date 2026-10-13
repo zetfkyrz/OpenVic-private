@@ -21,14 +21,62 @@ signal start_date_selected(index: int)
 @export var delete_dialog: ConfirmationDialog
 @export var map_view: MapView
 
+const _POLITICAL_MAPMODE_IDENTIFIER: String = "mapmode_political"
+const _SELECTED_COUNTRY_LABEL_PATH: NodePath = ^"GameStartPanel/VBoxContainer/SelectedCountryNameLabel"
+
 var _id_to_tag: Array[StringName] = []
 var _requested_node_to_delete: Control
 var _start_date_index: int = -1
+# Start date the game is currently set up for, so that the game is not set up again for the same date
+var _setup_start_date_index: int = -1
+
+@onready var _selected_country_label: Label = get_node_or_null(_SELECTED_COUNTRY_LABEL_PATH)
 
 
 func _ready() -> void:
-	# TODO: Needs to be able to set the map to the political mapmode
-	pass
+	_update_selected_country_label()
+
+
+# Sets the game up for the selected start date, so that the map can show the countries of that date
+# and the player can pick which one to play by clicking on it.
+func _setup_start_date(index: int) -> void:
+	if index == _setup_start_date_index and GameSingleton.is_bookmark_loaded():
+		return
+
+	if GameSingleton.setup_game(index) != OK:
+		push_error("Failed to setup game for start date %d" % index)
+		_setup_start_date_index = -1
+		return
+	_setup_start_date_index = index
+
+	_set_political_mapmode()
+	_focus_map_on_player_country()
+	_update_selected_country_label()
+
+
+func _set_political_mapmode() -> void:
+	for index: int in GameSingleton.get_mapmode_count():
+		if GameSingleton.get_mapmode_identifier(index) == _POLITICAL_MAPMODE_IDENTIFIER:
+			GameSingleton.set_mapmode(index)
+			return
+	push_warning("Political mapmode not found")
+
+
+func _focus_map_on_player_country() -> void:
+	if not map_view:
+		return
+
+	var capital_position: Vector2 = PlayerSingleton.get_player_country_capital_position()
+	if capital_position != Vector2.ZERO:
+		map_view._camera.position = map_view._map_to_world_coords(capital_position)
+
+
+func _update_selected_country_label() -> void:
+	if not _selected_country_label:
+		return
+
+	var country_name: String = PlayerSingleton.get_player_country_name() if _setup_start_date_index >= 0 else ""
+	_selected_country_label.text = country_name if not country_name.is_empty() else tr("Click on a country to select it")
 
 
 func filter_for_tag(tag: StringName) -> void:
@@ -150,9 +198,12 @@ func _on_session_tag_dialog_confirmed() -> void:
 		push_error("Cannot setup game, no start date selected!")
 		return
 
-	# Game has to be setup (bookmark loaded) before opening the GameSession scene
-	if GameSingleton.setup_game(_start_date_index) != OK:
-		push_error("Failed to setup game")
+	# Game has to be setup (bookmark loaded) before opening the GameSession scene.
+	# It is normally already set up when the start date was selected.
+	if _setup_start_date_index != _start_date_index or not GameSingleton.is_bookmark_loaded():
+		_setup_start_date(_start_date_index)
+		if _setup_start_date_index != _start_date_index:
+			return
 	get_tree().change_scene_to_file("res://src/Systems/Session/GameSession.tscn")
 
 
@@ -168,6 +219,7 @@ func _on_start_date_panel_button_pressed(node: Control) -> void:
 		_on_start_button_pressed()
 		return
 	_start_date_index = node.get_index(true)
+	_setup_start_date(_start_date_index)
 	start_button.disabled = false
 	start_date_selected.emit(_start_date_index)
 
@@ -213,6 +265,9 @@ func _on_map_view_ready() -> void:
 
 
 func _on_map_view_province_clicked(province_number: int) -> void:
-	# TODO: need to be able to call something like
-	# PlayerSingleton.set_player_country_by_province_number(province_number) here
-	pass
+	# Countries can only be picked once a start date is selected
+	if _setup_start_date_index < 0 or not GameSingleton.is_bookmark_loaded():
+		return
+
+	PlayerSingleton.set_player_country_by_province_number(province_number)
+	_update_selected_country_label()

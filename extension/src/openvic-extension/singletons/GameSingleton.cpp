@@ -213,6 +213,14 @@ godot::Error GameSingleton::setup_game(int32_t bookmark_index) {
 	    bookmark_index_t(bookmark_index)
 	);
 	ERR_FAIL_NULL_V_MSG(bookmark, FAILED, Utilities::format("Failed to get bookmark with index: %d", bookmark_index));
+
+	// The lobby sets the game up as soon as a start date is selected (so that the player can pick a country on the
+	// map), which means it can be called again when another start date is selected. Drop the previous instance first.
+	if (get_instance_manager() != nullptr) {
+		PlayerSingleton::get_singleton()->reset_player_singleton();
+		game_manager.end_game_session();
+	}
+
 	bool ret = game_manager.setup_instance(*bookmark);
 
 	// TODO - remove this temporary crime assignment
@@ -229,23 +237,14 @@ godot::Error GameSingleton::setup_game(int32_t bookmark_index) {
 
 	ret &= MenuSingleton::get_singleton()->_population_menu_update_provinces() == OK;
 
-	// TODO - replace with actual starting country
-	CountryInstance* starting_country = instance_manager->get_country_instance_manager().get_country_instance_by_identifier(
+	// Default player country, the lobby lets the player change it by clicking on the map
+	CountryInstance* default_country = instance_manager->get_country_instance_manager().get_country_instance_by_identifier(
 	    "ENG"
 	);
 
 	PlayerSingleton& player_singleton = *PlayerSingleton::get_singleton();
-	player_singleton.set_player_country(starting_country);
+	player_singleton.set_player_country(default_country);
 	ERR_FAIL_NULL_V(player_singleton.get_player_country(), FAILED);
-
-	// TODO - remove this test starting research
-	for (Technology const& technology :
-	     get_definition_manager().get_research_manager().get_technology_manager().get_technologies()) {
-		if (starting_country->can_research_tech(technology, instance_manager->get_today())) {
-			starting_country->start_research(technology, instance_manager->get_today());
-			break;
-		}
-	}
 
 	return ERR(ret);
 }
@@ -259,6 +258,21 @@ bool GameSingleton::is_bookmark_loaded() const {
 }
 
 godot::Error GameSingleton::start_game_session() {
+	InstanceManager* instance_manager = get_instance_manager();
+	ERR_FAIL_NULL_V_MSG(instance_manager, FAILED, "Cannot start game session without a set up game instance!");
+
+	CountryInstance* player_country = PlayerSingleton::get_singleton()->get_player_country();
+	ERR_FAIL_NULL_V_MSG(player_country, FAILED, "Cannot start game session without a player country!");
+
+	// TODO - remove this test starting research
+	for (Technology const& technology :
+	     get_definition_manager().get_research_manager().get_technology_manager().get_technologies()) {
+		if (player_country->can_research_tech(technology, instance_manager->get_today())) {
+			player_country->start_research(technology, instance_manager->get_today());
+			break;
+		}
+	}
+
 	return ERR(game_manager.start_game_session());
 }
 

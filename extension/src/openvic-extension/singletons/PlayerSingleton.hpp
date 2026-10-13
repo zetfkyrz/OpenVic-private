@@ -4,6 +4,7 @@
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
+#include <godot_cpp/variant/string.hpp>
 
 #include <openvic-simulation/core/object/FixedPoint.hpp>
 #include <openvic-simulation/population/PopType.hpp>
@@ -45,6 +46,8 @@ namespace OpenVic {
 		void set_player_country(CountryInstance* new_player_country);
 		void set_player_country_by_province_number(int32_t province_number);
 		godot::Vector2 get_player_country_capital_position() const;
+		godot::String get_player_country_identifier() const;
+		godot::String get_player_country_name() const;
 
 		// Selected province
 		void set_selected_province(ProvinceInstance const* new_selected_province);
