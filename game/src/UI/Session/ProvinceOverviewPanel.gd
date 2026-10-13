@@ -48,9 +48,15 @@ var _selected_province_number: int:
 var _province_info: Dictionary
 
 
+var _nation_management_screen_open: bool = false
+
+
 func _ready() -> void:
 	PlayerSingleton.province_selected.connect(_on_province_selected)
 	GameSingleton.gamestate_updated.connect(_update_info)
+	Events.NationManagementScreens.update_active_nation_management_screen.connect(
+		_on_update_active_nation_management_screen
+	)
 
 	if add_gui_element("province_interface", "province_view") != OK:
 		push_error("Failed to generate province overview panel!")
@@ -359,10 +365,19 @@ func _update_info() -> void:
 			for slot_index: int in range(buildings.size(), _building_slots.size()):
 				_building_slots[slot_index].update_info({})
 
-		show()
+		# The panel overlaps the nation management screens, so it stays hidden while one is open
+		if _nation_management_screen_open:
+			hide()
+		else:
+			show()
 	else:
 		hide()
 		mouse_exited.emit()
+
+
+func _on_update_active_nation_management_screen(active_screen: NationManagement.Screen) -> void:
+	_nation_management_screen_open = active_screen != NationManagement.Screen.NONE
+	_update_info()
 
 
 func _on_province_selected(province_number: int) -> void:

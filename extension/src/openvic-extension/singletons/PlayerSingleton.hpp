@@ -1,6 +1,9 @@
 #pragma once
 
 #include <godot_cpp/classes/object.hpp>
+#include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
+#include <godot_cpp/variant/packed_string_array.hpp>
 
 #include <openvic-simulation/core/object/FixedPoint.hpp>
 #include <openvic-simulation/population/PopType.hpp>
@@ -79,6 +82,14 @@ namespace OpenVic {
 		void set_good_trade_order(int32_t good_index, bool is_selling, GUIScrollbar const* amount_slider) const;
 
 		// Diplomacy
+		// Identifiers of all diplomatic actions, the position in the array is the index passed to send_diplomatic_action.
+		godot::PackedStringArray get_diplomatic_action_identifiers() const;
+		// Array of { index, identifier, name } dictionaries for all existing countries, sorted by name.
+		godot::Array get_diplomacy_country_list() const;
+		// Relation of the player country with the given country.
+		godot::Dictionary get_diplomatic_relation(int32_t country_index) const;
+		// Queues the action from the player country to the given country, returns whether it was queued.
+		bool send_diplomatic_action(int32_t receiver_country_index, int32_t action_index) const;
 
 		// Military
 		// Argument true for general, false for admiral

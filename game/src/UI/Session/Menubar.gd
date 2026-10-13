@@ -81,9 +81,18 @@ func _ready() -> void:
 
 	GameSingleton.mapmode_changed.connect(_on_mapmode_changed)
 
+	# The minimap and map buttons overlap the nation management screens, so hide them while one is open
+	Events.NationManagementScreens.update_active_nation_management_screen.connect(
+		_on_update_active_nation_management_screen
+	)
+
 	# This will set the mapmode in GameSingleton which in turn updates the buttons so that the right
 	# one is pressed
 	_mapmode_pressed(0)
+
+
+func _on_update_active_nation_management_screen(active_screen: NationManagement.Screen) -> void:
+	visible = active_screen == NationManagement.Screen.NONE
 
 
 func _unhandled_input(event: InputEvent) -> void:

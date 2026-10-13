@@ -1,15 +1,24 @@
 #include "PlayerSingleton.hpp"
 
+#include <algorithm>
+#include <vector>
+
 #include <openvic-simulation/core/FormatValidate.hpp>
+#include <openvic-simulation/DefinitionManager.hpp>
+#include <openvic-simulation/InstanceManager.hpp>
 #include <openvic-simulation/country/CountryInstance.hpp>
+#include <openvic-simulation/diplomacy/CountryRelation.hpp>
+#include <openvic-simulation/diplomacy/DiplomaticAction.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
 #include <openvic-simulation/misc/GameAction.hpp>
 #include <openvic-simulation/types/TypedIndices.hpp>
 
 #include "openvic-extension/classes/GUIScrollbar.hpp"
 #include "openvic-extension/core/Bind.hpp"
+#include "openvic-extension/core/Convert.hpp"
 #include "openvic-extension/singletons/GameSingleton.hpp"
 #include "openvic-extension/singletons/MenuSingleton.hpp"
+#include "openvic-extension/utility/Utilities.hpp"
 
 using namespace OpenVic;
 using namespace godot;
@@ -61,6 +70,11 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_auto_create_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_auto_assign_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_mobilise, { "value" });
+
+	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_identifiers);
+	OV_BIND_METHOD(PlayerSingleton::get_diplomacy_country_list);
+	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_relation, { "country_index" });
+	OV_BIND_METHOD(PlayerSingleton::send_diplomatic_action, { "receiver_country_index", "action_index" });
 
 	ADD_SIGNAL(MethodInfo(_signal_province_selected(), PropertyInfo(Variant::INT, "index")));
 }
@@ -328,4 +342,111 @@ void PlayerSingleton::set_mobilise(bool value) const {
 	ERR_FAIL_NULL(instance_manager);
 
 	instance_manager->queue_game_action<set_mobilise_argument_t>(player_country->index, value);
+}
+
+// Diplomacy
+PackedStringArray PlayerSingleton::get_diplomatic_action_identifiers() const {
+	PackedStringArray result;
+
+	GameSingleton const* game_singleton = GameSingleton::get_singleton();
+	ERR_FAIL_NULL_V(game_singleton, result);
+
+	for (auto const& action_type : game_singleton->get_definition_manager().get_diplomatic_action_manager().get_diplomatic_action_types()) {
+		result.push_back(convert_to<String>(action_type.get_identifier()));
+	}
+
+	return result;
+}
+
+Array PlayerSingleton::get_diplomacy_country_list() const {
+	Array result;
+
+	GameSingleton const* game_singleton = GameSingleton::get_singleton();
+	ERR_FAIL_NULL_V(game_singleton, result);
+	InstanceManager const* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	static const StringName index_key = "index";
+	static const StringName identifier_key = "identifier";
+	static const StringName name_key = "name";
+
+	std::vector<std::pair<String, Dictionary>> entries;
+
+	for (CountryInstance const& country : instance_manager->get_country_instance_manager().get_country_instances()) {
+		if (&country == player_country || !country.exists() || country.get_capital() == nullptr) {
+			continue;
+		}
+
+		String name = Utilities::get_country_name(*menu_singleton, country);
+
+		Dictionary entry;
+		entry[index_key] = static_cast<int32_t>(type_safe::get(country.index));
+		entry[identifier_key] = convert_to<String>(country.get_identifier());
+		entry[name_key] = name;
+		entries.emplace_back(std::move(name), std::move(entry));
+	}
+
+	std::sort(entries.begin(), entries.end(), [](auto const& a, auto const& b) -> bool {
+		return a.first < b.first;
+	});
+
+	result.resize(entries.size());
+	for (size_t i = 0; i < entries.size(); ++i) {
+		result[i] = entries[i].second;
+	}
+
+	return result;
+}
+
+Dictionary PlayerSingleton::get_diplomatic_relation(int32_t country_index) const {
+	Dictionary result;
+
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	CountryInstanceManager& country_manager = instance_manager->get_country_instance_manager();
+	ERR_FAIL_COND_V(country_index < 0 || static_cast<size_t>(country_index) >= country_manager.get_country_instances().size(), result);
+
+	CountryInstance* other = &country_manager.get_country_instance_by_index(country_index_t(static_cast<uint32_t>(country_index)));
+	CountryInstance* player = player_country;
+	CountryRelationManager const& relations = instance_manager->get_country_relation_manager();
+
+	const CountryRelationManager::OpinionType opinion = relations.get_country_opinion(player, other);
+
+	result["relation"] = static_cast<int32_t>(relations.get_country_relation(player, other));
+	result["opinion"] = static_cast<int32_t>(opinion);
+	result["opinion_identifier"] = convert_to<String>(CountryRelationManager::get_opinion_identifier(opinion));
+	result["influence"] = static_cast<int32_t>(static_cast<uint16_t>(relations.get_influence_with(player, other)));
+	result["allied"] = relations.get_country_alliance(player, other);
+	result["at_war"] = relations.get_at_war_with(player, other);
+	result["we_have_military_access"] = relations.get_has_military_access_to(player, other);
+	result["they_have_military_access"] = relations.get_has_military_access_to(other, player);
+	result["we_subsidise"] = relations.get_war_subsidies_to(player, other);
+	result["they_subsidise"] = relations.get_war_subsidies_to(other, player);
+	result["we_have_vision"] = relations.get_has_vision(player, other);
+	result["they_have_vision"] = relations.get_has_vision(other, player);
+
+	return result;
+}
+
+bool PlayerSingleton::send_diplomatic_action(int32_t receiver_country_index, int32_t action_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+
+	ERR_FAIL_COND_V(receiver_country_index < 0, false);
+	ERR_FAIL_COND_V(action_index < 0, false);
+	ERR_FAIL_COND_V(
+	    static_cast<size_t>(receiver_country_index) >= instance_manager->get_country_instance_manager().get_country_instances().size(),
+	    false
+	);
+
+	return instance_manager->queue_game_action<diplomatic_action_argument_t>(
+	    player_country->index,
+	    country_index_t(static_cast<uint32_t>(receiver_country_index)),
+	    static_cast<uint32_t>(action_index)
+	);
 }
