@@ -10,6 +10,8 @@
 #include <openvic-simulation/diplomacy/CountryRelation.hpp>
 #include <openvic-simulation/diplomacy/DiplomaticAction.hpp>
 #include <openvic-simulation/politics/Government.hpp>
+#include <openvic-simulation/research/ResearchManager.hpp>
+#include <openvic-simulation/research/Technology.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
 #include <openvic-simulation/misc/GameAction.hpp>
 #include <openvic-simulation/types/TypedIndices.hpp>
@@ -73,6 +75,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_auto_create_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_auto_assign_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_mobilise, { "value" });
+
+	OV_BIND_METHOD(PlayerSingleton::get_technology_info);
+	OV_BIND_METHOD(PlayerSingleton::start_research, { "technology_index" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_identifiers);
 	OV_BIND_METHOD(PlayerSingleton::get_diplomacy_country_list);
@@ -509,5 +514,115 @@ bool PlayerSingleton::send_diplomatic_action(int32_t receiver_country_index, int
 	    player_country->index,
 	    country_index_t(static_cast<uint32_t>(receiver_country_index)),
 	    static_cast<uint32_t>(action_index)
+	);
+}
+
+// Technology
+Dictionary PlayerSingleton::get_technology_info() const {
+	Dictionary result;
+
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton const* game_singleton = GameSingleton::get_singleton();
+	ERR_FAIL_NULL_V(game_singleton, result);
+	InstanceManager const* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	TechnologyManager const& technology_manager =
+	    game_singleton->get_definition_manager().get_research_manager().get_technology_manager();
+	const Date today = instance_manager->get_today();
+	Technology const* current_research = player_country->get_current_research_untracked();
+
+	Array folders;
+	for (TechnologyFolder const& folder : technology_manager.get_technology_folders()) {
+		Array areas;
+		int32_t total_count = 0, researched_count = 0;
+
+		for (TechnologyArea const& area : folder.get_technology_areas()) {
+			Array technologies;
+
+			for (Technology const& technology : area.get_technologies()) {
+				int32_t status = 0;
+				if (player_country->is_technology_unlocked(technology)) {
+					status = 2;
+					researched_count++;
+				} else if (&technology == current_research) {
+					status = 3;
+				} else if (player_country->can_research_tech(technology, today)) {
+					status = 1;
+				}
+				total_count++;
+
+				const String identifier = convert_to<String>(technology.get_identifier());
+
+				Dictionary technology_dict;
+				technology_dict["index"] = static_cast<int32_t>(type_safe::get(technology.index));
+				technology_dict["identifier"] = identifier;
+				technology_dict["name"] = menu_singleton->tr(identifier);
+				technology_dict["description"] = menu_singleton->tr(identifier + String("_desc"));
+				technology_dict["year"] = static_cast<int32_t>(technology.year);
+				technology_dict["cost"] = static_cast<float>(player_country->calculate_research_cost(technology));
+				technology_dict["status"] = status;
+				technology_dict["position"] = static_cast<int32_t>(technology.index_in_area);
+				technologies.push_back(std::move(technology_dict));
+			}
+
+			const String area_identifier = convert_to<String>(area.get_identifier());
+
+			Dictionary area_dict;
+			area_dict["identifier"] = area_identifier;
+			area_dict["name"] = menu_singleton->tr(area_identifier);
+			area_dict["technologies"] = std::move(technologies);
+			areas.push_back(std::move(area_dict));
+		}
+
+		const String folder_identifier = convert_to<String>(folder.get_identifier());
+
+		Dictionary folder_dict;
+		folder_dict["index"] = static_cast<int32_t>(type_safe::get(folder.index));
+		folder_dict["identifier"] = folder_identifier;
+		folder_dict["name"] = menu_singleton->tr(folder_identifier);
+		folder_dict["researched_count"] = researched_count;
+		folder_dict["total_count"] = total_count;
+		folder_dict["areas"] = std::move(areas);
+		folders.push_back(std::move(folder_dict));
+	}
+	result["folders"] = std::move(folders);
+
+	if (current_research != nullptr) {
+		const String identifier = convert_to<String>(current_research->get_identifier());
+		const float cost = static_cast<float>(player_country->get_current_research_cost_untracked());
+		const float invested = static_cast<float>(player_country->get_invested_research_points_untracked());
+
+		Dictionary current;
+		current["index"] = static_cast<int32_t>(type_safe::get(current_research->index));
+		current["name"] = menu_singleton->tr(identifier);
+		current["category"] = menu_singleton->tr(convert_to<String>(current_research->area.get_identifier()));
+		current["cost"] = cost;
+		current["invested"] = invested;
+		current["progress"] = cost > 0.0f ? invested / cost : 0.0f;
+		current["expected_completion"] =
+		    convert_to<String>(player_country->get_expected_research_completion_date_untracked().to_string());
+		result["current"] = std::move(current);
+	}
+
+	result["daily_research_points"] = static_cast<float>(player_country->get_daily_research_points_untracked());
+	result["research_point_stockpile"] = static_cast<float>(player_country->get_research_point_stockpile_untracked());
+
+	TechnologySchool const* school = player_country->get_tech_school_untracked();
+	result["school"] = school != nullptr ? menu_singleton->tr(convert_to<String>(school->get_identifier())) : String {};
+
+	return result;
+}
+
+bool PlayerSingleton::start_research(int32_t technology_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(technology_index < 0, false);
+
+	return instance_manager->queue_game_action<start_research_argument_t>(
+	    player_country->index, technology_index_t(static_cast<uint32_t>(technology_index))
 	);
 }

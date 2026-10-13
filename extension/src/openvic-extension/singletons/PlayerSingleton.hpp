@@ -75,6 +75,11 @@ namespace OpenVic {
 		void set_tariff_rate_slider_value(fixed_point_t const value) const;
 
 		// Technology
+		// { folders: [{ index, identifier, name, researched_count, total_count, areas: [{ identifier, name,
+		// technologies: [{ index, identifier, name, year, cost, status, position }] }] }], current: {...}, ... }
+		// status: 0 = locked, 1 = can be researched, 2 = researched, 3 = being researched
+		godot::Dictionary get_technology_info() const;
+		bool start_research(int32_t technology_index) const;
 
 		// Politics
 
