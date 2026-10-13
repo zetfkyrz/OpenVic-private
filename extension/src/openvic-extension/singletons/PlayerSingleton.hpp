@@ -60,6 +60,11 @@ namespace OpenVic {
 		void increase_speed() const;
 		void decrease_speed() const;
 
+		// Land armies on the map, one entry per country and province:
+		// { province_number, position, country_identifier, country_index, is_player, army_count, regiments,
+		//   strength, organisation, in_combat, moving, army_ids, siege_progress (-1 if none), occupied }
+		godot::Array get_map_units() const;
+
 		// Production
 		void expand_selected_province_building(int32_t building_index) const;
 
