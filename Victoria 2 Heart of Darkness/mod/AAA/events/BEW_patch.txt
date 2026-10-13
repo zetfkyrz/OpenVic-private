@@ -1,0 +1,74 @@
+country_event = {
+
+	id = 95369
+
+	trigger = {
+		tag = REI
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME95369"
+	desc = "EVTDESC95369"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA95369" 
+		prestige = 5
+		add_country_modifier = {
+			name = population_hyesosi
+			duration = 3600
+		}
+		add_country_modifier = {
+			name = investion_to_fabric_in_cities
+			duration = 1080
+		}
+	}
+}
+country_event = {
+
+	id = 95569
+
+	trigger = {
+		tag = PRU
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 12
+	}
+
+	title = "EVTNAME95569"
+	desc = "EVTDESC95569"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA95569"
+ 		555 = {
+			add_core = PRU
+			secede_province = PRU 
+		}
+ 		545 = {
+			add_core = PRU
+			secede_province = PRU 
+		}
+ 		544 = {
+			add_core = PRU
+			secede_province = PRU 
+		}
+		prestige = 5
+		add_country_modifier = {
+			name = population_hyesosi
+			duration = 360
+		}
+		add_country_modifier = {
+			name = investion_to_fabric_in_cities
+			duration = 180
+		}
+	}
+}

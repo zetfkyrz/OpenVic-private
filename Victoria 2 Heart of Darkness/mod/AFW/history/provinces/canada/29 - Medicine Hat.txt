@@ -1,0 +1,13 @@
+life_rating = 35
+owner = NSC
+controller = NSC
+add_core = NSC
+trade_goods = fruit
+
+terrain = dry_grassland
+colonial = 1
+1861.1.1 = {
+	owner = NSC
+	controller = NSC
+	add_core = MLR
+}

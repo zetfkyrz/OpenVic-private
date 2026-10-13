@@ -1,0 +1,11 @@
+owner = POR
+controller = POR
+add_core = RUS
+trade_goods = grain
+life_rating = 35
+colonial = 2
+terrain = swamp_jungle
+1914.1.1 = {
+	trade_goods = oil
+	naval_base = 2
+}

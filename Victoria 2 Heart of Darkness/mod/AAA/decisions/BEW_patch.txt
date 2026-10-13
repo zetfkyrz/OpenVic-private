@@ -1,0 +1,176 @@
+political_decisions = {
+	accept_peoples_constitution = {
+		potential = {
+			tag = REI
+			NOT = {
+				check_variable = {
+					which = REIone
+					value = 1
+				}
+			}
+		}
+		allow = {
+
+		}
+		effect = {
+			set_variable = {
+				which = REIone
+				value = 2
+			}
+			goverment = democracy
+			plurality = 10
+			research_points = 35000
+			years_of_research = 300
+			prestige = 10
+			relation = {
+				who = GER
+				value = -50
+			}
+			relation = {
+				who = ENG
+				value = 50
+			}
+			relation = {
+				who = FRA
+				value = 50
+			}
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	expansion_answer = {
+		potential = {
+			tag = REI
+			NOT = {
+				check_variable = {
+					which = REItwo
+					value = 1
+				}
+			}
+		}
+		allow = {
+			
+		}
+		effect = {
+			set_variable = {
+				which = REItwo
+				value = 2
+			}
+			plurality = 10
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	PrussianExpansionOne = {
+		potential = {
+			tag = PRU
+			NOT = {
+				check_variable = {
+					which = PRUone
+					value = 1
+				}
+			}
+		}
+		allow = {
+
+		}
+		effect = {
+			set_variable = {
+				which = PRUone
+				value = 2
+			}
+			536 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			537 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			566 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			568 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			money = 50000
+			prestige = 1
+			relation = {
+				who = AUS
+				value = -50
+			}
+			relation = {
+				who = FRA
+				value = -50
+			}
+		}
+		ai_will_do = {
+			factor = 100
+		}
+	}
+	PrussianExpansionTwo = {
+		potential = {
+			tag = PRU
+			NOT = {
+				check_variable = {
+					which = PRUtwo
+					value = 2
+				}
+			}
+			check_variable = {
+				which = PRUone
+				value = 1
+			}
+		}
+		allow = {
+			year = 1861
+		}
+		effect = {
+			set_variable = {
+				which = PRUtwo
+				value = 3
+			}
+			558 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			559 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			560 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			552 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			553 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+			554 = {
+				add_core = PRU
+				secede_province = PRU 
+			}
+
+
+			relation = {
+				who = AUS
+				value = -10
+			}
+			relation = {
+				who = FRA
+				value = -10
+			}
+		}
+		ai_will_do = {
+			factor = 100
+		}
+	}
+}

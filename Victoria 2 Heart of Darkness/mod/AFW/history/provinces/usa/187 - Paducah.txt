@@ -1,0 +1,8 @@
+owner = CSA
+controller = CSA
+add_core = CSA
+trade_goods = cattle
+life_rating = 35
+terrain = forested_farmland
+1861.1.1 = { railroad = 3 }
+1914.1.1 = { railroad = 5 owner = CSAcontroller = CSAadd_core = CSA}

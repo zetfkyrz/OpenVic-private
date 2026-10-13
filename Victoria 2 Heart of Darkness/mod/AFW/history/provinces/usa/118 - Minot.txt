@@ -1,0 +1,21 @@
+owner = NSA
+controller = NSA
+add_core = NSA
+trade_goods = coal
+life_rating = 35 
+colonial = 2
+terrain = temperate_grassland
+1836.1.1 = {
+	owner = NSA
+	controller = NSA
+	add_core = MLR
+}
+1861.1.1 = {
+	owner = NSA
+	controller = NSA
+	add_core = USA
+	add_core = MLR
+	}
+1914.1.1 = {
+	railroad = 2
+}

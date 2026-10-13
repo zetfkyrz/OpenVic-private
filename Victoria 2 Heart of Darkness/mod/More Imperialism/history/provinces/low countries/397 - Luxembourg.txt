@@ -1,0 +1,15 @@
+owner = LUX
+controller = LUX
+add_core = LUX
+add_core = BEX
+trade_goods = iron
+life_rating = 35
+terrain = forested_farmland
+1861.1.1 = { railroad = 3 }
+1914.1.1 = {
+	state_building = {
+		level = 1
+		building = steel_factory
+		upgrade = yes
+	}
+}

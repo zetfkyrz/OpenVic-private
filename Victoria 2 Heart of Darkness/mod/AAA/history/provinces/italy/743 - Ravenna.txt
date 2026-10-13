@@ -1,0 +1,15 @@
+owner = PAP
+controller = PAP
+add_core = PAP
+add_core = ITA
+add_core = RpR
+add_core = RHE
+trade_goods = wool
+life_rating = 35
+terrain = good_farmland
+1861.1.1 = {
+	controller = ITA
+	owner = ITA
+	add_core = ITA
+}
+1914.1.1 = { railroad = 4 }

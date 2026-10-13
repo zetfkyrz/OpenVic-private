@@ -1,0 +1,13 @@
+add_core = MLR
+trade_goods = timber
+life_rating = 30
+terrain = tundra_mountains
+1836.1.1 = {
+	owner = MLR
+	controller = MLR
+	colonial = 2
+}
+1914.1.1 = {
+	owner = CAN
+	controller = CAN
+}

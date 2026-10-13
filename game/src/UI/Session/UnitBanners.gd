@@ -89,6 +89,7 @@ func clear_selection() -> void:
 	_selected_keys.clear()
 	for key: String in previous:
 		_update_selection_visual(key)
+	_sync_selection_markers()
 
 
 # Orders every army of the selected icons to go to the province
@@ -186,6 +187,8 @@ func _refresh() -> void:
 	for key: String in _icons.keys():
 		if not present.has(key):
 			_remove_icon(key)
+
+	_sync_selection_markers()
 
 
 func _remove_icon(key: String) -> void:
@@ -348,6 +351,7 @@ func _on_icon_pressed(key: String) -> void:
 		else:
 			_selected_keys[key] = true
 		_update_selection_visual(key)
+		_sync_selection_markers()
 		return
 
 	var was_only_selected: bool = _selected_keys.size() == 1 and _selected_keys.has(key)
@@ -358,6 +362,7 @@ func _on_icon_pressed(key: String) -> void:
 	for previous_key: String in previous:
 		_update_selection_visual(previous_key)
 	_update_selection_visual(key)
+	_sync_selection_markers()
 	if not was_only_selected:
 		SoundManager.play_effect_compat("army_selected")
 
@@ -434,6 +439,7 @@ func _finish_box_selection() -> void:
 		_update_selection_visual(key)
 	for key: String in _selected_keys:
 		_update_selection_visual(key)
+	_sync_selection_markers()
 	if not _selected_keys.is_empty():
 		SoundManager.play_effect_compat("army_selected")
 
@@ -493,3 +499,23 @@ func _draw_path(camera: Camera3D, path: PackedVector2Array, colour: Color) -> vo
 			]),
 			colour
 		)
+
+
+# Orange ring of the original game around every selected army (the map's selection markers)
+func _sync_selection_markers() -> void:
+	if not _map_view:
+		return
+
+	var markers: SelectionMarkers = _map_view.selectionMarkers
+	if not markers:
+		return
+
+	markers.clear_selection_markers()
+	for key: String in _selected_keys:
+		var icon: Dictionary = _icons.get(key, {})
+		if icon.is_empty():
+			continue
+
+		var army_ids: Array = icon[&"army_ids"]
+		var marker_id: int = int(army_ids[0]) if not army_ids.is_empty() else key.hash()
+		markers.add_selection_marker(marker_id, _map_view._map_to_world_coords(icon[&"position"]))

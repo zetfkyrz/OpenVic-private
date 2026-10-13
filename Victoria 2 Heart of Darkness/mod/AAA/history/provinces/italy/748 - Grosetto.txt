@@ -1,0 +1,15 @@
+owner = TUS
+controller = TUS
+add_core = TUS
+add_core = ITA
+add_core = RpR
+add_core = RHE
+trade_goods = cattle
+life_rating = 35
+terrain = dry_forest_hills
+1861.1.1 = {
+	controller = ITA
+	owner = ITA
+	add_core = ITA
+}
+1914.1.1 = { railroad = 4 naval_base = 4 }

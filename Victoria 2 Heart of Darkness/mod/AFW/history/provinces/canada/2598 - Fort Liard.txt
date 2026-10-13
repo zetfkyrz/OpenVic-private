@@ -1,0 +1,16 @@
+life_rating = 35
+add_core = NSC
+trade_goods = timber
+owner = NSC
+controller = NSC
+
+1914.1.1 = {
+	owner = NSC
+	controller = NSC
+	colonial = 3
+}
+1861.1.1 = {
+	owner = NSC
+	controller = NSC
+	add_core = MLR
+}

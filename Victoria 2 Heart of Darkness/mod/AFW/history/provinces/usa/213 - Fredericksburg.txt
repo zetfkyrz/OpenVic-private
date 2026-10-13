@@ -1,0 +1,19 @@
+owner = CSA
+terrain = forested_farmland
+controller = CSA
+add_core = CSA
+trade_goods = tobacco
+life_rating = 35
+1861.1.1 = {
+	owner = CSA
+	controller = CSA
+add_core = USA
+	add_core = CSA
+}
+1861.1.1 = { railroad = 3 }
+1914.1.1 = {
+	railroad = 5
+	owner = USA
+	controller = USA
+	remove_core = CSA
+}

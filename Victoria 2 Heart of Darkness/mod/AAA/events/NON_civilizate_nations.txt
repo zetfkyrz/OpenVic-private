@@ -1,0 +1,52 @@
+country_event = {
+
+	id = 96500
+
+	trigger = {
+		civilized = no
+	}
+ 
+	mean_time_to_happen =  {
+		months = 60
+	}
+
+	title = "EVTNAME96500"
+	desc = "EVTDESC96500"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA96500" 
+		prestige = 5
+		add_country_modifier = {
+			name = non_civ
+			duration = 3600
+		}
+
+	}
+}
+country_event = {
+
+	id = 96501
+
+	trigger = {
+		tag = AFG
+	}
+ 
+	mean_time_to_happen =  {
+		months = 60
+	}
+
+	title = "EVTNAME96501"
+	desc = "EVTDESC96501"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA96501" 
+		prestige = 5
+		add_country_modifier = {
+			name = afg
+			duration = 3600
+		}
+
+	}
+}

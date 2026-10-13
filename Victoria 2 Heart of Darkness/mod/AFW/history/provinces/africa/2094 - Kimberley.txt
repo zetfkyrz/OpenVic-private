@@ -1,0 +1,9 @@
+
+trade_goods = cattle
+add_core = NSC
+terrain = hilly_grassland
+1914.1.1 = {
+	owner = NSC
+	controller = NSC
+	colonial = no
+}

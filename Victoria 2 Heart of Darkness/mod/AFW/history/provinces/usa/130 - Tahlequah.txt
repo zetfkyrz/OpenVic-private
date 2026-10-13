@@ -1,0 +1,16 @@
+trade_goods = grain
+life_rating = 35
+terrain = temperate_grassland
+1861.1.1 = {
+	owner = NSA
+	controller = NSA
+	add_core = CSA
+	add_core = USA
+}
+1914.1.1 = {
+	railroad = 2
+	owner = USA
+	controller = USA
+	add_core = USA
+	remove_core = CSA
+}

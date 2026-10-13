@@ -1,0 +1,646 @@
+political_decisions = {
+	cavours_diplomacy = {
+		potential = {
+			OR = {
+				AND = { 
+					tag = ITA
+					NOT = { exists = SAR }
+				}
+				AND = { 
+					tag = SAR
+					NOT = { exists = ITA }
+				}
+			}
+			NOT = {
+				has_country_flag = cavour_has_done_his
+			}
+			owns = 465
+			owns = 466
+			owns = 472
+			FRA = {
+				exists = yes
+				is_greater_power = yes
+			}
+		}
+		allow = {
+			relation = {
+				who = FRA
+				value = 150
+			}
+			owns = 726
+			owns = 727
+			owns = 728
+		}
+		
+		effect = {
+			prestige = 20
+			badboy = -10
+			relation = {
+				who = FRA
+				value = 50
+			}
+			726 = {
+				add_core = SAR
+			}
+			727 = {
+				add_core = SAR
+			}
+			728 = {
+				add_core = SAR
+			}
+			465 = {
+				remove_core = ITA
+				remove_core = SAR
+				add_core = FRA
+				secede_province = FRA
+			}
+			466 = {
+				remove_core = ITA
+				remove_core = SAR
+				add_core = FRA
+				secede_province = FRA
+			}
+			472 = {
+				remove_core = ITA
+				remove_core = SAR
+				add_core = FRA
+				secede_province = FRA
+			}
+			set_country_flag = cavour_has_done_his
+		}
+	}
+	
+	award_order_of_st_francis = {
+		potential = {
+			tag = SIC
+			government = absolute_monarchy
+			NOT = {
+				has_country_flag = order_awarded
+			}
+		}
+		
+		allow = {
+			prestige = 25
+		}
+		
+		effect = {
+			years_of_research = 0.02
+			prestige = 2
+			set_country_flag = order_awarded
+		}
+	}
+	
+	statuto_albertino = {
+		potential = {
+			tag = SAR
+			government = absolute_monarchy
+			NOT = {
+				has_country_flag = get_your_statuto_albertino_here
+			}
+		}
+		
+		allow = {
+			average_militancy = 3
+		}
+		
+		effect = {
+			any_pop = {
+				militancy = -2
+			}
+			prestige = 5
+			set_country_flag = get_your_statuto_albertino_here
+		}
+	}
+	build_vittoriano = {
+		potential = {
+			tag = ITA
+			government = absolute_monarchy
+			NOT = {
+				has_country_flag = vittoriano_built
+			}
+		}
+		
+		allow = {
+			realism = 1
+		}
+		
+		effect = {
+			prestige = 5
+			any_pop = {
+				militancy = -1
+			}
+			set_country_flag = vittoriano_built
+		}
+	}
+	the_case_of_edgardo_mortara = {
+		potential = {
+			tag = PAP
+			government = absolute_monarchy
+			NOT = {
+				has_country_flag = edgardo_mortara
+			}
+			year = 1858
+			owns = 741
+		}
+		allow = {
+			idealism = 1
+		}
+		effect = {
+			prestige = 15
+			badboy = 1
+			any_greater_power = {
+				relation = {
+					value = -20
+					who = THIS
+				}
+			}
+			set_country_flag = edgardo_mortara
+		}
+	}
+	
+	the_first_vatican_council = {
+		potential = {
+			tag = PAP
+			government = absolute_monarchy
+			NOT = {
+				has_country_flag = first_vatican_council_held
+			}
+		}
+		
+		allow = {
+			empiricism = 1
+		}
+		
+		effect = {
+			prestige = 10
+			badboy = 1
+			any_country = {
+				limit = {
+					religion = catholic
+				}
+				relation = {
+					who = THIS
+					value = 10
+				}
+			}
+			set_country_flag = first_vatican_council_held
+		}
+	}
+	
+	law_of_guarantees = {
+		potential = {
+			tag = ITA
+			NOT = {
+				capital = 749
+			}
+		}
+		
+		allow = {
+			owns = 749
+		}
+		
+		effect = {
+			capital = 749
+			prestige = 5
+			badboy = -2
+		}
+	}
+	
+	italia_irredenta = {
+		potential = {
+			tag = ITA
+			NOT = {
+				has_country_flag = italia_ulterior
+			}
+			NOT = {
+				has_global_flag = scenario_1914_activated
+			}
+			NOT = { has_global_flag = scenario_1923_activated }
+		}
+		
+		allow = {
+			OR = {
+				invention = national_fraternity
+				is_greater_power = yes
+			}
+		}
+		
+		effect = {
+			set_country_flag = italia_ulterior
+			729 = {
+				add_core = ITA
+			}
+			730 = {
+				add_core = ITA
+			}
+			731 = {
+				add_core = ITA
+			}
+			732 = {
+				add_core = ITA
+			}
+			733 = {
+				add_core = ITA
+			}
+			734 = {
+				add_core = ITA
+			}
+			735 = {
+				add_core = ITA
+			}
+			736 = {
+				add_core = ITA
+			}
+			737 = {
+				add_core = ITA
+			}
+			769 = {
+				add_core = ITA
+			}
+			770 = {
+				add_core = ITA
+			}
+			778 = {
+				add_core = ITA
+			}
+			780 = {
+				add_core = ITA
+			}
+			781 = {
+				add_core = ITA
+			}
+			782 = {
+				add_core = ITA
+			}
+			2582 = {
+				add_core = ITA
+			}
+		}
+	}
+
+# Ñhronologymod
+	lateran_pacts = {
+		potential = {
+			tag = ITA
+			owns = 749
+			NOT = {
+				has_country_flag = lateran_pacts_ok
+			}
+		}
+		
+		allow = {
+			capital = 749
+			invention = manifest_destiny
+		}
+		
+		effect = {
+			prestige = 30
+			badboy = -2
+			749 = {
+				add_province_modifier = {
+					name = vatican
+					duration = -1
+				}
+			}
+			set_country_flag = lateran_pacts_ok
+		}
+	}
+
+# More Imperialism
+
+	Italys_fate = {
+		potential = {
+			tag = SIC
+			NOT = {
+				check_variable = {
+					which = frstitades
+					value = 1
+				}
+			}
+		}
+
+		allow = {
+			prestige = 20
+		}
+
+		effect = {
+			prestige = 5
+			badboy = 5
+			set_variable = { 
+				which = frstitades
+				value = 1
+			}
+		}
+	}
+
+	Annexation_of_the_Austrian_and_French_dominions_First = {
+		potential = {
+			tag = SIC
+			check_variable = {
+				which = italysvar
+				value = 1
+			}
+			NOT = {
+				check_variable = {
+					which = italysvar
+					value = 2
+				}
+			}
+		}
+
+		allow = {
+			check_variable = {
+				which = italysvar
+				value = 1
+			}
+			money = 10000
+		}
+
+		effect = {
+			prestige = 1
+			change_variable = {
+				which = italysvar
+				value = 1
+			}
+			money = -10000
+		}
+	}
+	Annexation_of_the_Austrian_and_French_dominions_Second = {
+		potential = {
+			tag = SIC
+			check_variable = {
+				which = italysvar
+				value = 2
+			}
+			NOT = {
+				check_variable = {
+					which = italysvar
+					value = 3
+				}
+			}
+		}
+
+		allow = {
+			check_variable = {
+				which = italysvar
+				value = 2
+			}
+			money = 30000
+		}
+
+		effect = {
+			prestige = 1
+			change_variable = {
+				which = italysvar
+				value = 1
+			}
+			money = -30000
+		}
+	}	
+	Annexation_of_the_Austrian_and_French_dominions_Third = {
+		potential = {
+			tag = SIC
+			check_variable = {
+				which = italysvar
+				value = 3
+			}
+			NOT = {
+				check_variable = {
+					which = italysvar
+					value = 4
+				}
+			}
+		}
+
+		allow = {
+			check_variable = {
+				which = italysvar
+				value = 3
+			}
+			money = 50000
+		}
+
+		effect = {
+			prestige = 1
+			change_variable = {
+				which = italysvar
+				value = 1
+			} 
+			set_variable ={
+				which = italypohyu
+				value = 1
+			}
+
+			money = -50000
+			747 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+			745 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+			744 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+			748 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+		}
+	}
+Annexation_of_venice = {
+		potential = {
+			tag = SIC
+			NOT = {
+				check_variable = {
+					which = italywarss
+					value = 1
+				}
+			}
+		}
+
+		allow = {
+			check_variable = {
+				which = italypohyu
+				value = 1
+			}
+			money = 50000
+		}
+
+		effect = {
+			prestige = 10
+			change_variable = {
+				which = italysvar
+				value = 1
+			}
+			money = -50000
+			729 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+			733 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+			732 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+			730 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+			731 ={
+			add_core = SIC
+			secede_province = SIC
+			}
+			set_variable = {
+				which = italywarss
+				value = 1
+			}
+		}
+	}
+rhe_forming = {
+		potential = {
+			tag = ITA	
+		}
+
+		allow = {
+			prestige = 60
+			money = 250000
+		}
+
+		effect = {
+			set_variable ={
+				which = newitalyform
+				value = 1
+			}
+			prestige = 10
+			money = -250000
+		change_tag = RHE
+		tech_school = "army_tech_school"
+		add_accepted_culture = swiss
+		add_accepted_culture = south_german	
+		add_core = 2568
+		add_core = 611
+		add_core = 606
+		add_core = 603
+		add_core = 604
+		add_core = 605
+		add_core = 607
+		add_core = 609
+		add_core = 608
+		add_core = 3265
+		add_core = 614
+		add_core = 613
+		add_core = 612
+		add_core = 615
+		add_core = 618
+		add_core = 617
+		add_core = 616
+		add_core = 767
+		add_core = 768
+		add_core = 624
+		add_core = 620
+		add_core = 622
+		add_core = 619
+		add_core = 621
+		add_core = 569
+		add_core = 586
+		add_core = 587
+		add_core = 588
+		add_core = 596
+		add_core = 597
+		add_core = 598
+		add_core = 595
+		add_core = 590
+		add_core = 589
+		add_core = 591
+		add_core = 594
+		add_core = 593
+		add_core = 592
+		add_core = 599
+		add_core = 601
+		add_core = 602
+		add_core = 600
+		}
+	}
+rpr_forming = {
+		potential = {
+			tag = ITA	
+		}
+
+		allow = {
+			prestige = 60
+			money = 250000
+		}
+
+		effect = {
+			set_variable ={
+				which = newitalyform
+				value = 1
+			}
+			prestige = 10
+			money = -250000
+		add_accepted_culture = french
+		add_accepted_culture = swiss
+		add_accepted_culture = spanish
+		add_accepted_culture = catalan
+		add_accepted_culture = south_german
+		change_tag = RpR
+		tech_school = "culture_tech_school"	
+		add_core = 2568
+		add_core = 611
+		add_core = 606
+		add_core = 603
+		add_core = 604
+		add_core = 605
+		add_core = 607
+		add_core = 609
+		add_core = 608
+		add_core = 3265
+		add_core = 614
+		add_core = 613
+		add_core = 612
+		add_core = 615
+		add_core = 618
+		add_core = 617
+		add_core = 616
+		add_core = 767
+		add_core = 768
+		add_core = 624
+		add_core = 620
+		add_core = 622
+		add_core = 619
+		add_core = 621
+		add_core = 450
+		add_core = 449
+		add_core = 448
+		add_core = 456
+		add_core = 455
+		add_core = 457
+		add_core = 462
+		add_core = 463
+		add_core = 461
+		add_core = 464
+		add_core = 500
+		add_core = 498
+		add_core = 499
+		add_core = 501
+		add_core = 468
+		add_core = 469
+		add_core = 471
+		add_core = 467
+		add_core = 470
+		add_core = 454
+		add_core = 453
+		add_core = 452
+		add_core = 451
+		add_core = 466
+		add_core = 465
+
+		}
+	}
+}

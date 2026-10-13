@@ -1,0 +1,14 @@
+owner = NSM
+
+controller = NSM
+add_core = SAG 
+
+add_core = NSM
+
+add_core = SPA
+trade_goods = grain
+life_rating = 35
+terrain = hilly_grassland
+1836.1.1 = {
+	remove_core = SPA
+}

@@ -1,0 +1,320 @@
+country_event = {
+
+	id = 99399
+
+	trigger = {
+		tag = BAV
+		check_variable = { 
+			which = bavpop 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99399"
+	desc = "EVTDESC99399"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99399" 
+		prestige = 5
+		any_pop = {
+			reduce_pop = 1.05
+		}
+		add_country_modifier = {
+			name = population_hyesosi
+			duration = 1080
+		}
+	}
+}
+country_event = {
+
+	id = 99393
+
+	trigger = {
+		tag = SGF
+		check_variable = { 
+			which = bavpop 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99393"
+	desc = "EVTDESC99393"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99393" 
+		prestige = 5
+		any_pop = {
+			reduce_pop = 1.05
+		}
+		add_country_modifier = {
+			name = population_hyesosi
+			duration = 360
+		}
+	}
+}
+country_event = {
+
+	id = 99398
+
+	trigger = {
+		tag = BAV
+		check_variable = { 
+			which = baveco 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99398"
+	desc = "EVTDESC99398"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99398" 
+		prestige = 5
+		add_country_modifier = {
+			name = investion_to_fabric_in_cities
+			duration = 1580
+		}
+	}
+}
+country_event = {
+
+	id = 99392
+
+	trigger = {
+		tag = SGF
+		check_variable = { 
+			which = baveco 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99392"
+	desc = "EVTDESC99392"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99392" 
+		prestige = 5
+		add_country_modifier = {
+			name = investion_to_fabric_in_cities
+			duration = 1580
+		}
+	}
+}
+country_event = {
+
+	id = 99397
+
+	trigger = {
+		tag = SWE
+		check_variable = { 
+			which = sweeco 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99397"
+	desc = "EVTDESC99397"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99397" 
+		prestige = 5
+		add_country_modifier = {
+			name = swedish_dodep
+			duration = 54000
+		}
+	}
+}
+country_event = {
+
+	id = 99394
+
+	trigger = {
+		tag = SCA
+		check_variable = { 
+			which = sweeco 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99394"
+	desc = "EVTDESC99394"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99394" 
+		prestige = 5
+		add_country_modifier = {
+			name = swedish_dodep
+			duration = 54000
+		}
+	}
+}
+country_event = {
+
+	id = 99396
+
+	trigger = {
+		tag = NET
+		check_variable = { 
+			which = netpop 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99396"
+	desc = "EVTDESC99396"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99396" 
+		prestige = 5
+		any_pop = {
+			reduce_pop = 1.05
+		}
+		add_country_modifier = {
+			name = population_hyesosi
+			duration = 1080
+		}
+	}
+}
+country_event = {
+
+	id = 99395
+
+	trigger = {
+		tag = BEX
+		check_variable = { 
+			which = netpop 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99395"
+	desc = "EVTDESC99395"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99395" 
+		prestige = 5
+		any_pop = {
+			reduce_pop = 1.05
+		}
+		add_country_modifier = {
+			name = population_hyesosi
+			duration = 360
+		}
+	}
+}
+country_event = {
+
+	id = 99391
+
+	trigger = {
+		tag = NET
+		check_variable = { 
+			which = neteco 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99391"
+	desc = "EVTDESC99391"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99391" 
+		add_country_modifier = {
+			name = dutch_full_dep
+			duration = 54000
+		}
+	}
+}
+country_event = {
+
+	id = 99390
+
+	trigger = {
+		tag = BEX
+		check_variable = { 
+			which = neteco 
+			value = 1 
+		}
+	}
+	
+	fire_only_once = yes
+ 
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+	title = "EVTNAME99390"
+	desc = "EVTDESC99390"
+	picture = "theatre"
+
+	option = {
+		name = "EVTOPTA99390" 
+		add_country_modifier = {
+			name = dutch_full_dep
+			duration = 54000
+		}
+	}
+}

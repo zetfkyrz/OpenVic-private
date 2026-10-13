@@ -1,0 +1,461 @@
+political_decisions = {
+	science_decision = {
+		potential = {
+			tag = BAV
+      			NOT = {
+				check_variable = {
+					which = bavvar
+					value = 1
+				}
+			}
+			
+		}	
+		allow = {
+			war = no
+			money = 20000
+		}
+		
+		effect = {
+			prestige = 1
+			money = -20000
+			research_points = 8000
+			any_pop = {
+				literacy = 0.01
+			}
+
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	population_decision = {
+		potential = {
+			OR = { 
+			tag = BAV
+			tag = SGF
+			}
+			NOT = {
+				check_variable = {
+					which = bavpop
+					value = 1
+				}
+			}
+		}	
+		allow = {
+			war = no
+			money = 50000
+		}
+		
+		effect = {
+			595 = { life_rating = 12.0 }
+			599 = { life_rating = 12.0 }
+			571 = { life_rating = 6.0 }
+			592 = { life_rating = 6.0 }
+			597 = { life_rating = 6.0 }
+			602 = { life_rating = 3.0 }		
+			money = -50000
+			set_variable = { which = bavpop value = 1 }
+
+		}
+		ai_will_do = {
+			factor = -1
+		}
+	}
+	population_decision_net = {
+		potential = {
+			OR = { 
+			tag = NET
+			tag = BEX
+			}
+			NOT = {
+				check_variable = {
+					which = netpop
+					value = 1
+				}
+			}
+		}	
+		allow = {
+			war = no
+			money = 50000
+		}
+		
+		effect = {
+			375 = { life_rating = 15.0 }
+			376 = { life_rating = 10.0 }
+			382 = { life_rating = 10.0 }
+			385 = { life_rating = 5.0 }
+			379 = { life_rating = 5.0 }		
+			money = -50000
+			set_variable = { which = netpop value = 1 }
+
+		}
+		ai_will_do = {
+			factor = -1
+		}
+	}
+	economic_decision = {
+		potential = {
+			OR = { 
+			tag = BAV
+			tag = SGF
+			}
+			NOT = {
+				check_variable = {
+					which = baveco
+					value = 1
+				}
+			}
+		}	
+		allow = {
+			war = no
+
+		}
+		
+		effect = {
+			set_variable = { which = baveco value = 1 }
+
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	economic_decision_net = {
+		potential = {
+			OR = { 
+			tag = NET
+			tag = BEX
+			}
+			NOT = {
+				check_variable = {
+					which = neteco
+					value = 1
+				}
+			}
+		}	
+		allow = {
+			war = no
+
+		}
+		
+		effect = {
+			set_variable = { which = neteco value = 1 }
+
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	economic_decision_swe = {
+		potential = {
+			OR = { 
+			tag = SWE
+			tag = SCA
+			}
+			NOT = {
+				check_variable = {
+					which = sweeco
+					value = 1
+				}
+			}
+		}	
+		allow = {
+			war = no
+
+		}
+		
+		effect = {
+			set_variable = { which = sweeco value = 1 }
+
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	our_politic = {
+		potential = {
+			tag = BAV
+			primary_culture = south_german
+			NOT = {
+				exists = SGF
+				exists = GER
+				tag = AUS
+				tag = KUK
+			}
+			NOT = {
+				check_variable = {
+					which = bavvar
+					value = 1
+				}
+			}
+		}	
+		allow = {
+			war = no
+		}
+		
+		effect = {
+			add_accepted_culture = north_german
+			prestige = 10
+			money = 100000
+			572 = { add_core = BAV }
+			573 = { add_core = BAV }
+			574 = { add_core = BAV }
+			set_variable ={
+				which = bavvar
+				value = 1
+			}
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	new_alliance = {
+		potential = {
+			tag = BAV
+			primary_culture = south_german
+			NOT = {check_variable = { which = baval value = 1}}
+		}	
+		allow = {
+			war = no
+
+		}
+		effect = {
+			create_alliance = BAD
+			create_alliance = WUR
+			create_alliance = NET
+			create_alliance = BEX
+			create_alliance = SWI
+			create_alliance = RUS
+			create_alliance = AUS
+			prestige = 5
+			money = -10000
+			set_variable = { which = baval value = 1}
+		}
+		ai_will_do = {
+			factor = -1
+		}
+	}
+	destroy_anklav = {
+		potential = {
+			tag = BAV
+			primary_culture = south_german
+			NOT = {
+				exists = SGF
+				exists = GER
+				tag = AUS
+				tag = KUK
+			}
+			check_variable = {
+				which = bavvar
+				value = 1
+			}
+			NOT = {
+				check_variable = {
+					which = bavvar
+					value = 2
+				}
+			}
+		}	
+		allow = {
+			war = no
+			money = 50000
+		}
+		
+		effect = {
+			prestige = 5
+			2560 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			570 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			money = -50000
+			change_variable = {
+				which = bavvar
+				value = 1
+			} 
+
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	new_anklav = {
+		potential = {
+			tag = BAV
+			check_variable = {
+				which = bavvar
+				value = 2
+			}
+			NOT = {
+				check_variable = {
+					which = bavvar
+					value = 3
+				}
+			}
+		}	
+		allow = {
+			war = no
+
+			money = 50000
+		}
+		
+		effect = {
+			prestige = 1
+			594 ={
+			add_core = BAV
+			secede_province = BAV
+			money = -50000
+			}
+			change_variable = {
+				which = bavvar
+				value = 1
+			} 
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	vurtemberg_decision = {
+		potential = {
+			tag = BAV
+			check_variable = {
+				which = bavvar
+				value = 3
+			}
+			NOT = {
+				check_variable = {
+					which = bavvar
+					value = 4
+				}
+			}
+		}	
+		allow = {
+			war = no
+
+			money = 60000
+		}
+		
+		effect = {
+			prestige = 6
+			589 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			591 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			593 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			590 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			money = -60000
+			change_variable = {
+				which = bavvar
+				value = 1
+			} 
+
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+	baden_decision = {
+		potential = {
+			tag = BAV
+			check_variable = {
+				which = bavvar
+				value = 4
+			}
+			NOT = {
+				check_variable = {
+					which = bavvar
+					value = 5
+				}
+			}
+		}	
+		allow = {
+			war = no
+
+			money = 80000
+		}
+		
+		effect = {
+			prestige = 8
+			569 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			586 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			587 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			588 ={
+			add_core = BAV
+			secede_province = BAV
+			}
+			money = -80000
+			change_variable = {
+				which = bavvar
+				value = 1
+			} 
+
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+
+
+
+
+form_south_german_confederation_bav = {
+		potential = {
+			tag = BAV
+			primary_culture = south_german
+			NOT = {
+				exists = SGF
+				exists = GER
+				tag = AUS
+				tag = KUK
+			}
+		}	
+		allow = {
+			war = no
+		}
+		
+		effect = {
+			prestige = 15
+			any_country = {
+				limit = {
+					primary_culture = south_german
+					in_sphere = THIS
+					NOT = {
+						tag = THIS
+					}
+				}
+				annex_to = THIS
+			}
+			any_owned = {
+				limit = {
+					is_core = GER
+				}
+				add_core = SGF
+			}
+			change_tag = SGF
+		}
+		ai_will_do = {
+			factor = 1
+		}
+	}
+}

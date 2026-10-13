@@ -1,0 +1,50 @@
+<<<<<<< HEAD;;
+#CONTRIES & PARTIES;;X
+NSA; Независимая Суверенная Америка;X
+NSC;Независимая Суверенная Русская Канада;X
+NSM;Независимая Суверенная Скандинавская Мексика;X
+MLR;Младо-Россия;X
+SAG;Скандинаво-американская Государство;X
+NSA_ADJ; Независимая Суверенная Америка;X
+NSC_ADJ;Независимая Суверенная Русская Канада;X
+NSM_ADJ;Независимая Суверенная Скандинавская Мексика;X
+MLR_ADJ;НовоРоссия;X
+SAG_ADJ;Скандинаво-американская Государство;X
+MLR_liberal;Младо-Росская либеральная партия;X
+SAG_liberal;Либераторианская партия;X
+NSA_liberal;Либераторианская партия;X
+NSC_liberal;Либераторианская партия;X
+NSM_liberal;Либераторианская партия;X
+MLR_conservative;Партия МладоРоссии;X
+SAG_conservative;Консервативная партия;X
+NSA_conservative;Консервативная партия;X
+NSC_conservative;Консервативная партия;X
+NSM_conservative;Консервативная партия;X
+MLR_socialist;Партия МладоРосских офицеров;X
+SAG_socialist;Социалистическая партия;X
+NSA_socialist;Социалистическая партия;X
+NSC_socialist;Социалистическая партия;X
+NSM_socialist;Социалистическая партия;X
+MLR_reactionary;Партия Руси;X
+SAG_reactionary;Антиреформаторская партия;X
+NSA_reactionary;Антиреформаторская партия;X
+NSC_reactionary;Антиреформаторская партия;X
+NSM_reactionary;Антиреформаторская партия;X
+MLR_anarcho_liberal;Партия гандонов;X
+SAG_anarcho_liberal;Либерал-анархистская партия;X
+NSA_anarcho_liberal;Либерал-анархистская партия;X
+NSC_anarcho_liberal;Либерал-анархистская партия;X
+NSM_anarcho_liberal;Либерал-анархистская партия;X
+MLR_communist;ВКП(Б);X
+SAG_communist;Коммунистическая партия;X
+NSA_communist;Коммунистическая партия;X
+NSC_communist;Коммунистическая партия;X
+NSM_communist;Коммунистическая партия;X
+MLR_fascist;Партия Русского нацизма;X
+SAG_fascist;Нацистская партия;X
+NSA_fascist;Нацистская партия;X
+NSC_fascist;Нацистская партия;X
+NSM_fascist;Нацистская партия;X
+#dop_parties;;X
+MLR_socialist_2;Партия рабочих и крестьян;X
+MLR_liberal_2;ЛДПР;X

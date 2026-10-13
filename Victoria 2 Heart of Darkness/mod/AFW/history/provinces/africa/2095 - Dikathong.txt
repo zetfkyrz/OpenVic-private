@@ -1,0 +1,9 @@
+
+trade_goods = grain
+add_core = NSC
+terrain = desert
+1914.1.1 = {
+	owner = NSC
+	controller = NSC
+	colonial = no
+}

@@ -1,0 +1,36 @@
+#New War Mod
+country_event = {
+	id = 68500
+	title = "EVTNAME68500"
+	desc = "EVTDESC68500"			
+	picture = "NCapital"
+	fire_only_once = yes
+	trigger = {
+		tag = TUR
+		OR ={
+			NOT = {
+				owns = 805
+			}
+			NOT = {
+				owns = 817
+			}
+			NOT = {
+				owns = 818
+			}
+			NOT = {
+				owns = 814
+			}		
+		}
+	}
+
+	mean_time_to_happen =  {
+		months = 1
+	}
+
+
+	option = {
+		name = "EVTOPTA68500"
+		tag = TUR
+		capital = 876
+	}
+}

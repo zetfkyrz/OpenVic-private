@@ -45,6 +45,8 @@ struct corner_ret_t {
 	vec3 terrain_colour;
 	vec4 province_colour;
 	float highlight_mix_val;
+	// How strongly the current pixel is part of a border between regions of different colour
+	float border_val;
 };
 
 // Calculate terrain colour at the specified corner of the current pixel
@@ -84,7 +86,14 @@ corner_ret_t get_corner_colour(const corner_args_t corner_args, const vec2 corne
 		float(province_index == hover_index) + float(province_index == selected_index)
 	) * float(province_index != 0u);
 
+	ret.border_val = 0.0;
+
 	return ret;
+}
+
+// Difference in province colour between two corners, only counted where both are land (alpha is 0 for water)
+float corner_colour_difference(const corner_ret_t a, const corner_ret_t b) {
+	return length(a.province_colour.rgb - b.province_colour.rgb) * min(a.province_colour.a, b.province_colour.a);
 }
 
 // Blend together terrain colours from the four corners of the current pixel
@@ -112,6 +121,13 @@ corner_ret_t mix_terrain_colour(const corner_args_t corner_args, const vec2 pixe
 		mix(mm.highlight_mix_val, pm.highlight_mix_val, pixel_offset.x),
 		mix(mp.highlight_mix_val, pp.highlight_mix_val, pixel_offset.x),
 		pixel_offset.y
+	);
+
+	// Pixels whose corners belong to regions with a different colour are on a border (e.g. between countries
+	// in the political mapmode, provinces of the same country share a colour and so have no border between them)
+	ret.border_val = max(
+		max(corner_colour_difference(mm, pm), corner_colour_difference(mp, pp)),
+		max(corner_colour_difference(mm, mp), corner_colour_difference(pm, pp))
 	);
 
 	return ret;
@@ -182,6 +198,11 @@ vec3 get_map_colour(vec2 uv) {
 
 	// Blend the near (detailed terrain) and far (parchment) colours according to the parchment mix factor (0 for near, 1 for far)
 	vec3 final_colour = mix(near_colour, far_colour, parchment_mix);
+
+	// Dark, partly transparent borders, fainter on the far parchment map
+	const vec3 border_colour = vec3(0.03, 0.03, 0.04);
+	float border_amount = smoothstep(0.06, 0.22, colours.border_val) * mix(0.45, 0.3, parchment_mix);
+	final_colour = mix(final_colour, border_colour, border_amount);
 
 	// Significantly brighted the colour if it is hovered over and/or selected, but not if it has province index 0 (all invalid pixels)
 	const vec3 highlight_colour = vec3(1.0);

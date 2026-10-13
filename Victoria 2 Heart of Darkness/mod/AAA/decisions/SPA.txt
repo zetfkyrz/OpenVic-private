@@ -1,0 +1,115 @@
+political_decisions = {
+	establish_la_guardia_civil = {
+		potential = {
+			tag = SPA
+			OR = {
+				government = absolute_monarchy
+				government = prussian_constitutionalism
+				government = hms_government
+			}
+			NOT = {
+				has_country_flag = guardia_civil_established
+			}
+		}
+		allow = {
+			NOT = {
+				num_of_revolts = 1
+			}
+			OR = {
+				average_militancy = 3
+				average_consciousness = 4
+			}
+			constitutionalism_thought = 1
+		}
+		effect = {
+			add_country_modifier = {
+				name = la_guardia_civil
+				duration = -1
+			}
+			set_country_flag = guardia_civil_established
+		}
+	}
+
+	confiscations_of_mendizabal = {
+		potential = {
+			tag = SPA
+			NOT = {
+				has_country_flag = mendizabal_confiscated
+			}
+		}
+
+		allow = {
+			ideological_thought = 1
+		}
+
+		effect = {
+			treasury = 25000
+			prestige = 10
+			relation = {
+				who = PAP
+				value = -50
+			}
+			any_pop = {
+				scaled_militancy = {
+					ideology = conservative
+					factor = 4
+				}
+				dominant_issue = {
+					value = pro_atheism
+					factor = 0.15
+				}
+			}
+			set_country_flag = mendizabal_confiscated
+		}
+	}
+	fight_with_corruption = {
+		potential = {
+			tag = SPA
+			NOT = {
+				check_variable = {
+					which = sapcor
+					value = 1
+				}
+			}
+		}
+
+		allow = {
+			check_variable = {
+				which = sapcor
+				value = 0
+			}
+		}
+
+		effect = {
+			prestige = 5
+			money = 100000
+			any_pop = {
+				scaled_militancy = {
+					ideology = conservative
+					factor = -8
+				}
+				scaled_militancy = {
+					ideology = liberal
+					factor = -20
+				}
+				dominant_issue = {
+					value = moralism
+					factor = 0.15
+				}
+				AND = {
+					ruling_party_ideology = liberal
+					average_consciousness = -2
+				}
+				AND = {
+					ruling_party_ideology = conservative
+					average_consciousness = -2
+				}
+				war_exhaustion = -50
+			}
+			set_variable = {
+				which = sapcor
+				value = 1
+			}
+		}
+	}
+}

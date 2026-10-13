@@ -1,0 +1,2776 @@
+#Sonora Region (167000)
+#Hermosillo (91000/22750 POPS)
+2137 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 2400
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 3000
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 600
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 1500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 7500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 2000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 130500
+	}
+
+	aristocrats = {
+		culture = swedish
+		religion = animist
+		size = 1250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 4000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 750
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 73250
+	}
+}
+#Nogales (14000/3500 POPS)
+2140 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 2500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 13500
+	}
+
+	aristocrats = {
+		culture = swedish
+		religion = animist
+		size = 250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 1000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 18000
+	}
+}
+#Guaymas (62000/15500 POPS)
+2141 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 25000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 1500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 5000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 115000
+	}
+
+	aristocrats = {
+		culture = swedish
+		religion = animist
+		size = 500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 1500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 27000
+	}
+}
+#Baja California Region (24000)
+#Loreto (5000/1250 POPS)
+2138 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 2500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 11000
+	}
+}
+#Rosarito (19000/4750 POPS)
+2139 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 7000
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 300
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 50
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 700
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 2250
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 22000
+	}
+
+	aristocrats = {
+		culture = swedish
+		religion = animist
+		size = 250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 1000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 18000
+	}
+}
+#Chihuahua Region (162000)
+#Chihuahua (119000/29750 POPS)
+2142 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 44000
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 3000
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 3000
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 14900
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 7250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 234450
+	}
+
+	aristocrats = {
+		culture = swedish
+		religion = animist
+		size = 500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 1500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 27000
+	}
+}
+#Paso del Norte (14000/3500 POPS)
+2143 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 7500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 650
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 2350
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 30000
+	}
+}
+#Delicias (10000/2500 POPS)
+2144 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 7500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 2000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 20500
+	}
+}
+#Parral (19000/4750 POPS)
+2145 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 2500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 350
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 850
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 1555
+	}
+
+	aristocrats = {
+		culture = swedish
+		religion = animist
+		size = 500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 150
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 2700
+	}
+}
+#Coahuila Region (160000)
+#ruled by Mexico 1836
+#Morelos (12000/3000 POPS)
+2147 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 50
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 150
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 25
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 2700
+	}
+}
+#Saltillo (44000/11000 POPS)
+2151 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 250
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = catholic
+		size = 50
+	}
+
+	officers = {
+		culture = swedish
+		religion = catholic
+		size = 35
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 400
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 7115
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 150
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 25
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 2750
+	}
+}
+#Monclova (48000/12000 POPS)
+2152 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 275
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 125
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 600
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 125
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 10875
+	}
+}
+#Torreon (56000/14000 POPS)
+2155 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 300
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 100
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 550
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 125
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 9925
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 150
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 25
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 2750
+	}
+}
+#Nuevo Leon-Tamaulipas Region (172000)
+#ruled by Mexico 1836
+#Monterrey (104000/26000 POPS)
+2146 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 550
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = catholic
+		size = 50
+	}
+
+	officers = {
+		culture = swedish
+		religion = catholic
+		size = 50
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 200
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 950
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 200
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 17000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 350
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 75
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 6500
+	}
+}
+#Reynosa (16000/4000 POPS)
+2148 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 100
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 200
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 50
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 3575
+	}
+}
+#Matamoros (28000/7000 POPS)
+2149 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 175
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 350
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 6325
+	}
+}
+#Ciudad Victoria (24000/6000 POPS)
+2150 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 150
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 50
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 300
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 50
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 5450
+	}
+}
+#Durango-Sinaloa Region (252000)
+#ruled by Mexico 1836
+#Durango (64000/16000 POPS)
+2153 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 350
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 150
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 700
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 150
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 12650
+	}
+
+	aristocrats = {
+		culture = swedish
+		religion = animist
+		size = 25
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 50
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 100
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 25
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 1800
+	}
+}
+#Santa Maria del Oro (44000/11000 POPS)
+2154 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 225
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 450
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 100
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 8250
+	}
+
+	aristocrats = {
+		culture = swedish
+		religion = animist
+		size = 25
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 50
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 100
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 25
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 1800
+	}
+}
+#Mazatlan (116000/29000 POPS)
+2156 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 650
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	officers = {
+		culture = swedish
+		religion = catholic
+		size = 50
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 275
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 1450
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 300
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 26200
+	}
+}
+#Culiacan (28000/7000 POPS)
+2157 = {
+	aristocrats = {
+		culture = swedish
+		religion = catholic
+		size = 175
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = catholic
+		size = 350
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = catholic
+		size = 75
+	}
+
+	farmers = {
+		culture = swedish
+		religion = catholic
+		size = 6325
+	}
+}
+#Zacatecas-Aguascalientes Region (685000)
+#Zacatecas (405000/101250 POPS)
+2158 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 17250
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 2125
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 5150
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 4000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 36250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 200
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 2150
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 450
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 48200
+	}
+}
+#Aguascalientes (182000/45500 POPS)
+2160 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 8500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 550
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 2100
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 405000
+	}
+}
+#Tepic (98000/24500 POPS)
+2161 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 42500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 2500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 13250
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 15000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 170000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = animist
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = animist
+		size = 2000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = animist
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = animist
+		size = 37000
+	}
+}
+#Potosi-Guanajuato Region (1658100)
+#San Luis Potosi (411100/102775 POPS)
+2159 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 162500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 7750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 43750
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 35000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 555000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 2000
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 26500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 16250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 325250
+	}
+}
+#Guanajuato (818000/204500 POPS)
+2167 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 340000
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 33000
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 4250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 13750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 55000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 50000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 700000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 10000
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 95000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 50000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 1000000
+	}
+}
+#Queretaro (429000/107250 POPS)
+2173 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 185000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 5500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 18500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 20000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 310000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 3000
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 47000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 25000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 625000
+	}
+}
+#Veracruz-Tabasco Region (393000)
+#Veracruz (169000/42250 POPS)
+2162 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 14250
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 875
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 150
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	craftsmen = {
+		culture = swedish
+		religion = protestant
+		size = 1000
+	}
+	
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 300
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 3500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 150
+	}
+
+	craftsmen = {
+		culture = swedish
+		religion = protestant
+		size = 4000
+	}
+	
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1350
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 18000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 50
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	craftsmen = {
+		culture = swedish
+		religion = protestant
+		size = 1000
+	}
+	
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 100
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 8350
+	}
+}
+#Tampico (95000/23750 POPS)
+2163 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 4250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 2000
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 6250
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 2500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 42500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 900
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 2000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 16850
+	}
+}
+#Minatitlan (57000/14250 POPS)
+2164 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 2500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 200
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 550
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 1250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 50
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 550
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 175
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 10975
+	}
+}
+#Villahermosa (72000/18000 POPS)
+2165 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 325
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 225
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 450
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 2750
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 50
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 600
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 125
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 13225
+	}
+}
+#Jalisco Region (534000)
+#Guadalajara (358000/89500 POPS)
+2166 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 15500
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 12500
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 2000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 10000
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 145000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 40000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 560000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 5500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 102750
+	}
+}
+#Puerto Vallarta (176000/44000 POPS)
+2168 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 75000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 3500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 19000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 5000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 275000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 6500
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 121500
+	}
+}
+#Michoacan Region (677000)
+#Colima (129000/32250 POPS)
+2169 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 57500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 3750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 23000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 10000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 280000
+	}
+}
+#Morelia (415000/103750 POPS)
+2170 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 17500
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 1350
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 3900
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 3000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 55000
+	}
+
+	clergymen = {
+		culture = tarascan
+		religion = protestant
+		size = 175
+	}
+
+	artisans = {
+		culture = tarascan
+		religion = protestant
+		size = 1800
+	}
+
+	soldiers = {
+		culture = tarascan
+		religion = protestant
+		size = 375
+	}
+
+	farmers = {
+		culture = tarascan
+		religion = protestant
+		size = 35400
+	}
+}
+#Los Alaniles (133000/33250 POPS)
+2171 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 575
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 300
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1875
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 21000
+	}
+
+	clergymen = {
+		culture = tarascan
+		religion = protestant
+		size = 75
+	}
+
+	artisans = {
+		culture = tarascan
+		religion = protestant
+		size = 400
+	}
+
+	soldiers = {
+		culture = tarascan
+		religion = protestant
+		size = 100
+	}
+
+	farmers = {
+		culture = tarascan
+		religion = protestant
+		size = 7425
+	}
+}
+#Mexico Region (859500)
+#Mexico City (606500/151625 POPS)
+2172 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 1650
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 2350
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 425
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 1575
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 34000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 10000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 50000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 275
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 19850
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 30000
+	}
+}
+#Toluca (253000/63250 POPS)
+2174 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 1050
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 300
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1900
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 7000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 17000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 150
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1700
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 350
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 33800
+	}
+}
+#Puebla-Hidalgo Region (825000)
+#Tulancingo (224000/56000 POPS)
+2175 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 950
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 350
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1900
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 800
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 23000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 125
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1400
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 300
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 27175
+	}
+}
+#Puebla (601000/150250 POPS)
+2176 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 2550
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 1850
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 300
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 1250
+	}
+
+	craftsmen = {
+		culture = swedish
+		religion = protestant
+		size = 12000
+	}
+	
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 6300
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 7000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 39000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 425
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 6950
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 71375
+	}
+}
+#Oaxaca Region (586500)
+#Oaxaca (467500/116875 POPS)
+2177 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 1650
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 1200
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 225
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 750
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 3050
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 7000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 26000
+	}
+
+	clergymen = {
+		culture = zapotec
+		religion = protestant
+		size = 400
+	}
+
+	artisans = {
+		culture = zapotec
+		religion = protestant
+		size = 4950
+	}
+
+	soldiers = {
+		culture = zapotec
+		religion = protestant
+		size = 1200
+	}
+
+	farmers = {
+		culture = zapotec
+		religion = protestant
+		size = 70450
+	}
+}
+#Collataro (119000/29750 POPS)
+2178 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 525
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 200
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 525
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 8000
+	}
+
+	clergymen = {
+		culture = zapotec
+		religion = protestant
+		size = 100
+	}
+
+	artisans = {
+		culture = zapotec
+		religion = protestant
+		size = 1000
+	}
+
+	soldiers = {
+		culture = zapotec
+		religion = protestant
+		size = 200
+	}
+
+	farmers = {
+		culture = zapotec
+		religion = protestant
+		size = 18700
+	}
+}
+#Guerrero Region (319500)
+#Acapulco (224000/56000 POPS)
+2179 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 900
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 625
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 125
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1850
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 29500
+	}
+
+	clergymen = {
+		culture = tarascan
+		religion = protestant
+		size = 100
+	}
+
+	artisans = {
+		culture = tarascan
+		religion = protestant
+		size = 1050
+	}
+
+	soldiers = {
+		culture = tarascan
+		religion = protestant
+		size = 225
+	}
+
+	farmers = {
+		culture = tarascan
+		religion = protestant
+		size = 20625
+	}
+}
+#Chilpancingo (95500/23875 POPS)
+2180 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 450
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 225
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 900
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 9800
+	}
+
+	clergymen = {
+		culture = tarascan
+		religion = protestant
+		size = 50
+	}
+
+	artisans = {
+		culture = tarascan
+		religion = protestant
+		size = 550
+	}
+
+	soldiers = {
+		culture = tarascan
+		religion = protestant
+		size = 125
+	}
+
+	farmers = {
+		culture = tarascan
+		religion = protestant
+		size = 11275
+	}
+}
+#Chiapas Region (148000)
+#Tuxtla (100000/25000 POPS)
+2181 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 450
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 300
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 50
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 950
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 4500
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 50
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 850
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 175
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 16925
+	}
+}
+#Tapachula (48000/12000 POPS)
+2182 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 225
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 700
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 3750
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 75
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 300
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 75
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 6550
+	}
+}
+#Yucatan Region (528500)
+#Merida (286000/71500 POPS)
+2183 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 1275
+	}
+
+	bureaucrats = {
+		culture = swedish
+		religion = protestant
+		size = 1150
+	}
+
+	officers = {
+		culture = swedish
+		religion = protestant
+		size = 200
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 225
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1650
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 19000
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 2950
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1275
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 42275
+	}
+}
+#Camnpeche (128500/32125 POPS)
+2184 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 550
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 175
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1000
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 500
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 6775
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 350
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1775
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1000
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 20000
+	}
+}
+#Bacalar (114000/28500 POPS)
+2185 = {
+	aristocrats = {
+		culture = swedish
+		religion = protestant
+		size = 475
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 200
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 250
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 50
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 1025
+	}
+
+	clergymen = {
+		culture = swedish
+		religion = protestant
+		size = 350
+	}
+
+	artisans = {
+		culture = swedish
+		religion = protestant
+		size = 1800
+	}
+
+	soldiers = {
+		culture = swedish
+		religion = protestant
+		size = 1225
+	}
+
+	farmers = {
+		culture = swedish
+		religion = protestant
+		size = 23125
+	}
+}

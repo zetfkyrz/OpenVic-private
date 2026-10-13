@@ -1,0 +1,15 @@
+
+add_core = NSC
+trade_goods = fruit
+terrain = semi_desert_hills
+1836.1.1 = {
+	owner = NSC
+	controller = NSC
+	colonial = 2
+}
+1914.1.1 = {
+	owner = SAF
+	controller = SAF
+	colonial = no
+	trade_goods = precious_metal
+}
