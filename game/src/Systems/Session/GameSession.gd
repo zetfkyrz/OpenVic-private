@@ -78,7 +78,8 @@ func _on_map_view_province_clicked(province_number: int) -> void:
 func _on_map_view_province_right_clicked(province_number: int) -> void:
 	# With an army selected a right click is a movement order
 	if _unit_banners.has_selection():
-		_unit_banners.order_move(province_number)
+		# Shift adds the province to the route of the armies, so the armies stay selected and keep following it
+		_unit_banners.order_move(province_number, Input.is_key_pressed(KEY_SHIFT))
 		return
 
 	# TODO - open diplomacy screen on province owner or viewed country if province has no owner

@@ -93,6 +93,7 @@ void PlayerSingleton::_bind_methods() {
 
 	OV_BIND_METHOD(PlayerSingleton::get_war_overview);
 	OV_BIND_METHOD(PlayerSingleton::move_army, { "army_id", "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::queue_army_move, { "army_id", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::stop_army, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::propose_peace, { "war_id", "peace_type" });
 	OV_BIND_METHOD(PlayerSingleton::create_front, { "enemy_country_index" });
@@ -973,6 +974,25 @@ bool PlayerSingleton::move_army(int64_t army_id, int32_t province_number) const 
 	ERR_FAIL_COND_V(&group->get_country() != player_country, false);
 
 	return instance_manager->queue_game_action<move_army_argument_t>(
+	    static_cast<unique_id_t>(army_id), province->index
+	);
+}
+
+bool PlayerSingleton::queue_army_move(int64_t army_id, int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+
+	UnitInstanceGroup* group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+	    static_cast<unique_id_t>(army_id)
+	);
+	ERR_FAIL_NULL_V(group, false);
+	ERR_FAIL_COND_V(&group->get_country() != player_country, false);
+
+	return instance_manager->queue_game_action<queue_army_move_argument_t>(
 	    static_cast<unique_id_t>(army_id), province->index
 	);
 }

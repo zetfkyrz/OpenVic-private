@@ -118,6 +118,8 @@ namespace OpenVic {
 		//   auto_plan: bool, selected_province_number }
 		godot::Dictionary get_war_overview() const;
 		bool move_army(int64_t army_id, int32_t province_number) const;
+		// Adds the province to the end of the route of the army (Shift + right click)
+		bool queue_army_move(int64_t army_id, int32_t province_number) const;
 		bool stop_army(int64_t army_id) const;
 		// peace_type: 0 = white peace, 1 = take the states occupied by us, 2 = give the states occupied by the enemy
 		bool propose_peace(int32_t war_id, int32_t peace_type) const;

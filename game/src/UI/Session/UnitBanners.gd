@@ -32,8 +32,9 @@ const _ENEMY_FRAME: int = 3
 var _map_view: MapView
 # key -> { panel: Panel, anchor: Vector2, position: Vector2, slot: int, slot_count: int, drop: float, ids: Array, ... }
 var _icons: Dictionary[String, Dictionary] = {}
-# Selected icons of the player's armies
-var _selected_keys: Dictionary[String, bool] = {}
+# Selected armies of the player by army id. Armies (not icons) are selected, because the icon of an army changes when it
+# moves to another province, but the army stays selected until the player deselects it.
+var _selected_armies: Dictionary[int, bool] = {}
 
 # Selection box (left mouse button held and dragged over the map)
 const _BOX_DRAG_THRESHOLD: float = 6.0
@@ -80,30 +81,53 @@ func _ready() -> void:
 
 
 func has_selection() -> bool:
-	for key: String in _selected_keys:
-		if _icons.has(key) and _icons[key].get(&"is_player", false):
+	return not _get_selected_army_ids().is_empty()
+
+
+func clear_selection() -> void:
+	if _selected_armies.is_empty():
+		return
+	_selected_armies.clear()
+	_update_all_selection_visuals()
+
+
+# Ids of the selected armies that still exist
+func _get_selected_army_ids() -> Array[int]:
+	var result: Array[int] = []
+	for icon: Dictionary in _icons.values():
+		if not icon.get(&"is_player", false):
+			continue
+		for army_id: int in icon[&"army_ids"]:
+			if _selected_armies.has(army_id):
+				result.append(army_id)
+	return result
+
+
+func _is_icon_selected(icon: Dictionary) -> bool:
+	if not icon.get(&"is_player", false):
+		return false
+	for army_id: int in icon[&"army_ids"]:
+		if _selected_armies.has(army_id):
 			return true
 	return false
 
 
-func clear_selection() -> void:
-	if _selected_keys.is_empty():
-		return
-	var previous: Array = _selected_keys.keys()
-	_selected_keys.clear()
-	for key: String in previous:
+func _update_all_selection_visuals() -> void:
+	for key: String in _icons:
 		_update_selection_visual(key)
 
 
-# Orders every army of the selected icons to go to the province
-func order_move(province_number: int) -> void:
+# Orders every selected army to go to the province, with queued = true (Shift) the province is added to the end of the
+# route the armies are already following
+func order_move(province_number: int, queued: bool = false) -> void:
 	var ordered: int = 0
-	for key: String in _selected_keys:
-		if not _icons.has(key) or not _icons[key].get(&"is_player", false):
-			continue
-		for army_id: int in _icons[key][&"army_ids"]:
-			if PlayerSingleton.move_army(army_id, province_number):
-				ordered += 1
+	for army_id: int in _get_selected_army_ids():
+		var accepted: bool = (
+			PlayerSingleton.queue_army_move(army_id, province_number) if queued
+			else PlayerSingleton.move_army(army_id, province_number)
+		)
+		if accepted:
+			ordered += 1
 
 	if ordered == 0:
 		push_warning("The armies cannot move to province %d" % province_number)
@@ -191,11 +215,21 @@ func _refresh() -> void:
 		if not present.has(key):
 			_remove_icon(key)
 
+	# Armies that are gone (destroyed) are no longer selected
+	if not _selected_armies.is_empty():
+		var existing: Dictionary[int, bool] = {}
+		for icon: Dictionary in _icons.values():
+			for army_id: int in icon.get(&"army_ids", []):
+				existing[army_id] = true
+		for army_id: int in _selected_armies.keys():
+			if not existing.has(army_id):
+				_selected_armies.erase(army_id)
+	_update_all_selection_visuals()
+
 
 func _remove_icon(key: String) -> void:
 	var icon: Dictionary = _icons[key]
 	_icons.erase(key)
-	_selected_keys.erase(key)
 	var panel: Panel = icon[&"panel"]
 	if is_instance_valid(panel):
 		remove_child(panel)
@@ -345,23 +379,27 @@ func _on_icon_pressed(key: String) -> void:
 	if icon.is_empty() or not icon.get(&"is_player", false):
 		return
 
+	var army_ids: Array = icon[&"army_ids"]
+	var all_selected: bool = true
+	for army_id: int in army_ids:
+		all_selected = all_selected and _selected_armies.has(army_id)
+
 	if Input.is_key_pressed(KEY_SHIFT):
 		# Add to or remove from the selection
-		if _selected_keys.has(key):
-			_selected_keys.erase(key)
-		else:
-			_selected_keys[key] = true
-		_update_selection_visual(key)
+		for army_id: int in army_ids:
+			if all_selected:
+				_selected_armies.erase(army_id)
+			else:
+				_selected_armies[army_id] = true
+		_update_all_selection_visuals()
 		return
 
-	var was_only_selected: bool = _selected_keys.size() == 1 and _selected_keys.has(key)
-	var previous: Array = _selected_keys.keys()
-	_selected_keys.clear()
+	var was_only_selected: bool = all_selected and _selected_armies.size() == army_ids.size()
+	_selected_armies.clear()
 	if not was_only_selected:
-		_selected_keys[key] = true
-	for previous_key: String in previous:
-		_update_selection_visual(previous_key)
-	_update_selection_visual(key)
+		for army_id: int in army_ids:
+			_selected_armies[army_id] = true
+	_update_all_selection_visuals()
 	if not was_only_selected:
 		SoundManager.play_effect_compat("army_selected")
 
@@ -371,7 +409,7 @@ func _update_selection_visual(key: String) -> void:
 	if icon.is_empty():
 		return
 	var panel: Panel = icon[&"panel"]
-	panel.modulate = _SELECTED_MODULATE if _selected_keys.has(key) else Color.WHITE
+	panel.modulate = _SELECTED_MODULATE if _is_icon_selected(icon) else Color.WHITE
 
 
 # ---- Selection box ----
@@ -418,9 +456,8 @@ func _finish_box_selection() -> void:
 	var rect: Rect2 = _get_box()
 	var additive: bool = Input.is_key_pressed(KEY_SHIFT)
 
-	var previous: Array = _selected_keys.keys()
 	if not additive:
-		_selected_keys.clear()
+		_selected_armies.clear()
 
 	for key: String in _icons:
 		var icon: Dictionary = _icons[key]
@@ -432,13 +469,11 @@ func _finish_box_selection() -> void:
 		# The icons are scaled around their anchor, which therefore stays at position + anchor
 		var centre: Vector2 = panel.position + icon[&"anchor"]
 		if rect.has_point(centre):
-			_selected_keys[key] = true
+			for army_id: int in icon[&"army_ids"]:
+				_selected_armies[army_id] = true
 
-	for key: String in previous:
-		_update_selection_visual(key)
-	for key: String in _selected_keys:
-		_update_selection_visual(key)
-	if not _selected_keys.is_empty():
+	_update_all_selection_visuals()
+	if not _selected_armies.is_empty():
 		SoundManager.play_effect_compat("army_selected")
 
 
@@ -468,7 +503,7 @@ func _draw_paths() -> void:
 		if paths.is_empty():
 			continue
 
-		var colour: Color = _PATH_COLOUR_SELECTED if _selected_keys.has(key) else _PATH_COLOUR
+		var colour: Color = _PATH_COLOUR_SELECTED if _is_icon_selected(icon) else _PATH_COLOUR
 		for path: PackedVector2Array in paths:
 			_draw_path(camera, path, colour)
 
