@@ -5,10 +5,39 @@ const MODEL_SCALE: float = 1.0 / 256.0
 
 @export var _map_view: MapView
 
+# Unit icons (the flags above units) are drawn 20% closer than the models and are 20% smaller.
+const UNIT_ICON_RANGE_FACTOR: float = 0.8
+const UNIT_ICON_SCALE_FACTOR: float = 0.8
+
+# Flags of the units currently on the map, shown only when the camera is close enough
+var _flag_nodes: Array[Node3D] = []
+var _icons_visible: bool = false
+
 # Unit models currently on the map and the signature of the units they were generated from,
 # the models are regenerated when an army moves, appears or is destroyed
 var _unit_nodes: Array[Node3D] = []
 var _units_signature: int = 0
+
+
+func _process(_delta: float) -> void:
+	if not _map_view:
+		return
+
+	# The draw distance setting (-50..+50 %) scales the distance at which models and unit icons are drawn
+	var factor: float = 1.0 + float(GameSettings.get_setting(GameSettings.VIDEO_DRAW_DISTANCE).value()) / 100.0
+	var model_range: float = _map_view.get_detailed_threshold() * factor
+	var height: float = _map_view.get_camera_height()
+
+	var models_visible: bool = height <= model_range
+	if visible != models_visible:
+		visible = models_visible
+
+	var icons_visible: bool = height <= model_range * UNIT_ICON_RANGE_FACTOR
+	if icons_visible != _icons_visible:
+		_icons_visible = icons_visible
+		for flag: Node3D in _flag_nodes:
+			if is_instance_valid(flag):
+				flag.visible = _icons_visible
 
 
 func generate_units() -> void:
@@ -41,6 +70,7 @@ func _refresh_units() -> void:
 		if is_instance_valid(node):
 			node.queue_free()
 	_unit_nodes.clear()
+	_flag_nodes.clear()
 
 	for unit: Dictionary in units:
 		_generate_unit(unit)
@@ -85,7 +115,10 @@ func _generate_unit(unit_dict: Dictionary) -> void:
 			flag_model.set_flag_index(unit_dict[flag_index_key])
 			flag_model.current_anim = UnitModel.Anim.IDLE
 			flag_model.scale /= model.scale
+			flag_model.scale *= UNIT_ICON_SCALE_FACTOR
 			flag_model.rotate_y(-rotation)
+			flag_model.visible = _icons_visible
+			_flag_nodes.append(flag_model)
 
 			model.add_child(flag_model)
 

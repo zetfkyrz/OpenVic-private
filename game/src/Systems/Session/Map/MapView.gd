@@ -196,6 +196,16 @@ func look_at_map_position(pos: Vector2) -> void:
 	_camera.position.z += pos_delta.z
 
 
+## Height of the camera above the map
+func get_camera_height() -> float:
+	return _camera.position.y
+
+
+## Camera height below which the detailed view (models, province names...) is shown by default
+func get_detailed_threshold() -> float:
+	return _zoom_detailed_threshold
+
+
 func zoom_in() -> void:
 	_zoom_target -= _zoom_target_step
 	_zoom_position = (Vector2(0.5, 0.5) - _mouse_pos_viewport * get_tree().root.content_scale_factor / _viewport_dims) * _zoom_position_multiplier
