@@ -1,5 +1,7 @@
 extends Node
 
+const _WarPanel: GDScript = preload("res://src/UI/Session/WarPanel.gd")
+
 @export var _map_view: MapView
 @export var _model_manager: ModelManager
 @export var _game_session_menu: Control
@@ -8,6 +10,11 @@ extends Node
 func _ready() -> void:
 	if GameSingleton.start_game_session() != OK:
 		push_error("Failed to setup game")
+
+	# Wars, armies and fronts panel (F6)
+	var war_panel: PanelContainer = PanelContainer.new()
+	war_panel.set_script(_WarPanel)
+	_game_session_menu.get_parent().add_child(war_panel)
 
 	_model_manager.generate_units()
 	_model_manager.generate_buildings()

@@ -1,0 +1,2060 @@
+From 2c5496da18fa6de8ee5bb6f9d0eaaf1a3bc2bfb6 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 13 Oct 2026 16:22:30 +0000
+Subject: [PATCH] Add wars, battles, sieges, peace deals, fronts and auto war
+ plan
+
+- WarManager: declare_war (allies join), daily battles between armies of enemies,
+  sieges that change the province controller, war score, peace deals (white peace,
+  take/give states), truces
+- Army movement along land paths (Dijkstra), unit and group destruction
+- Fronts along the border (auto generated or hand drawn) and an auto plan that
+  assigns armies to fronts; AI countries at war use the same plan
+- New game actions: move_army, stop_army, propose_peace, create_front,
+  delete_front, toggle_front_province, set_front_mode, set_front_army,
+  assign_free_armies, set_auto_plan
+- declare_war / offer_peace diplomatic actions use the war manager
+- Remove try/catch from execute_diplomatic_action (exceptions are disabled)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01THs9n9orfCNZXEMtU5goD6
+Signed-off-by: Claude <noreply@anthropic.com>
+---
+ src/openvic-simulation/InstanceManager.cpp    |   1 +
+ src/openvic-simulation/InstanceManager.hpp    |   2 +
+ .../country/CountryInstance.hpp               |   5 +
+ .../diplomacy/DiplomaticAction.cpp            |  39 +-
+ src/openvic-simulation/military/Front.cpp     | 380 +++++++++
+ .../military/UnitInstance.cpp                 |  22 +
+ .../military/UnitInstance.hpp                 |   4 +
+ .../military/UnitInstanceGroup.cpp            | 215 ++++-
+ .../military/UnitInstanceGroup.hpp            |  39 +-
+ src/openvic-simulation/military/War.cpp       | 777 ++++++++++++++++++
+ src/openvic-simulation/military/War.hpp       | 173 ++++
+ src/openvic-simulation/misc/GameAction.cpp    | 129 +++
+ src/openvic-simulation/misc/GameAction.hpp    |  15 +-
+ 13 files changed, 1782 insertions(+), 19 deletions(-)
+ create mode 100644 src/openvic-simulation/military/Front.cpp
+ create mode 100644 src/openvic-simulation/military/War.cpp
+ create mode 100644 src/openvic-simulation/military/War.hpp
+
+diff --git a/src/openvic-simulation/InstanceManager.cpp b/src/openvic-simulation/InstanceManager.cpp
+index 08af68e..b41e072 100644
+--- a/src/openvic-simulation/InstanceManager.cpp
++++ b/src/openvic-simulation/InstanceManager.cpp
+@@ -194,6 +194,7 @@ void InstanceManager::tick() {
+ 	market_instance.execute_orders();
+ 	country_instance_manager.country_manager_tick_after_map();
+ 	unit_instance_manager.tick();
++	war_manager.tick(*this);
+ 
+ 	if (today.is_month_start()) {
+ 		market_instance.record_price_history();
+diff --git a/src/openvic-simulation/InstanceManager.hpp b/src/openvic-simulation/InstanceManager.hpp
+index 50b8e84..c9428e6 100644
+--- a/src/openvic-simulation/InstanceManager.hpp
++++ b/src/openvic-simulation/InstanceManager.hpp
+@@ -18,6 +18,7 @@
+ #include "openvic-simulation/map/Mapmode.hpp"
+ #include "openvic-simulation/map/ProvinceInstanceDeps.hpp"
+ #include "openvic-simulation/military/UnitInstanceGroup.hpp"
++#include "openvic-simulation/military/War.hpp"
+ #include "openvic-simulation/misc/GameAction.hpp"
+ #include "openvic-simulation/misc/SimulationClock.hpp"
+ #include "openvic-simulation/politics/PoliticsInstanceManager.hpp"
+@@ -56,6 +57,7 @@ namespace OpenVic {
+ 
+ 		CountryInstanceManager PROPERTY_REF(country_instance_manager);
+ 		UnitInstanceManager PROPERTY_REF(unit_instance_manager);
++		WarManager PROPERTY_REF(war_manager);
+ 		PoliticsInstanceManager PROPERTY_REF(politics_instance_manager);
+ 		/* Near the end so it is freed after other managers that may depend on it,
+ 		 * e.g. if we want to remove military units from the province they're in when they're destructed. */
+diff --git a/src/openvic-simulation/country/CountryInstance.hpp b/src/openvic-simulation/country/CountryInstance.hpp
+index ec28720..e4150b2 100644
+--- a/src/openvic-simulation/country/CountryInstance.hpp
++++ b/src/openvic-simulation/country/CountryInstance.hpp
+@@ -549,6 +549,11 @@ namespace OpenVic {
+ 		// Adds delta to the current war exhaustion value and clamps it to the range [0, war_exhaustion_max].
+ 		void change_war_exhaustion(fixed_point_t delta);
+ 
++		// Changes the capital (used when the old one is lost in a peace deal)
++		void set_capital(ProvinceInstance* new_capital) {
++			capital = new_capital;
++		}
++
+ 		bool add_unit_instance_group(UnitInstanceGroup& group);
+ 		bool remove_unit_instance_group(UnitInstanceGroup const& group);
+ 
+diff --git a/src/openvic-simulation/diplomacy/DiplomaticAction.cpp b/src/openvic-simulation/diplomacy/DiplomaticAction.cpp
+index f1649c3..6657525 100644
+--- a/src/openvic-simulation/diplomacy/DiplomaticAction.cpp
++++ b/src/openvic-simulation/diplomacy/DiplomaticAction.cpp
+@@ -99,15 +99,18 @@ bool DiplomaticActionManager::execute_diplomatic_action(
+ 		return false;
+ 	}
+ 
+-	try {
+-		type->visit([&cache](auto const& action_type) -> void {
+-			action_type.commit_action(cache.argument);
+-		});
+-	} catch (std::bad_any_cast const&) {
++	// These actions read the third country from the context data, which std::any_cast would throw on if it is missing
++	// (exceptions are disabled in the simulation build)
++	if (!cache.argument.context_data.has_value()
++		&& (type->get_identifier() == "decrease_opinion" || type->get_identifier() == "remove_from_foreign_sphere")) {
+ 		spdlog::error_s("Diplomatic action \"{}\" was sent without the context data it requires!", type->get_identifier());
+ 		return false;
+ 	}
+ 
++	type->visit([&cache](auto const& action_type) -> void {
++		action_type.commit_action(cache.argument);
++	});
++
+ 	return true;
+ }
+ 
+@@ -233,8 +236,12 @@ bool DiplomaticActionManager::setup_diplomatic_actions() {
+ 		{
+ 			.commit =
+ 				[](Argument& arg) {
+-					arg.instance_manager.get_country_relation_manager().set_at_war_with( //
+-						arg.sender, arg.receiver, true
++					arg.instance_manager.get_war_manager().declare_war(arg.instance_manager, *arg.sender, *arg.receiver);
++				},
++			.allowed =
++				[](Argument const& arg) {
++					return arg.instance_manager.get_war_manager().can_declare_war(
++						*arg.sender, *arg.receiver, arg.instance_manager.get_today()
+ 					);
+ 				},
+ 		}
+@@ -242,7 +249,23 @@ bool DiplomaticActionManager::setup_diplomatic_actions() {
+ 	result &= add_diplomatic_action(
+ 		"offer_peace",
+ 		{
+-			.commit = [](Argument& arg) {},
++			// White peace in the first war the two countries fight each other in. Other peace terms are
++			// proposed with the propose_peace game action.
++			.commit =
++				[](Argument& arg) {
++					for (War const* war : arg.instance_manager.get_war_manager().get_wars_of(*arg.sender)) {
++						if (war->has_participant(*arg.receiver) && war->is_attacker(*arg.sender) != war->is_attacker(*arg.receiver)) {
++							arg.instance_manager.get_war_manager().propose_peace(
++								arg.instance_manager, war->id, *arg.sender, WarManager::peace_type_t::WHITE_PEACE
++							);
++							break;
++						}
++					}
++				},
++			.allowed =
++				[](Argument const& arg) {
++					return arg.sender->is_at_war_with(*arg.receiver);
++				},
+ 		}
+ 	);
+ 	result &= add_diplomatic_action(
+diff --git a/src/openvic-simulation/military/Front.cpp b/src/openvic-simulation/military/Front.cpp
+new file mode 100644
+index 0000000..d07d3ae
+--- /dev/null
++++ b/src/openvic-simulation/military/Front.cpp
+@@ -0,0 +1,380 @@
++// Fronts and the automatic war plan, part of WarManager
++#include <algorithm>
++
++#include "War.hpp"
++
++#include "openvic-simulation/InstanceManager.hpp"
++#include "openvic-simulation/country/CountryInstance.hpp"
++#include "openvic-simulation/map/MapInstance.hpp"
++#include "openvic-simulation/map/ProvinceInstance.hpp"
++#include "openvic-simulation/military/UnitInstanceGroup.hpp"
++#include "openvic-simulation/utility/Logger.hpp"
++
++using namespace OpenVic;
++
++namespace {
++	// Land provinces next to the province
++	std::vector<ProvinceInstance*> get_land_neighbours(ProvinceInstance const& province, MapInstance& map_instance) {
++		std::vector<ProvinceInstance*> result;
++		for (ProvinceDefinition::adjacency_t const& adjacency : province.province_definition.get_adjacencies()) {
++			if (adjacency.get_type() != ProvinceDefinition::adjacency_t::type_t::LAND || adjacency.get_to().is_water()) {
++				continue;
++			}
++			result.push_back(&map_instance.get_province_instance_by_definition(adjacency.get_to()));
++		}
++		return result;
++	}
++
++	bool is_held_by(ProvinceInstance const& province, CountryInstance const& country) {
++		return province.get_owner() == &country || province.get_controller() == &country;
++	}
++
++	// The provinces of the country that touch land held by the enemy, ordered so that neighbours follow each other
++	memory::vector<ProvinceInstance*> build_border_line(
++		MapInstance& map_instance, CountryInstance& country, CountryInstance const& enemy
++	) {
++		std::vector<ProvinceInstance*> border;
++		for (ProvinceInstance* province : country.get_owned_provinces()) {
++			if (province->get_controller() != &country || province->province_definition.is_water()) {
++				continue;
++			}
++			for (ProvinceInstance* neighbour : get_land_neighbours(*province, map_instance)) {
++				if (is_held_by(*neighbour, enemy)) {
++					border.push_back(province);
++					break;
++				}
++			}
++		}
++
++		memory::vector<ProvinceInstance*> line;
++		std::vector<bool> used(border.size(), false);
++		ProvinceInstance* current = nullptr;
++
++		for (size_t placed = 0; placed < border.size(); ++placed) {
++			size_t next = border.size();
++
++			if (current != nullptr) {
++				// Prefer an unplaced border province next to the last one
++				for (ProvinceInstance* neighbour : get_land_neighbours(*current, map_instance)) {
++					for (size_t i = 0; i < border.size(); ++i) {
++						if (!used[i] && border[i] == neighbour) {
++							next = i;
++							break;
++						}
++					}
++					if (next != border.size()) {
++						break;
++					}
++				}
++			}
++			if (next == border.size()) {
++				// Start of a new stretch of the border
++				for (size_t i = 0; i < border.size(); ++i) {
++					if (!used[i]) {
++						next = i;
++						break;
++					}
++				}
++			}
++
++			used[next] = true;
++			current = border[next];
++			line.push_back(current);
++		}
++
++		return line;
++	}
++}
++
++Front* WarManager::find_front(const std::uint32_t id) {
++	for (Front& front : fronts) {
++		if (front.id == id) {
++			return &front;
++		}
++	}
++	return nullptr;
++}
++
++Front const* WarManager::get_front_by_id(const std::uint32_t id) const {
++	for (Front const& front : fronts) {
++		if (front.id == id) {
++			return &front;
++		}
++	}
++	return nullptr;
++}
++
++std::uint32_t WarManager::create_front(
++	InstanceManager& instance_manager, CountryInstance& country, CountryInstance const* const enemy
++) {
++	if (!country.exists()) {
++		return 0;
++	}
++
++	Front front;
++	front.id = next_front_id++;
++	front.country = &country;
++	front.enemy = enemy;
++	if (enemy != nullptr && enemy != &country) {
++		front.provinces = build_border_line(instance_manager.get_map_instance(), country, *enemy);
++		front.mode = Front::mode_t::ATTACK;
++	} else {
++		front.enemy = nullptr;
++	}
++
++	fronts.push_back(std::move(front));
++	return fronts.back().id;
++}
++
++bool WarManager::delete_front(CountryInstance const& country, const std::uint32_t front_id) {
++	const auto it = std::find_if(fronts.begin(), fronts.end(), [&](Front const& front) -> bool {
++		return front.id == front_id && front.country == &country;
++	});
++	if (it == fronts.end()) {
++		return false;
++	}
++	fronts.erase(it);
++	return true;
++}
++
++bool WarManager::toggle_front_province(CountryInstance const& country, const std::uint32_t front_id, ProvinceInstance& province) {
++	Front* const front = find_front(front_id);
++	if (front == nullptr || front->country != &country || province.province_definition.is_water()) {
++		return false;
++	}
++
++	const auto it = std::find(front->provinces.begin(), front->provinces.end(), &province);
++	if (it != front->provinces.end()) {
++		front->provinces.erase(it);
++		return true;
++	}
++
++	// Only land the country holds can be part of the line
++	if (province.get_controller() != &country) {
++		return false;
++	}
++	front->provinces.push_back(&province);
++	// A hand drawn line is no longer the generated border
++	front->enemy = nullptr;
++	return true;
++}
++
++bool WarManager::set_front_mode(CountryInstance const& country, const std::uint32_t front_id, const Front::mode_t mode) {
++	Front* const front = find_front(front_id);
++	if (front == nullptr || front->country != &country) {
++		return false;
++	}
++	front->mode = mode;
++	return true;
++}
++
++bool WarManager::set_front_army(
++	InstanceManager& instance_manager, CountryInstance const& country, const std::uint32_t front_id, const unique_id_t army_id,
++	const bool assigned
++) {
++	Front* const front = find_front(front_id);
++	if (front == nullptr || front->country != &country) {
++		return false;
++	}
++
++	UnitInstanceGroup* const group = instance_manager.get_unit_instance_manager().get_unit_instance_group_by_unique_id(army_id);
++	if (group == nullptr || group->branch != unit_branch_t::LAND || &group->get_country() != &country) {
++		return false;
++	}
++
++	if (assigned) {
++		// An army is on one front at a time
++		for (Front& other : fronts) {
++			std::erase(other.army_ids, army_id);
++		}
++		front->army_ids.push_back(army_id);
++	} else {
++		std::erase(front->army_ids, army_id);
++	}
++	return true;
++}
++
++bool WarManager::assign_free_armies(
++	InstanceManager& instance_manager, CountryInstance const& country, const std::uint32_t front_id
++) {
++	Front* const front = find_front(front_id);
++	if (front == nullptr || front->country != &country) {
++		return false;
++	}
++
++	for (ArmyInstance const& army : country.get_armies()) {
++		bool on_front = false;
++		for (Front const& other : fronts) {
++			if (std::find(other.army_ids.begin(), other.army_ids.end(), army.unique_id) != other.army_ids.end()) {
++				on_front = true;
++				break;
++			}
++		}
++		if (!on_front) {
++			front->army_ids.push_back(army.unique_id);
++		}
++	}
++	return true;
++}
++
++void WarManager::set_auto_plan(CountryInstance const& country, const bool enabled) {
++	if (enabled) {
++		auto_plan_countries.insert(&country);
++	} else {
++		auto_plan_countries.erase(&country);
++	}
++}
++
++void WarManager::order_front_armies(InstanceManager& instance_manager, Front& front) {
++	UnitInstanceManager& unit_manager = instance_manager.get_unit_instance_manager();
++	MapInstance& map_instance = instance_manager.get_map_instance();
++	CountryInstance& country = *front.country;
++
++	// Drop armies that no longer exist
++	std::vector<ArmyInstance*> armies;
++	for (auto it = front.army_ids.begin(); it != front.army_ids.end();) {
++		UnitInstanceGroup* const group = unit_manager.get_unit_instance_group_by_unique_id(*it);
++		if (group == nullptr || group->branch != unit_branch_t::LAND || &group->get_country() != &country) {
++			it = front.army_ids.erase(it);
++		} else {
++			armies.push_back(static_cast<ArmyInstance*>(group));
++			++it;
++		}
++	}
++	if (armies.empty() || front.provinces.empty()) {
++		return;
++	}
++
++	// Enemy held provinces next to the line, the targets of the attack
++	std::vector<ProvinceInstance*> targets;
++	if (front.mode == Front::mode_t::ATTACK) {
++		for (ProvinceInstance* line_province : front.provinces) {
++			for (ProvinceInstance* neighbour : get_land_neighbours(*line_province, map_instance)) {
++				CountryInstance const* const controller = neighbour->get_controller();
++				if (controller != nullptr && country.is_at_war_with(*controller)
++					&& std::find(targets.begin(), targets.end(), neighbour) == targets.end()) {
++					targets.push_back(neighbour);
++				}
++			}
++		}
++	}
++
++	for (size_t i = 0; i < armies.size(); ++i) {
++		ArmyInstance& army = *armies[i];
++		if (army.is_in_combat() || army.is_moving() || army.empty()) {
++			continue;
++		}
++
++		ProvinceInstance* destination = nullptr;
++
++		if (!targets.empty()) {
++			// An army standing in enemy land stays to besiege it
++			CountryInstance const* const here = army.get_location().get_controller();
++			if (here != nullptr && country.is_at_war_with(*here)) {
++				continue;
++			}
++			destination = targets[i % targets.size()];
++		} else {
++			destination = front.provinces[i % front.provinces.size()];
++		}
++
++		if (destination != nullptr && destination != &army.get_location()) {
++			unit_manager.order_move(army, *destination, map_instance);
++		}
++	}
++}
++
++void WarManager::update_auto_plan(InstanceManager& instance_manager) {
++	// Fronts are refreshed every 10 days
++	if (instance_manager.get_today().get_day() % 10 != 0) {
++		return;
++	}
++
++	// Countries with the plan switched on, and every AI country that is at war (a minimal war AI: the same plan)
++	std::vector<CountryInstance*> planning_countries;
++	for (CountryInstance& candidate : instance_manager.get_country_instance_manager().get_country_instances()) {
++		if (auto_plan_countries.contains(&candidate)
++			|| (candidate.is_ai() && candidate.is_at_war() && !candidate.is_rebel_country())) {
++			planning_countries.push_back(&candidate);
++		}
++	}
++
++	for (CountryInstance* const planning_country : planning_countries) {
++		CountryInstance& country = *planning_country;
++		if (!country.exists()) {
++			continue;
++		}
++
++		// Remove the generated fronts of enemies that are gone
++		std::erase_if(fronts, [&country](Front const& front) -> bool {
++			return front.country == &country && front.enemy != nullptr && !country.is_at_war_with(*front.enemy);
++		});
++
++		std::vector<std::uint32_t> own_fronts; // ids, the fronts vector may reallocate
++		for (CountryInstance const& enemy : country.get_war_enemies()) {
++			Front* front = nullptr;
++			for (Front& candidate : fronts) {
++				if (candidate.country == &country && candidate.enemy == &enemy) {
++					front = &candidate;
++					break;
++				}
++			}
++
++			memory::vector<ProvinceInstance*> line = build_border_line(instance_manager.get_map_instance(), country, enemy);
++			if (line.empty()) {
++				continue;
++			}
++
++			if (front == nullptr) {
++				const std::uint32_t id = create_front(instance_manager, country, &enemy);
++				front = find_front(id);
++				if (front == nullptr) {
++					continue;
++				}
++			} else {
++				front->provinces = std::move(line);
++			}
++
++			// Attack unless the war is going clearly badly
++			front->mode = Front::mode_t::ATTACK;
++			if (War* const war = find_war_between(country, enemy); war != nullptr) {
++				const bool is_attacker = war->is_attacker(country);
++				if (war->get_score(!is_attacker) - war->get_score(is_attacker) > 20) {
++					front->mode = Front::mode_t::DEFEND;
++				}
++			}
++			own_fronts.push_back(front->id);
++		}
++
++		if (own_fronts.empty()) {
++			continue;
++		}
++
++		// Give every army without a front to one of the fronts
++		size_t next_front = 0;
++		for (ArmyInstance const& army : country.get_armies()) {
++			bool on_front = false;
++			for (Front const& other : fronts) {
++				if (std::find(other.army_ids.begin(), other.army_ids.end(), army.unique_id) != other.army_ids.end()) {
++					on_front = true;
++					break;
++				}
++			}
++			if (!on_front) {
++				if (Front* const target = find_front(own_fronts[next_front++ % own_fronts.size()]); target != nullptr) {
++					target->army_ids.push_back(army.unique_id);
++				}
++			}
++		}
++	}
++}
++
++void WarManager::update_fronts(InstanceManager& instance_manager) {
++	std::erase_if(fronts, [](Front const& front) -> bool {
++		return !front.country->exists();
++	});
++
++	for (Front& front : fronts) {
++		order_front_armies(instance_manager, front);
++	}
++}
+diff --git a/src/openvic-simulation/military/UnitInstance.cpp b/src/openvic-simulation/military/UnitInstance.cpp
+index 99ee5c9..6c47687 100644
+--- a/src/openvic-simulation/military/UnitInstance.cpp
++++ b/src/openvic-simulation/military/UnitInstance.cpp
+@@ -17,6 +17,28 @@ void UnitInstance::set_name(std::string_view new_name) {
+ 	name = new_name;
+ }
+ 
++void UnitInstance::take_damage(fixed_point_t organisation_loss, fixed_point_t strength_loss) {
++	organisation -= organisation_loss;
++	if (organisation < fixed_point_t::_0) {
++		organisation = fixed_point_t::_0;
++	}
++	strength -= strength_loss;
++	if (strength < fixed_point_t::_0) {
++		strength = fixed_point_t::_0;
++	}
++}
++
++void UnitInstance::recover(fixed_point_t organisation_gain, fixed_point_t strength_gain) {
++	organisation += organisation_gain;
++	if (organisation > max_organisation) {
++		organisation = max_organisation;
++	}
++	strength += strength_gain;
++	if (strength > unit_type.max_strength) {
++		strength = unit_type.max_strength;
++	}
++}
++
+ UnitInstanceBranched<unit_branch_t::LAND>::UnitInstanceBranched(
+ 	unique_id_t new_unique_id,
+ 	std::string_view new_name,
+diff --git a/src/openvic-simulation/military/UnitInstance.hpp b/src/openvic-simulation/military/UnitInstance.hpp
+index b472ac3..b56e554 100644
+--- a/src/openvic-simulation/military/UnitInstance.hpp
++++ b/src/openvic-simulation/military/UnitInstance.hpp
+@@ -40,6 +40,10 @@ namespace OpenVic {
+ 
+ 		void set_name(std::string_view new_name);
+ 
++		// Combat helpers, values are clamped to [0, max]
++		void take_damage(fixed_point_t organisation_loss, fixed_point_t strength_loss);
++		void recover(fixed_point_t organisation_gain, fixed_point_t strength_gain);
++
+ 		constexpr bool operator==(UnitInstance const& rhs) const {
+ 			return unique_id == rhs.unique_id;
+ 		}
+diff --git a/src/openvic-simulation/military/UnitInstanceGroup.cpp b/src/openvic-simulation/military/UnitInstanceGroup.cpp
+index 08e336d..67217b2 100644
+--- a/src/openvic-simulation/military/UnitInstanceGroup.cpp
++++ b/src/openvic-simulation/military/UnitInstanceGroup.cpp
+@@ -1,5 +1,9 @@
+ #include "UnitInstanceGroup.hpp"
+ 
++#include <algorithm>
++#include <queue>
++#include <unordered_map>
++
+ #include <fmt/std.h>
+ 
+ #include "openvic-simulation/country/CountryInstance.hpp"
+@@ -44,8 +48,85 @@ void UnitInstanceGroup::update_gamestate() {
+ 	}
+ }
+ 
++namespace {
++	// Movement points gained per day = slowest unit's maximum_speed * this scale. A typical province-to-province
++	// distance is a few tens of map units, so infantry (speed ~4) needs a handful of days per province.
++	constexpr int32_t MOVEMENT_SPEED_SCALE = 3;
++}
++
++bool UnitInstanceGroup::can_country_enter(CountryInstance const& country, ProvinceInstance const& province) {
++	CountryInstance const* const owner = province.get_owner();
++	CountryInstance const* const controller = province.get_controller();
++
++	if (owner == nullptr || owner == &country || controller == &country) {
++		return true;
++	}
++	if (country.has_alliance_with(*owner) || country.has_military_access_to(*owner)) {
++		return true;
++	}
++	if (country.is_at_war_with(*owner) || (controller != nullptr && country.is_at_war_with(*controller))) {
++		return true;
++	}
++	return controller != nullptr && country.has_alliance_with(*controller);
++}
++
++void UnitInstanceGroup::set_path(memory::vector<std::reference_wrapper<ProvinceInstance>>&& new_path) {
++	if (new_path.empty() || path.empty() || &new_path.front().get() != &path.front().get()) {
++		movement_progress = fixed_point_t::_0;
++	}
++	path = std::move(new_path);
++}
++
++void UnitInstanceGroup::clear_path() {
++	path.clear();
++	movement_progress = fixed_point_t::_0;
++}
++
+ void UnitInstanceGroup::tick() {
++	if (path.empty() || units.empty()) {
++		return;
++	}
++
++	// A group fighting a battle stays where it is
++	if (in_combat) {
++		return;
++	}
+ 
++	ProvinceInstance& next = path.front();
++
++	if (!can_country_enter(country.get(), next)) {
++		// Access was lost (peace, alliance ended...), stop
++		clear_path();
++		return;
++	}
++
++	ProvinceDefinition::adjacency_t const* const adjacency =
++		location.get().province_definition.get_adjacency_to(next.province_definition);
++	if (OV_unlikely(adjacency == nullptr)) {
++		clear_path();
++		return;
++	}
++
++	fixed_point_t speed = units.front().get().unit_type.maximum_speed;
++	for (UnitInstance const& unit : units) {
++		if (unit.unit_type.maximum_speed < speed) {
++			speed = unit.unit_type.maximum_speed;
++		}
++	}
++	if (speed <= fixed_point_t::_0) {
++		speed = fixed_point_t::_1;
++	}
++
++	movement_progress += speed * MOVEMENT_SPEED_SCALE;
++
++	if (movement_progress >= adjacency->get_distance()) {
++		movement_progress -= adjacency->get_distance();
++		set_location(next);
++		path.erase(path.begin());
++		if (path.empty()) {
++			movement_progress = fixed_point_t::_0;
++		}
++	}
+ }
+ 
+ size_t UnitInstanceGroup::get_unit_count() const {
+@@ -230,11 +311,6 @@ Date UnitInstanceGroup::get_movement_arrival_date() const {
+ 	return {};
+ }
+ 
+-bool UnitInstanceGroup::is_in_combat() const {
+-	// TODO - check if in combat
+-	return false;
+-}
+-
+ UnitInstanceGroupBranched<LAND>::UnitInstanceGroupBranched(
+ 	unique_id_t new_unique_id,
+ 	std::string_view new_name,
+@@ -499,6 +575,135 @@ UnitInstanceGroup* UnitInstanceManager::get_unit_instance_group_by_unique_id(uni
+ 	}
+ }
+ 
++bool UnitInstanceManager::order_move(ArmyInstance& army, ProvinceInstance& destination, MapInstance& map_instance) {
++	if (destination.province_definition.is_water() || army.empty()) {
++		return false;
++	}
++
++	ProvinceInstance& start = army.get_location();
++	if (&start == &destination) {
++		army.clear_path();
++		return true;
++	}
++
++	CountryInstance const& country = army.get_country();
++	if (!UnitInstanceGroup::can_country_enter(country, destination)) {
++		return false;
++	}
++
++	// Dijkstra over land adjacencies by distance
++	using entry_t = std::pair<fixed_point_t, ProvinceInstance*>;
++	struct entry_greater {
++		bool operator()(entry_t const& lhs, entry_t const& rhs) const {
++			return lhs.first > rhs.first;
++		}
++	};
++	std::priority_queue<entry_t, std::vector<entry_t>, entry_greater> queue;
++	std::unordered_map<ProvinceInstance*, fixed_point_t> cost;
++	std::unordered_map<ProvinceInstance*, ProvinceInstance*> previous;
++
++	cost[&start] = fixed_point_t::_0;
++	queue.emplace(fixed_point_t::_0, &start);
++
++	while (!queue.empty()) {
++		const auto [current_cost, current] = queue.top();
++		queue.pop();
++
++		if (current == &destination) {
++			break;
++		}
++
++		const auto cost_it = cost.find(current);
++		if (cost_it != cost.end() && current_cost > cost_it->second) {
++			continue;
++		}
++
++		for (ProvinceDefinition::adjacency_t const& adjacency : current->province_definition.get_adjacencies()) {
++			if (adjacency.get_type() != ProvinceDefinition::adjacency_t::type_t::LAND) {
++				continue;
++			}
++			ProvinceDefinition const& to_definition = adjacency.get_to();
++			if (to_definition.is_water()) {
++				continue;
++			}
++			ProvinceInstance& to = map_instance.get_province_instance_by_definition(to_definition);
++			if (!UnitInstanceGroup::can_country_enter(country, to)) {
++				continue;
++			}
++			const fixed_point_t new_cost = current_cost + adjacency.get_distance();
++			const auto it = cost.find(&to);
++			if (it == cost.end() || new_cost < it->second) {
++				cost[&to] = new_cost;
++				previous[&to] = current;
++				queue.emplace(new_cost, &to);
++			}
++		}
++	}
++
++	if (!previous.contains(&destination)) {
++		return false;
++	}
++
++	memory::vector<std::reference_wrapper<ProvinceInstance>> path;
++	for (ProvinceInstance* step = &destination; step != &start; step = previous.at(step)) {
++		path.emplace_back(*step);
++	}
++	std::reverse(path.begin(), path.end());
++
++	army.set_path(std::move(path));
++	return true;
++}
++
++void UnitInstanceManager::destroy_unit(UnitInstance& unit, UnitInstanceGroup& group) {
++	group.remove_unit(unit);
++	unit_instance_map.erase(unit.unique_id);
++
++	if (unit.get_branch() == LAND) {
++		RegimentInstance& regiment = static_cast<RegimentInstance&>(unit);
++		regiments.erase(regiments.get_iterator(&regiment));
++	} else {
++		ShipInstance& ship = static_cast<ShipInstance&>(unit);
++		ships.erase(ships.get_iterator(&ship));
++	}
++
++	if (group.empty()) {
++		destroy_group(group);
++	}
++}
++
++void UnitInstanceManager::destroy_group(UnitInstanceGroup& group) {
++	// Delete the units first, copy the list since destroying a unit edits the group
++	memory::vector<UnitInstance*> group_units;
++	for (UnitInstance& unit : group.get_units()) {
++		group_units.push_back(&unit);
++	}
++
++	for (UnitInstance* unit : group_units) {
++		group.remove_unit(*unit);
++		unit_instance_map.erase(unit->unique_id);
++		if (unit->get_branch() == LAND) {
++			RegimentInstance& regiment = static_cast<RegimentInstance&>(*unit);
++			regiments.erase(regiments.get_iterator(&regiment));
++		} else {
++			ShipInstance& ship = static_cast<ShipInstance&>(*unit);
++			ships.erase(ships.get_iterator(&ship));
++		}
++	}
++
++	group.set_leader(nullptr);
++	group.get_location().remove_unit_instance_group(group);
++	group.get_country().remove_unit_instance_group(group);
++	unit_instance_group_map.erase(group.unique_id);
++
++	if (group.branch == LAND) {
++		ArmyInstance& army = static_cast<ArmyInstance&>(group);
++		armies.erase(armies.get_iterator(&army));
++	} else {
++		NavyInstance& navy = static_cast<NavyInstance&>(group);
++		navies.erase(navies.get_iterator(&navy));
++	}
++}
++
+ bool UnitInstanceManager::create_leader(
+ 	CountryInstance& country,
+ 	unit_branch_t branch,
+diff --git a/src/openvic-simulation/military/UnitInstanceGroup.hpp b/src/openvic-simulation/military/UnitInstanceGroup.hpp
+index aa3301c..174cb9d 100644
+--- a/src/openvic-simulation/military/UnitInstanceGroup.hpp
++++ b/src/openvic-simulation/military/UnitInstanceGroup.hpp
+@@ -23,8 +23,8 @@ namespace OpenVic {
+ 		memory::string PROPERTY(name);
+ 		memory::vector<std::reference_wrapper<UnitInstance>> SPAN_PROPERTY(units);
+ 		LeaderInstance* PROPERTY_PTR(leader, nullptr);
+-		std::reference_wrapper<ProvinceInstance> PROPERTY(location);
+-		std::reference_wrapper<CountryInstance> PROPERTY(country);
++		std::reference_wrapper<ProvinceInstance> location;
++		std::reference_wrapper<CountryInstance> country;
+ 
+ 		fixed_point_t PROPERTY(total_organisation);
+ 		fixed_point_t PROPERTY(total_max_organisation);
+@@ -39,6 +39,9 @@ namespace OpenVic {
+ 		// it reaches the required distance/movement cost to move to the next province in the path.
+ 		fixed_point_t PROPERTY(movement_progress);
+ 
++		// Set every day by the war manager, a group in combat does not move
++		bool PROPERTY_RW_CUSTOM_NAME(in_combat, is_in_combat, set_in_combat, false);
++
+ 	protected:
+ 		UnitInstanceGroup(
+ 			unique_id_t new_unique_id,
+@@ -58,6 +61,20 @@ namespace OpenVic {
+ 		UnitInstanceGroup(UnitInstanceGroup&&) = default;
+ 		UnitInstanceGroup(UnitInstanceGroup const&) = delete;
+ 
++		// Mutable access to the references held by the group
++		ProvinceInstance& get_location() {
++			return location.get();
++		}
++		ProvinceInstance const& get_location() const {
++			return location.get();
++		}
++		CountryInstance& get_country() {
++			return country.get();
++		}
++		CountryInstance const& get_country() const {
++			return country.get();
++		}
++
+ 		size_t get_unit_count() const;
+ 		bool empty() const;
+ 		size_t get_unit_category_count(UnitType::unit_category_t unit_category) const;
+@@ -77,13 +94,18 @@ namespace OpenVic {
+ 		fixed_point_t get_average_organisation() const;
+ 		fixed_point_t get_average_max_organisation() const;
+ 
++		// Replaces the path (front province must be adjacent to the current location), resets progress if the first step changed
++		void set_path(memory::vector<std::reference_wrapper<ProvinceInstance>>&& new_path);
++		void clear_path();
++
++		// Whether a group of the given country may enter the province (own/allied/access/hostile land)
++		static bool can_country_enter(CountryInstance const& country, ProvinceInstance const& province);
++
+ 		bool is_moving() const;
+ 		// The adjacent province that the unit will arrive in next, not necessarily the final destination of its current path
+ 		ProvinceInstance const* get_movement_destination_province() const;
+ 		Date get_movement_arrival_date() const;
+ 
+-		bool is_in_combat() const;
+-
+ 		constexpr bool operator==(UnitInstanceGroup const& rhs) const {
+ 			return unique_id == rhs.unique_id;
+ 		}
+@@ -214,6 +236,15 @@ namespace OpenVic {
+ 		void update_gamestate();
+ 		void tick();
+ 
++		// Finds the shortest land path for the army and starts moving it, false if the destination is unreachable
++		bool order_move(ArmyInstance& army, ProvinceInstance& destination, MapInstance& map_instance);
++
++		// Removes a unit from its group and deletes it, the group is deleted too if it becomes empty.
++		// The unit and, possibly, its group must not be used after this call.
++		void destroy_unit(UnitInstance& unit, UnitInstanceGroup& group);
++		// Deletes a group and all of its units, the group must not be used after this call.
++		void destroy_group(UnitInstanceGroup& group);
++
+ 		LeaderInstance* get_leader_instance_by_unique_id(unique_id_t unique_id);
+ 		UnitInstance* get_unit_instance_by_unique_id(unique_id_t unique_id);
+ 		UnitInstanceGroup* get_unit_instance_group_by_unique_id(unique_id_t unique_id);
+diff --git a/src/openvic-simulation/military/War.cpp b/src/openvic-simulation/military/War.cpp
+new file mode 100644
+index 0000000..1b6e0d7
+--- /dev/null
++++ b/src/openvic-simulation/military/War.cpp
+@@ -0,0 +1,777 @@
++#include "War.hpp"
++
++#include <algorithm>
++#include <unordered_map>
++#include <unordered_set>
++
++#include "openvic-simulation/InstanceManager.hpp"
++#include "openvic-simulation/country/CountryInstance.hpp"
++#include "openvic-simulation/economy/BuildingInstance.hpp"
++#include "openvic-simulation/economy/BuildingType.hpp"
++#include "openvic-simulation/map/MapInstance.hpp"
++#include "openvic-simulation/map/ProvinceInstance.hpp"
++#include "openvic-simulation/map/State.hpp"
++#include "openvic-simulation/military/UnitInstanceGroup.hpp"
++#include "openvic-simulation/utility/Logger.hpp"
++
++using namespace OpenVic;
++
++namespace {
++	bool contains_country(memory::vector<CountryInstance*> const& countries, CountryInstance const* country) {
++		return std::find(countries.begin(), countries.end(), country) != countries.end();
++	}
++
++	// Armies of the province copied to a plain vector, so that armies can be moved or destroyed while it is processed
++	std::vector<ArmyInstance*> copy_armies(ProvinceInstance& province) {
++		std::vector<ArmyInstance*> result;
++		for (ArmyInstance& army : province.get_armies()) {
++			result.push_back(&army);
++		}
++		return result;
++	}
++
++	struct BattleSide {
++		std::vector<ArmyInstance*> armies;
++		fixed_point_t power;
++		fixed_point_t organisation;
++		fixed_point_t max_organisation;
++		size_t regiment_count = 0;
++
++		fixed_point_t get_organisation_ratio() const {
++			return max_organisation > fixed_point_t::_0 ? organisation / max_organisation : fixed_point_t::_0;
++		}
++	};
++
++	void calculate_side(BattleSide& side) {
++		const fixed_point_t min_org_factor = fixed_point_t(3) / 10;
++
++		side.power = fixed_point_t::_0;
++		side.organisation = fixed_point_t::_0;
++		side.max_organisation = fixed_point_t::_0;
++		side.regiment_count = 0;
++
++		for (ArmyInstance* army : side.armies) {
++			for (RegimentInstance& regiment : army->get_regiment_instances()) {
++				const fixed_point_t max_strength = regiment.get_max_strength();
++				const fixed_point_t max_organisation = regiment.get_max_organisation();
++				if (max_strength <= fixed_point_t::_0 || regiment.get_strength() <= fixed_point_t::_0) {
++					continue;
++				}
++
++				const fixed_point_t strength_factor = regiment.get_strength() / max_strength;
++				fixed_point_t organisation_factor = max_organisation > fixed_point_t::_0
++					? regiment.get_organisation() / max_organisation
++					: fixed_point_t::_0;
++				if (organisation_factor < min_org_factor) {
++					organisation_factor = min_org_factor;
++				}
++
++				side.power += (regiment.get_regiment_type().attack + fixed_point_t::_1) * strength_factor * organisation_factor;
++				side.organisation += regiment.get_organisation();
++				side.max_organisation += max_organisation;
++				side.regiment_count++;
++			}
++		}
++	}
++
++	// Each regiment of the target takes the same share of the damage
++	void apply_damage(BattleSide& target, fixed_point_t enemy_power) {
++		if (target.regiment_count == 0) {
++			return;
++		}
++
++		const fixed_point_t organisation_damage = fixed_point_t(5) / 100;
++		const fixed_point_t strength_damage = fixed_point_t(1) / 100;
++
++		const fixed_point_t average_power = enemy_power / static_cast<int32_t>(target.regiment_count);
++
++		for (ArmyInstance* army : target.armies) {
++			for (RegimentInstance& regiment : army->get_regiment_instances()) {
++				if (regiment.get_strength() <= fixed_point_t::_0) {
++					continue;
++				}
++				// Regiments without organisation are routing and lose men much faster
++				const int32_t rout_factor = regiment.get_organisation() > fixed_point_t::_0 ? 1 : 3;
++				regiment.take_damage(
++					regiment.get_max_organisation() * average_power * organisation_damage,
++					regiment.get_max_strength() * average_power * strength_damage * rout_factor
++				);
++			}
++		}
++	}
++
++	// A province next to `from` the army can retreat to, nullptr if there is none
++	ProvinceInstance* find_retreat_province(ProvinceInstance const& from, ArmyInstance const& army, MapInstance& map_instance) {
++		CountryInstance const& country = army.get_country();
++		ProvinceInstance* fallback = nullptr;
++
++		for (ProvinceDefinition::adjacency_t const& adjacency : from.province_definition.get_adjacencies()) {
++			if (adjacency.get_type() != ProvinceDefinition::adjacency_t::type_t::LAND || adjacency.get_to().is_water()) {
++				continue;
++			}
++			ProvinceInstance& candidate = map_instance.get_province_instance_by_definition(adjacency.get_to());
++			if (!UnitInstanceGroup::can_country_enter(country, candidate)) {
++				continue;
++			}
++
++			bool enemy_present = false;
++			for (ArmyInstance const& other : candidate.get_armies()) {
++				if (other.get_country().is_at_war_with(country)) {
++					enemy_present = true;
++					break;
++				}
++			}
++			if (enemy_present) {
++				continue;
++			}
++
++			CountryInstance const* const owner = candidate.get_owner();
++			if (owner == &country || (owner != nullptr && country.has_alliance_with(*owner))) {
++				return &candidate;
++			}
++			if (fallback == nullptr) {
++				fallback = &candidate;
++			}
++		}
++
++		return fallback;
++	}
++}
++
++bool War::is_attacker(CountryInstance const& country) const {
++	return contains_country(attackers, &country);
++}
++
++bool War::is_defender(CountryInstance const& country) const {
++	return contains_country(defenders, &country);
++}
++
++War* WarManager::find_war(const std::uint32_t id) {
++	for (War& war : wars) {
++		if (war.id == id) {
++			return &war;
++		}
++	}
++	return nullptr;
++}
++
++War const* WarManager::get_war_by_id(const std::uint32_t id) const {
++	for (War const& war : wars) {
++		if (war.id == id) {
++			return &war;
++		}
++	}
++	return nullptr;
++}
++
++War* WarManager::find_war_between(CountryInstance const& first, CountryInstance const& second) {
++	for (War& war : wars) {
++		if ((war.is_attacker(first) && war.is_defender(second)) || (war.is_defender(first) && war.is_attacker(second))) {
++			return &war;
++		}
++	}
++	return nullptr;
++}
++
++memory::vector<War const*> WarManager::get_wars_of(CountryInstance const& country) const {
++	memory::vector<War const*> result;
++	for (War const& war : wars) {
++		if (war.has_participant(country)) {
++			result.push_back(&war);
++		}
++	}
++	return result;
++}
++
++bool WarManager::has_truce(CountryInstance const& first, CountryInstance const& second, const Date today) const {
++	for (Truce const& truce : truces) {
++		if (truce.until > today
++			&& ((truce.first == &first && truce.second == &second) || (truce.first == &second && truce.second == &first))) {
++			return true;
++		}
++	}
++	return false;
++}
++
++WarManager::Siege const* WarManager::get_siege(ProvinceInstance const& province) const {
++	const auto it = sieges.find(&province);
++	return it != sieges.end() ? &it->second : nullptr;
++}
++
++std::int32_t WarManager::get_province_weight(ProvinceInstance const& province) {
++	CountryInstance const* const owner = province.get_owner();
++	if (owner != nullptr && owner->get_capital() == &province) {
++		return CAPITAL_PROVINCE_WEIGHT;
++	}
++	return 1;
++}
++
++std::int32_t WarManager::get_siege_days_required(ProvinceInstance const& province) {
++	std::int32_t fort_levels = 0;
++	for (BuildingInstance const& building : province.get_buildings()) {
++		fort_levels += static_cast<std::int32_t>(type_safe::get(building.get_level()))
++			* static_cast<std::int32_t>(type_safe::get(building.building_type.fort_level));
++	}
++	return SIEGE_BASE_DAYS + fort_levels * SIEGE_DAYS_PER_FORT_LEVEL;
++}
++
++bool WarManager::can_declare_war(CountryInstance const& attacker, CountryInstance const& defender, const Date today) const {
++	if (&attacker == &defender || !attacker.exists() || !defender.exists()) {
++		return false;
++	}
++	if (attacker.is_rebel_country() || defender.is_rebel_country()) {
++		return false;
++	}
++	if (attacker.is_at_war_with(defender) || attacker.has_alliance_with(defender)) {
++		return false;
++	}
++	return !has_truce(attacker, defender, today);
++}
++
++bool WarManager::declare_war(InstanceManager& instance_manager, CountryInstance& attacker, CountryInstance& defender) {
++	if (!can_declare_war(attacker, defender, instance_manager.get_today())) {
++		return false;
++	}
++
++	War war;
++	war.id = next_war_id++;
++	war.start_date = instance_manager.get_today();
++	war.attackers.push_back(&attacker);
++	war.defenders.push_back(&defender);
++
++	// Allies join the side of their ally, unless they are allied to both sides or already fight their ally
++	for (CountryInstance& country : instance_manager.get_country_instance_manager().get_country_instances()) {
++		if (&country == &attacker || &country == &defender || !country.exists() || country.is_rebel_country()) {
++			continue;
++		}
++
++		const bool allied_to_attacker = country.has_alliance_with(attacker);
++		const bool allied_to_defender = country.has_alliance_with(defender);
++		if (allied_to_attacker == allied_to_defender) {
++			continue;
++		}
++
++		if (allied_to_attacker) {
++			if (!country.is_at_war_with(attacker)) {
++				war.attackers.push_back(&country);
++			}
++		} else if (!country.is_at_war_with(defender)) {
++			war.defenders.push_back(&country);
++		}
++	}
++
++	for (CountryInstance* attacking : war.attackers) {
++		for (CountryInstance* defending : war.defenders) {
++			attacking->set_at_war_with(*defending, true);
++		}
++	}
++
++	SPDLOG_INFO(
++		"War {} started: {} (+{} allies) attacks {} (+{} allies)",
++		war.id, attacker.get_identifier(), war.attackers.size() - 1, defender.get_identifier(), war.defenders.size() - 1
++	);
++
++	wars.push_back(std::move(war));
++	return true;
++}
++
++bool WarManager::would_accept_peace(
++	InstanceManager const& instance_manager, War const& war, const bool proposer_is_attacker, const peace_type_t peace_type
++) const {
++	const std::int32_t days = (instance_manager.get_today() - war.start_date).to_int();
++	const fixed_point_t proposer_score = war.get_score(proposer_is_attacker);
++	const fixed_point_t other_score = war.get_score(!proposer_is_attacker);
++
++	switch (peace_type) {
++	case peace_type_t::WHITE_PEACE:
++		// The side that is clearly winning refuses, unless the war has dragged on for years
++		return other_score - proposer_score < 15 || days > 3 * 365;
++	case peace_type_t::TAKE_STATES: {
++		if (proposer_score >= 40) {
++			return true;
++		}
++		// Surrender when the capital of the leader has fallen
++		memory::vector<CountryInstance*> const& other_side = war.get_side(!proposer_is_attacker);
++		memory::vector<CountryInstance*> const& proposer_side = war.get_side(proposer_is_attacker);
++		if (!other_side.empty()) {
++			CountryInstance const* const leader = other_side.front();
++			ProvinceInstance const* const capital = leader->get_capital();
++			if (capital != nullptr && proposer_score >= 25 && contains_country(proposer_side, capital->get_controller())) {
++				return true;
++			}
++		}
++		return days > 5 * 365 && proposer_score >= 20;
++	}
++	case peace_type_t::GIVE_STATES:
++		return true;
++	}
++
++	return false;
++}
++
++bool WarManager::propose_peace(
++	InstanceManager& instance_manager, const std::uint32_t war_id, CountryInstance& proposer, const peace_type_t peace_type
++) {
++	War const* const war = find_war(war_id);
++	if (war == nullptr || !war->has_participant(proposer)) {
++		return false;
++	}
++
++	const bool proposer_is_attacker = war->is_attacker(proposer);
++
++	if (!would_accept_peace(instance_manager, *war, proposer_is_attacker, peace_type)) {
++		return false;
++	}
++
++	switch (peace_type) {
++	case peace_type_t::WHITE_PEACE:
++		break;
++	case peace_type_t::TAKE_STATES:
++		transfer_states(instance_manager, *war, proposer_is_attacker);
++		break;
++	case peace_type_t::GIVE_STATES:
++		transfer_states(instance_manager, *war, !proposer_is_attacker);
++		break;
++	}
++
++	end_war(instance_manager, war_id);
++	return true;
++}
++
++void WarManager::transfer_states(InstanceManager& instance_manager, War const& war, const bool winners_are_attackers) {
++	memory::vector<CountryInstance*> const& winners = war.get_side(winners_are_attackers);
++	memory::vector<CountryInstance*> const& losers = war.get_side(!winners_are_attackers);
++
++	struct Candidate {
++		State* state;
++		CountryInstance* old_owner;
++		CountryInstance* recipient;
++		fixed_point_t cost;
++	};
++	std::vector<Candidate> candidates;
++
++	for (CountryInstance* loser : losers) {
++		std::int32_t total_weight = 0;
++		for (ProvinceInstance const* province : loser->get_owned_provinces()) {
++			total_weight += get_province_weight(*province);
++		}
++		if (total_weight <= 0) {
++			continue;
++		}
++
++		std::unordered_set<State*> seen_states;
++		for (ProvinceInstance* province : loser->get_owned_provinces()) {
++			State* const state = province->get_state();
++			if (state == nullptr || !seen_states.insert(state).second) {
++				continue;
++			}
++
++			// The state can be taken if the winners hold at least one of its provinces
++			CountryInstance* recipient = nullptr;
++			std::int32_t state_weight = 0;
++			for (ProvinceInstance& state_province : state->get_provinces()) {
++				state_weight += get_province_weight(state_province);
++				CountryInstance* const controller = state_province.get_controller();
++				if (recipient == nullptr && controller != loser && contains_country(winners, controller)) {
++					recipient = controller;
++				}
++			}
++			if (recipient == nullptr) {
++				continue;
++			}
++
++			candidates.push_back({ state, loser, recipient, fixed_point_t(state_weight) / total_weight * 100 });
++		}
++	}
++
++	// Cheap states first so that the score is spent on as many states as possible
++	std::stable_sort(candidates.begin(), candidates.end(), [](Candidate const& lhs, Candidate const& rhs) -> bool {
++		return lhs.cost < rhs.cost;
++	});
++
++	fixed_point_t budget = war.get_score(winners_are_attackers);
++	std::unordered_set<CountryInstance*> changed_countries;
++
++	for (Candidate const& candidate : candidates) {
++		if (candidate.cost > budget) {
++			continue;
++		}
++		budget -= candidate.cost;
++
++		for (ProvinceInstance& province : candidate.state->get_provinces()) {
++			province.set_owner(candidate.recipient);
++			province.set_controller(candidate.recipient);
++		}
++		changed_countries.insert(candidate.old_owner);
++	}
++
++	// A country that lost its capital moves it to one of its remaining provinces
++	for (CountryInstance* country : changed_countries) {
++		ProvinceInstance* const capital = country->get_capital();
++		if (capital != nullptr && capital->get_owner() == country) {
++			continue;
++		}
++		ProvinceInstance* new_capital = nullptr;
++		for (ProvinceInstance* province : country->get_owned_provinces()) {
++			new_capital = province;
++			break;
++		}
++		country->set_capital(new_capital);
++	}
++}
++
++void WarManager::end_war(InstanceManager& instance_manager, const std::uint32_t war_id) {
++	const auto war_it = std::find_if(wars.begin(), wars.end(), [war_id](War const& war) -> bool {
++		return war.id == war_id;
++	});
++	if (war_it == wars.end()) {
++		return;
++	}
++
++	const War war = *war_it;
++	wars.erase(war_it);
++
++	const Date today = instance_manager.get_today();
++
++	for (CountryInstance* attacker : war.attackers) {
++		for (CountryInstance* defender : war.defenders) {
++			truces.push_back({ attacker, defender, today + Timespan::from_days(TRUCE_DAYS) });
++			// Still enemies if another war keeps them apart
++			if (find_war_between(*attacker, *defender) == nullptr) {
++				attacker->set_at_war_with(*defender, false);
++			}
++		}
++	}
++
++	truces.erase(
++		std::remove_if(truces.begin(), truces.end(), [today](Truce const& truce) -> bool {
++			return truce.until <= today;
++		}),
++		truces.end()
++	);
++
++	SPDLOG_INFO("War {} ended", war_id);
++
++	MapInstance& map_instance = instance_manager.get_map_instance();
++
++	// Occupied provinces return to their owners unless the occupier still fights the owner
++	for (ProvinceInstance& province : map_instance.get_province_instances()) {
++		CountryInstance* const owner = province.get_owner();
++		CountryInstance* const controller = province.get_controller();
++		if (owner != nullptr && controller != nullptr && controller != owner && !controller->is_at_war_with(*owner)) {
++			province.set_controller(owner);
++		}
++	}
++
++	// Armies that no longer have the right to stand in a province go home
++	for (ProvinceInstance& province : map_instance.get_province_instances()) {
++		if (province.get_armies().empty()) {
++			continue;
++		}
++		for (ArmyInstance* army : copy_armies(province)) {
++			CountryInstance& country = army->get_country();
++			if (UnitInstanceGroup::can_country_enter(country, province)) {
++				continue;
++			}
++
++			ProvinceInstance* home = country.get_capital();
++			if (home == nullptr || home->get_owner() != &country) {
++				home = nullptr;
++				for (ProvinceInstance* owned : country.get_owned_provinces()) {
++					home = owned;
++					break;
++				}
++			}
++
++			army->clear_path();
++			if (home != nullptr) {
++				army->set_location(*home);
++			} else {
++				instance_manager.get_unit_instance_manager().destroy_group(*army);
++			}
++		}
++	}
++}
++
++void WarManager::update_combat(InstanceManager& instance_manager) {
++	MapInstance& map_instance = instance_manager.get_map_instance();
++	UnitInstanceManager& unit_manager = instance_manager.get_unit_instance_manager();
++
++	for (ProvinceInstance& province : map_instance.get_province_instances()) {
++		if (province.get_armies().empty()) {
++			continue;
++		}
++
++		std::vector<ArmyInstance*> armies = copy_armies(province);
++		for (ArmyInstance* army : armies) {
++			army->set_in_combat(false);
++		}
++		if (armies.size() < 2) {
++			continue;
++		}
++
++		// Find a country that has an enemy in the province, the battle is fought between its side and the enemies
++		CountryInstance const* lead_country = nullptr;
++		for (size_t i = 0; i < armies.size() && lead_country == nullptr; ++i) {
++			for (size_t j = i + 1; j < armies.size(); ++j) {
++				if (armies[i]->get_country().is_at_war_with(armies[j]->get_country())) {
++					lead_country = &armies[i]->get_country();
++					break;
++				}
++			}
++		}
++		if (lead_country == nullptr) {
++			continue;
++		}
++
++		BattleSide side_a, side_b;
++		for (ArmyInstance* army : armies) {
++			if (army->empty()) {
++				continue;
++			}
++			CountryInstance const& country = army->get_country();
++			if (country.is_at_war_with(*lead_country)) {
++				side_b.armies.push_back(army);
++			}
++		}
++		for (ArmyInstance* army : armies) {
++			if (army->empty()) {
++				continue;
++			}
++			CountryInstance const& country = army->get_country();
++			if (&country == lead_country) {
++				side_a.armies.push_back(army);
++				continue;
++			}
++			if (country.is_at_war_with(*lead_country)) {
++				continue;
++			}
++			// An ally fights alongside if it is at war with someone on the other side
++			const bool fights_b = std::any_of(side_b.armies.begin(), side_b.armies.end(), [&country](ArmyInstance* enemy) -> bool {
++				return country.is_at_war_with(enemy->get_country());
++			});
++			if (fights_b) {
++				side_a.armies.push_back(army);
++			}
++		}
++
++		calculate_side(side_a);
++		calculate_side(side_b);
++		if (side_a.regiment_count == 0 || side_b.regiment_count == 0) {
++			continue;
++		}
++
++		const fixed_point_t power_a = side_a.power;
++		const fixed_point_t power_b = side_b.power;
++		const size_t regiments_a = side_a.regiment_count;
++		const size_t regiments_b = side_b.regiment_count;
++
++		apply_damage(side_b, power_a);
++		apply_damage(side_a, power_b);
++		calculate_side(side_a);
++		calculate_side(side_b);
++
++		for (ArmyInstance* army : side_a.armies) {
++			fought_today.insert(army->unique_id);
++		}
++		for (ArmyInstance* army : side_b.armies) {
++			fought_today.insert(army->unique_id);
++		}
++
++		const fixed_point_t rout_threshold = fixed_point_t(1) / 10;
++		const fixed_point_t ratio_a = side_a.get_organisation_ratio();
++		const fixed_point_t ratio_b = side_b.get_organisation_ratio();
++		const bool routed_a = side_a.regiment_count == 0 || ratio_a < rout_threshold;
++		const bool routed_b = side_b.regiment_count == 0 || ratio_b < rout_threshold;
++
++		if (!routed_a && !routed_b) {
++			for (ArmyInstance* army : side_a.armies) {
++				army->set_in_combat(true);
++			}
++			for (ArmyInstance* army : side_b.armies) {
++				army->set_in_combat(true);
++			}
++			continue;
++		}
++
++		const bool a_loses = routed_a && (!routed_b || ratio_a <= ratio_b);
++		BattleSide& loser = a_loses ? side_a : side_b;
++		BattleSide& winner = a_loses ? side_b : side_a;
++		const size_t loser_regiments = a_loses ? regiments_a : regiments_b;
++
++		// Battle score for the winner's side
++		if (!loser.armies.empty() && !winner.armies.empty()) {
++			CountryInstance const& winner_country = winner.armies.front()->get_country();
++			CountryInstance const& loser_country = loser.armies.front()->get_country();
++			if (War* const war = find_war_between(winner_country, loser_country); war != nullptr) {
++				const fixed_point_t gain = fixed_point_t::_1 + fixed_point_t(static_cast<int32_t>(std::min<size_t>(loser_regiments, 20))) / 4;
++				fixed_point_t& score = war->is_attacker(winner_country) ? war->attacker_battle_score : war->defender_battle_score;
++				score += gain;
++				if (score > MAX_BATTLE_SCORE) {
++					score = fixed_point_t(MAX_BATTLE_SCORE);
++				}
++			}
++		}
++
++		// The losers retreat, or are destroyed if there is nowhere to go
++		for (ArmyInstance* army : loser.armies) {
++			army->clear_path();
++			ProvinceInstance* const retreat = find_retreat_province(province, *army, map_instance);
++			if (retreat != nullptr) {
++				army->set_location(*retreat);
++			} else {
++				unit_manager.destroy_group(*army);
++			}
++		}
++	}
++}
++
++void WarManager::update_sieges(InstanceManager& instance_manager) {
++	std::unordered_set<ProvinceInstance const*> active;
++
++	for (ProvinceInstance& province : instance_manager.get_map_instance().get_province_instances()) {
++		if (province.province_definition.is_water() || province.get_armies().empty()) {
++			continue;
++		}
++
++		CountryInstance* const controller = province.get_controller();
++		if (controller == nullptr) {
++			continue;
++		}
++
++		CountryInstance* besieger = nullptr;
++		bool contested = false;
++		for (ArmyInstance& army : province.get_armies()) {
++			if (army.is_in_combat()) {
++				contested = true;
++				break;
++			}
++			if (besieger == nullptr && army.get_country().is_at_war_with(*controller)) {
++				besieger = &army.get_country();
++			}
++		}
++		if (besieger == nullptr || contested) {
++			continue;
++		}
++		// Enemy armies of the besieger in the province stop the siege
++		for (ArmyInstance const& army : province.get_armies()) {
++			if (army.get_country().is_at_war_with(*besieger)) {
++				contested = true;
++				break;
++			}
++		}
++		if (contested) {
++			continue;
++		}
++
++		active.insert(&province);
++		Siege& siege = sieges[&province];
++		if (siege.besieger != besieger) {
++			siege = {};
++			siege.besieger = besieger;
++		}
++		siege.days_required = get_siege_days_required(province);
++		siege.days++;
++
++		if (siege.days >= siege.days_required) {
++			province.set_controller(besieger);
++			active.erase(&province);
++		}
++	}
++
++	for (auto it = sieges.begin(); it != sieges.end();) {
++		if (active.contains(it->first)) {
++			++it;
++		} else {
++			it = sieges.erase(it);
++		}
++	}
++}
++
++void WarManager::update_scores(InstanceManager& instance_manager) {
++	for (War& war : wars) {
++		// Share of the enemies' land (by weight) that the side holds, 0..100
++		const auto occupation_score = [](
++			memory::vector<CountryInstance*> const& owners, memory::vector<CountryInstance*> const& occupiers
++		) -> fixed_point_t {
++			std::int32_t total = 0;
++			std::int32_t held = 0;
++			for (CountryInstance const* owner : owners) {
++				for (ProvinceInstance const* province : owner->get_owned_provinces()) {
++					const std::int32_t weight = get_province_weight(*province);
++					total += weight;
++					if (province->get_controller() != owner && contains_country(occupiers, province->get_controller())) {
++						held += weight;
++					}
++				}
++			}
++			return total > 0 ? fixed_point_t(held) / total * 100 : fixed_point_t::_0;
++		};
++
++		war.attacker_score = std::min<fixed_point_t>(
++			occupation_score(war.defenders, war.attackers) + war.attacker_battle_score, fixed_point_t(100)
++		);
++		war.defender_score = std::min<fixed_point_t>(
++			occupation_score(war.attackers, war.defenders) + war.defender_battle_score, fixed_point_t(100)
++		);
++	}
++}
++
++void WarManager::update_army_recovery(InstanceManager& instance_manager) {
++	const fixed_point_t organisation_recovery = fixed_point_t(2) / 100;
++	const fixed_point_t strength_recovery = fixed_point_t(5) / 1000;
++
++	for (ProvinceInstance& province : instance_manager.get_map_instance().get_province_instances()) {
++		for (ArmyInstance& army : province.get_armies()) {
++			if (fought_today.contains(army.unique_id)) {
++				continue;
++			}
++
++			// Men are only replaced on friendly ground
++			CountryInstance const* const owner = province.get_owner();
++			const bool friendly = owner != nullptr
++				&& (owner == &army.get_country() || army.get_country().has_alliance_with(*owner));
++
++			for (RegimentInstance& regiment : army.get_regiment_instances()) {
++				regiment.recover(
++					regiment.get_max_organisation() * organisation_recovery,
++					friendly ? regiment.get_max_strength() * strength_recovery : fixed_point_t::_0
++				);
++			}
++		}
++	}
++}
++
++void WarManager::tick(InstanceManager& instance_manager) {
++	fought_today.clear();
++
++	update_combat(instance_manager);
++
++	// Delete regiments that lost all their men
++	{
++		UnitInstanceManager& unit_manager = instance_manager.get_unit_instance_manager();
++		for (ProvinceInstance& province : instance_manager.get_map_instance().get_province_instances()) {
++			if (province.get_armies().empty()) {
++				continue;
++			}
++			for (ArmyInstance* army : copy_armies(province)) {
++				std::vector<UnitInstance*> dead;
++				for (UnitInstance& unit : army->get_units()) {
++					if (unit.get_strength() <= fixed_point_t::_0) {
++						dead.push_back(&unit);
++					}
++				}
++				// destroy_unit deletes the group together with its last unit
++				for (UnitInstance* unit : dead) {
++					unit_manager.destroy_unit(*unit, *army);
++				}
++			}
++		}
++	}
++
++	update_sieges(instance_manager);
++	update_scores(instance_manager);
++	update_army_recovery(instance_manager);
++	update_auto_plan(instance_manager);
++	update_fronts(instance_manager);
++}
+diff --git a/src/openvic-simulation/military/War.hpp b/src/openvic-simulation/military/War.hpp
+new file mode 100644
+index 0000000..832c477
+--- /dev/null
++++ b/src/openvic-simulation/military/War.hpp
+@@ -0,0 +1,173 @@
++#pragma once
++
++#include <cstdint>
++#include <span>
++#include <unordered_map>
++#include <unordered_set>
++
++#include "openvic-simulation/core/memory/Vector.hpp"
++#include "openvic-simulation/core/object/Date.hpp"
++#include "openvic-simulation/core/object/FixedPoint.hpp"
++#include "openvic-simulation/types/UniqueId.hpp"
++
++namespace OpenVic {
++	struct CountryInstance;
++	struct InstanceManager;
++	struct ProvinceInstance;
++	struct State;
++
++	// A war between two sides. The first country of each side is its leader.
++	// The war goal is always conquest: the side that holds more enemy land wins more at the peace table.
++	struct War {
++		std::uint32_t id = 0;
++		Date start_date;
++		memory::vector<CountryInstance*> attackers;
++		memory::vector<CountryInstance*> defenders;
++
++		// Score gathered in battles (capped), the occupation score is calculated from the map each tick
++		fixed_point_t attacker_battle_score;
++		fixed_point_t defender_battle_score;
++		// Total war score of each side, 0..100
++		fixed_point_t attacker_score;
++		fixed_point_t defender_score;
++
++		bool is_attacker(CountryInstance const& country) const;
++		bool is_defender(CountryInstance const& country) const;
++		bool has_participant(CountryInstance const& country) const {
++			return is_attacker(country) || is_defender(country);
++		}
++		memory::vector<CountryInstance*> const& get_side(bool attackers_side) const {
++			return attackers_side ? attackers : defenders;
++		}
++		fixed_point_t get_score(bool attackers_side) const {
++			return attackers_side ? attacker_score : defender_score;
++		}
++	};
++
++	// A front is a line of provinces (usually along the border with an enemy) that armies are assigned to.
++	// Assigned armies are moved automatically: in DEFEND mode they spread along the line, in ATTACK mode they advance
++	// into the enemy provinces next to the line, one target per army.
++	struct Front {
++		enum struct mode_t : std::uint32_t { DEFEND = 0, ATTACK = 1 };
++
++		std::uint32_t id = 0;
++		CountryInstance* country = nullptr;
++		// Enemy the front was generated against, nullptr for a hand drawn front
++		CountryInstance const* enemy = nullptr;
++		mode_t mode = mode_t::DEFEND;
++		memory::vector<ProvinceInstance*> provinces;
++		memory::vector<unique_id_t> army_ids;
++	};
++
++	struct WarManager {
++		enum struct peace_type_t : std::uint32_t {
++			WHITE_PEACE = 0, // nothing changes hands
++			TAKE_STATES = 1, // the proposer's side takes states it occupies, up to its war score
++			GIVE_STATES = 2  // the proposer gives the other side the states it occupies, up to the other side's war score
++		};
++
++		struct Siege {
++			CountryInstance const* besieger = nullptr;
++			std::int32_t days = 0;
++			std::int32_t days_required = 0;
++		};
++
++		// Tunable constants
++		static constexpr std::int32_t TRUCE_DAYS = 5 * 365;
++		static constexpr std::int32_t SIEGE_BASE_DAYS = 3;
++		static constexpr std::int32_t SIEGE_DAYS_PER_FORT_LEVEL = 5;
++		static constexpr std::int32_t CAPITAL_PROVINCE_WEIGHT = 5;
++		static constexpr std::int32_t MAX_BATTLE_SCORE = 25;
++
++	private:
++		memory::vector<War> wars;
++		std::uint32_t next_war_id = 1;
++
++		struct Truce {
++			CountryInstance const* first;
++			CountryInstance const* second;
++			Date until;
++		};
++		memory::vector<Truce> truces;
++
++		std::unordered_map<ProvinceInstance const*, Siege> sieges;
++		std::unordered_set<unique_id_t> fought_today;
++
++		memory::vector<Front> fronts;
++		std::uint32_t next_front_id = 1;
++		// Countries whose fronts and army assignments are managed automatically
++		std::unordered_set<CountryInstance const*> auto_plan_countries;
++
++		Front* find_front(std::uint32_t id);
++		void update_fronts(InstanceManager& instance_manager);
++		void update_auto_plan(InstanceManager& instance_manager);
++		void order_front_armies(InstanceManager& instance_manager, Front& front);
++
++		War* find_war(std::uint32_t id);
++		War* find_war_between(CountryInstance const& first, CountryInstance const& second);
++
++		void update_combat(InstanceManager& instance_manager);
++		void update_sieges(InstanceManager& instance_manager);
++		void update_scores(InstanceManager& instance_manager);
++		void update_army_recovery(InstanceManager& instance_manager);
++
++		void end_war(InstanceManager& instance_manager, std::uint32_t war_id);
++		void transfer_states(InstanceManager& instance_manager, War const& war, bool winners_are_attackers);
++
++	public:
++		std::span<const War> get_wars() const {
++			return wars;
++		}
++		War const* get_war_by_id(std::uint32_t id) const;
++		// Wars the country takes part in
++		memory::vector<War const*> get_wars_of(CountryInstance const& country) const;
++
++		bool has_truce(CountryInstance const& first, CountryInstance const& second, Date today) const;
++		// Siege progress of the province, nullptr if there is none
++		Siege const* get_siege(ProvinceInstance const& province) const;
++
++		// Weight of a country's province for the war score (a capital is worth several ordinary provinces)
++		static std::int32_t get_province_weight(ProvinceInstance const& province);
++		// Number of days a siege of the province takes
++		static std::int32_t get_siege_days_required(ProvinceInstance const& province);
++
++		bool can_declare_war(CountryInstance const& attacker, CountryInstance const& defender, Date today) const;
++		// Starts a war, the allies of both sides who are not allied to the enemy join in automatically
++		bool declare_war(InstanceManager& instance_manager, CountryInstance& attacker, CountryInstance& defender);
++
++		// The decision of the other side's leader. This is the single place that has to be replaced by real AI/player choice.
++		bool would_accept_peace(
++			InstanceManager const& instance_manager, War const& war, bool proposer_is_attacker, peace_type_t peace_type
++		) const;
++		// Proposes peace in the war, the proposer must take part in it. Returns true if the peace was signed.
++		bool propose_peace(
++			InstanceManager& instance_manager, std::uint32_t war_id, CountryInstance& proposer, peace_type_t peace_type
++		);
++
++		std::span<const Front> get_fronts() const {
++			return fronts;
++		}
++		Front const* get_front_by_id(std::uint32_t id) const;
++		bool is_auto_plan_enabled(CountryInstance const& country) const {
++			return auto_plan_countries.contains(&country);
++		}
++
++		// Creates a front for the country. With an enemy the border provinces of the country next to the enemy are
++		// added in order along the border (auto front), without one the front starts empty to be drawn by hand.
++		// Returns the id of the front, 0 on failure.
++		std::uint32_t create_front(InstanceManager& instance_manager, CountryInstance& country, CountryInstance const* enemy);
++		bool delete_front(CountryInstance const& country, std::uint32_t front_id);
++		// Adds a province of the country to the end of the front (or removes it if it is already in the line)
++		bool toggle_front_province(CountryInstance const& country, std::uint32_t front_id, ProvinceInstance& province);
++		bool set_front_mode(CountryInstance const& country, std::uint32_t front_id, Front::mode_t mode);
++		bool set_front_army(
++			InstanceManager& instance_manager, CountryInstance const& country, std::uint32_t front_id, unique_id_t army_id,
++			bool assigned
++		);
++		// Assigns every army of the country that is not on a front yet to the front
++		bool assign_free_armies(InstanceManager& instance_manager, CountryInstance const& country, std::uint32_t front_id);
++		void set_auto_plan(CountryInstance const& country, bool enabled);
++
++		void tick(InstanceManager& instance_manager);
++	};
++}
+diff --git a/src/openvic-simulation/misc/GameAction.cpp b/src/openvic-simulation/misc/GameAction.cpp
+index ac3a907..f0ffad9 100644
+--- a/src/openvic-simulation/misc/GameAction.cpp
++++ b/src/openvic-simulation/misc/GameAction.cpp
+@@ -8,6 +8,8 @@
+ #include "openvic-simulation/economy/production/FactoryInstance.hpp"
+ #include "openvic-simulation/economy/production/ProductionType.hpp"
+ #include "openvic-simulation/map/State.hpp"
++#include "openvic-simulation/military/UnitInstanceGroup.hpp"
++#include "openvic-simulation/military/War.hpp"
+ #include "openvic-simulation/map/ProvinceInstance.hpp"
+ 
+ using namespace OpenVic;
+@@ -343,6 +345,133 @@ bool GameActionManager::VariantVisitor::operator() (diplomatic_action_argument_t
+ 	);
+ }
+ 
++// Wars and armies
++namespace {
++	CountryInstance& war_action_country(InstanceManager& instance_manager, const country_index_t index) {
++		return instance_manager.get_country_instance_manager().get_country_instance_by_index(index);
++	}
++}
++
++bool GameActionManager::VariantVisitor::operator() (move_army_argument_t const& argument) const {
++	const auto [unique_id, province_index] = argument;
++
++	UnitInstanceGroup* const group = instance_manager.get_unit_instance_manager().get_unit_instance_group_by_unique_id(unique_id);
++	if (OV_unlikely(group == nullptr || group->branch != unit_branch_t::LAND)) {
++		spdlog::error_s("GAME_ACTION_MOVE_ARMY called with invalid army unique id: {}", unique_id);
++		return false;
++	}
++
++	ProvinceInstance* const province = instance_manager.get_map_instance().get_province_instance_by_index(province_index);
++	if (OV_unlikely(province == nullptr)) {
++		spdlog::error_s("GAME_ACTION_MOVE_ARMY called with invalid province index: {}", province_index);
++		return false;
++	}
++
++	// A manual order takes the army off its front so that the front does not send it back
++	for (Front const& front : instance_manager.get_war_manager().get_fronts()) {
++		if (front.country == &group->get_country()) {
++			instance_manager.get_war_manager().set_front_army(
++				instance_manager, group->get_country(), front.id, unique_id, false
++			);
++			break;
++		}
++	}
++
++	return instance_manager.get_unit_instance_manager().order_move(
++		static_cast<ArmyInstance&>(*group), *province, instance_manager.get_map_instance()
++	);
++}
++
++bool GameActionManager::VariantVisitor::operator() (stop_army_argument_t const& argument) const {
++	const unique_id_t unique_id = type_safe::get(argument);
++
++	UnitInstanceGroup* const group = instance_manager.get_unit_instance_manager().get_unit_instance_group_by_unique_id(unique_id);
++	if (OV_unlikely(group == nullptr)) {
++		spdlog::error_s("GAME_ACTION_STOP_ARMY called with invalid army unique id: {}", unique_id);
++		return false;
++	}
++
++	if (!group->is_moving()) {
++		return false;
++	}
++	group->clear_path();
++	return true;
++}
++
++bool GameActionManager::VariantVisitor::operator() (propose_peace_argument_t const& argument) const {
++	const auto [country_index, war_id, peace_type] = argument;
++
++	if (OV_unlikely(peace_type > static_cast<std::uint32_t>(WarManager::peace_type_t::GIVE_STATES))) {
++		spdlog::error_s("GAME_ACTION_PROPOSE_PEACE called with invalid peace type: {}", peace_type);
++		return false;
++	}
++
++	return instance_manager.get_war_manager().propose_peace(
++		instance_manager, war_id, war_action_country(instance_manager, country_index),
++		static_cast<WarManager::peace_type_t>(peace_type)
++	);
++}
++
++bool GameActionManager::VariantVisitor::operator() (create_front_argument_t const& argument) const {
++	const auto [country_index, enemy_index] = argument;
++	CountryInstance& country = war_action_country(instance_manager, country_index);
++	CountryInstance& enemy = war_action_country(instance_manager, enemy_index);
++
++	// The same country as the enemy creates an empty front to draw by hand
++	return instance_manager.get_war_manager().create_front(
++		instance_manager, country, &enemy != &country ? &enemy : nullptr
++	) != 0;
++}
++
++bool GameActionManager::VariantVisitor::operator() (delete_front_argument_t const& argument) const {
++	const auto [country_index, front_id] = argument;
++	return instance_manager.get_war_manager().delete_front(war_action_country(instance_manager, country_index), front_id);
++}
++
++bool GameActionManager::VariantVisitor::operator() (toggle_front_province_argument_t const& argument) const {
++	const auto [country_index, front_id, province_index] = argument;
++
++	ProvinceInstance* const province = instance_manager.get_map_instance().get_province_instance_by_index(province_index);
++	if (OV_unlikely(province == nullptr)) {
++		spdlog::error_s("GAME_ACTION_TOGGLE_FRONT_PROVINCE called with invalid province index: {}", province_index);
++		return false;
++	}
++
++	return instance_manager.get_war_manager().toggle_front_province(
++		war_action_country(instance_manager, country_index), front_id, *province
++	);
++}
++
++bool GameActionManager::VariantVisitor::operator() (set_front_mode_argument_t const& argument) const {
++	const auto [country_index, front_id, mode] = argument;
++	return instance_manager.get_war_manager().set_front_mode(
++		war_action_country(instance_manager, country_index), front_id, static_cast<Front::mode_t>(mode)
++	);
++}
++
++bool GameActionManager::VariantVisitor::operator() (set_front_army_argument_t const& argument) const {
++	const auto [country_index, front_id, army_id, assigned] = argument;
++	return instance_manager.get_war_manager().set_front_army(
++		instance_manager, war_action_country(instance_manager, country_index), front_id, army_id, assigned
++	);
++}
++
++bool GameActionManager::VariantVisitor::operator() (assign_free_armies_argument_t const& argument) const {
++	const auto [country_index, front_id] = argument;
++	return instance_manager.get_war_manager().assign_free_armies(
++		instance_manager, war_action_country(instance_manager, country_index), front_id
++	);
++}
++
++bool GameActionManager::VariantVisitor::operator() (set_auto_plan_argument_t const& argument) const {
++	const auto [country_index, enabled] = argument;
++	CountryInstance& country = war_action_country(instance_manager, country_index);
++
++	const bool old_enabled = instance_manager.get_war_manager().is_auto_plan_enabled(country);
++	instance_manager.get_war_manager().set_auto_plan(country, enabled);
++	return old_enabled != enabled;
++}
++
+ // Factories
+ namespace {
+ 	// Finds the factory building type and the state to build in, null if the action is not valid
+diff --git a/src/openvic-simulation/misc/GameAction.hpp b/src/openvic-simulation/misc/GameAction.hpp
+index feb78b1..8dbe4cc 100644
+--- a/src/openvic-simulation/misc/GameAction.hpp
++++ b/src/openvic-simulation/misc/GameAction.hpp
+@@ -88,9 +88,20 @@ X(set_use_leader, unique_id_t, bool) \
+ X(set_auto_create_leaders, country_index_t, bool) \
+ X(set_auto_assign_leaders, country_index_t, bool) \
+ X(set_mobilise, country_index_t, bool) \
+-X(start_land_unit_recruitment, regiment_type_index_t, province_index_t, pop_id_in_province_t) X(diplomatic_action, country_index_t, country_index_t, std::uint32_t) \
++X(start_land_unit_recruitment, regiment_type_index_t, province_index_t, pop_id_in_province_t) \
++X(diplomatic_action, country_index_t, country_index_t, std::uint32_t) \
+ X(build_factory, country_index_t, province_index_t, building_type_index_t) \
+-X(set_factory_open, country_index_t, province_index_t, building_type_index_t, bool)
++X(set_factory_open, country_index_t, province_index_t, building_type_index_t, bool) \
++X(move_army, unique_id_t, province_index_t) \
++X(stop_army, unique_id_t) \
++X(propose_peace, country_index_t, std::uint32_t, std::uint32_t) \
++X(create_front, country_index_t, country_index_t) \
++X(delete_front, country_index_t, std::uint32_t) \
++X(toggle_front_province, country_index_t, std::uint32_t, province_index_t) \
++X(set_front_mode, country_index_t, std::uint32_t, std::uint32_t) \
++X(set_front_army, country_index_t, std::uint32_t, unique_id_t, bool) \
++X(assign_free_armies, country_index_t, std::uint32_t) \
++X(set_auto_plan, country_index_t, bool)
+ // <--- ADD NEW GAME ACTIONS HERE (copy/edit an X(...) line)
+ 
+ //the argument type alias for each game action
+-- 
+2.43.0
+

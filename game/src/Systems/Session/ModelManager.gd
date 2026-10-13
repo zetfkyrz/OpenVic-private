@@ -5,11 +5,44 @@ const MODEL_SCALE: float = 1.0 / 256.0
 
 @export var _map_view: MapView
 
+# Unit models currently on the map and the signature of the units they were generated from,
+# the models are regenerated when an army moves, appears or is destroyed
+var _unit_nodes: Array[Node3D] = []
+var _units_signature: int = 0
+
 
 func generate_units() -> void:
 	XACLoader.setup_flag_shader()
 
-	for unit: Dictionary in ModelSingleton.get_units():
+	var units: Array[Dictionary] = ModelSingleton.get_units()
+	_units_signature = _get_units_signature(units)
+	for unit: Dictionary in units:
+		_generate_unit(unit)
+
+	if not GameSingleton.gamestate_updated.is_connected(_refresh_units):
+		GameSingleton.gamestate_updated.connect(_refresh_units)
+
+
+func _get_units_signature(units: Array[Dictionary]) -> int:
+	var signature: int = units.size()
+	for unit: Dictionary in units:
+		signature = hash([signature, unit.get(&"position"), unit.get(&"flag_index"), unit.get(&"model")])
+	return signature
+
+
+func _refresh_units() -> void:
+	var units: Array[Dictionary] = ModelSingleton.get_units()
+	var signature: int = _get_units_signature(units)
+	if signature == _units_signature:
+		return
+	_units_signature = signature
+
+	for node in _unit_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	_unit_nodes.clear()
+
+	for unit: Dictionary in units:
 		_generate_unit(unit)
 
 
@@ -68,6 +101,7 @@ func _generate_unit(unit_dict: Dictionary) -> void:
 		model.tertiary_colour = unit_dict[tertiary_colour_key]
 
 	add_child(model)
+	_unit_nodes.append(model)
 
 
 func generate_buildings() -> void:

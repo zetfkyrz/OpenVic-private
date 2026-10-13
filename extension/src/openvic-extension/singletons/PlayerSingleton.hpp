@@ -105,6 +105,28 @@ namespace OpenVic {
 		// Queues the action from the player country to the given country, returns whether it was queued.
 		bool send_diplomatic_action(int32_t receiver_country_index, int32_t action_index) const;
 
+		// Wars, armies and fronts
+		// { wars: [{ id, we_attack, days, attacker_score, defender_score, attackers: [{ index, name }], defenders: [...] }],
+		//   armies: [{ id, name, province_number, province_identifier, regiments, strength, max_strength, organisation,
+		//              moving, destination_number, in_combat, front_id }],
+		//   fronts: [{ id, mode, enemy_index, enemy_name, provinces: [{ number, identifier }], army_ids: [...] }],
+		//   auto_plan: bool, selected_province_number }
+		godot::Dictionary get_war_overview() const;
+		bool move_army(int64_t army_id, int32_t province_number) const;
+		bool stop_army(int64_t army_id) const;
+		// peace_type: 0 = white peace, 1 = take the states occupied by us, 2 = give the states occupied by the enemy
+		bool propose_peace(int32_t war_id, int32_t peace_type) const;
+		// enemy_country_index < 0 creates an empty front to draw by hand, otherwise the border with the enemy is generated
+		bool create_front(int32_t enemy_country_index) const;
+		bool delete_front(int32_t front_id) const;
+		// Adds the province to the front line or removes it from the line if it is already there
+		bool toggle_front_province(int32_t front_id, int32_t province_number) const;
+		// mode: 0 = defend, 1 = attack
+		bool set_front_mode(int32_t front_id, int32_t mode) const;
+		bool set_front_army(int32_t front_id, int64_t army_id, bool assigned) const;
+		bool assign_free_armies(int32_t front_id) const;
+		bool set_auto_plan(bool enabled) const;
+
 		// Military
 		// Argument true for general, false for admiral
 		void create_leader(bool is_general) const;
