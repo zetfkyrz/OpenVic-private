@@ -9,33 +9,18 @@
 
 ---
 
-## 0. Как применить изменения (важно)
+## 0. Как получить изменения
 
-Изменения симуляции лежат в приватном репозитории `OpenVic-Simulation-private`, но в облачной сессии у Claude не было права
-пушить туда (GitHub App не установлен на этот репозиторий). Поэтому коммит симуляции приложен **патчем**:
-`docs/handoff/patches/0001-simulation-wars-fronts.patch` (сделан от коммита `17a6580`, ветка `diplomacy-actions`; `git apply --check`
-на нём проходит).
-
-На своём компьютере:
+Всё запушено. Симуляция — коммит `2c5496d` в `OpenVic-Simulation-private`, ветка `diplomacy-actions`; указатель сабмодуля в
+основном репозитории обновлён на него. На своём компьютере:
 
 ```bash
-# 1. основной репозиторий: забрать ветку claude/exciting-bell-ar4n90 (расширение, GDScript, документация, патч)
 git fetch origin claude/exciting-bell-ar4n90 && git merge origin/claude/exciting-bell-ar4n90
-
-# 2. симуляция: применить патч в сабмодуле (сохраняет автора и подпись Signed-off-by)
-cd extension/deps/openvic-simulation
-git checkout diplomacy-actions
-git am ../../../docs/handoff/patches/0001-simulation-wars-fronts.patch
-git push origin diplomacy-actions
-
-# 3. вернуться в корень и закоммитить новый указатель сабмодуля
-cd ../../..
-git add extension/deps/openvic-simulation
-git commit -s -m "Update simulation submodule: wars and fronts"
+git submodule update --init --recursive
+cmake --build --preset windows-x64-editor    # MSVC 14.44, потом перезапустить редактор Godot
 ```
 
-Указатель сабмодуля в основном репозитории я **не менял** (иначе он указывал бы на коммит, которого нет на GitHub).
-Пересборка: `cmake --build --preset windows-x64-editor` (MSVC 14.44), потом перезапустить редактор Godot.
+Патч `docs/handoff/patches/0001-simulation-wars-fronts.patch` оставлен как запасной вариант (`git am` в сабмодуле от `17a6580`).
 
 > На GCC пришлось поправить один старый код: в `DiplomaticAction.cpp` был `try/catch (std::bad_any_cast)`, а симуляция
 > компилируется с отключёнными исключениями. Теперь вместо этого явная проверка контекста. На MSVC это тоже работает.
