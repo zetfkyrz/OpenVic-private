@@ -1,8 +1,50 @@
 extends GUINode
 
 const _screen: NationManagement.Screen = NationManagement.Screen.PRODUCTION
+const _gui_file: String = "country_production"
+
+# Elements of the original window that are used, the rest belong to features that do not exist yet
+const _KEPT_ELEMENTS: PackedStringArray = [
+	"main_bg", "prod_bg", "headline_production", "close_button", "tab_factories", "tab_factories_text",
+	"state_listbox",
+]
+
+# Size of the "factory_info" window of the original interface
+const _FACTORY_WIDTH: float = 112.0
+const _STATE_ENTRY_HEIGHT: float = 140.0
+# Vertical offset of the factory windows, which are not centred vertically in their bounds window
+const _FACTORY_Y_OFFSET: float = -36.0
+# Width of the "factory_info_bounds" window of the original interface
+const _DEFAULT_BOUNDS_WIDTH: float = 940.0
+const _MAX_INPUT_ICONS: int = 4
+# GFX_resources frames: the first frames are not goods
+const _GOODS_ICON_OFFSET: int = 2
+# GFX_employment_ratio has 11 frames, from 0% to 100%
+const _EMPLOYMENT_FRAMES: int = 10
 
 var _active: bool = false
+
+var _main_window: Panel
+var _state_listbox: GUIListBox
+
+# Build dialog
+var _build_dialog: Panel
+var _build_option_list: GUIListBox
+var _build_state_name: GUILabel
+var _build_output_icon: GUIIcon
+var _build_building_name: GUILabel
+var _build_output_amount: GUILabel
+var _build_input_icons: Array[GUIIcon]
+var _build_input_amounts: Array[GUILabel]
+var _build_description: GUILabel
+var _build_workers: GUILabel
+var _build_cost: GUILabel
+var _build_button: GUIIconButton
+var _build_province_index: int = -1
+var _build_options: Array = []
+var _build_selected: int = -1
+
+var _states_by_province: Dictionary[int, Dictionary] = {}
 
 
 func _ready() -> void:
@@ -10,16 +52,25 @@ func _ready() -> void:
 
 	Events.NationManagementScreens.update_active_nation_management_screen.connect(_on_update_active_nation_management_screen)
 
-	add_gui_element("country_production", "country_production")
+	add_gui_element(_gui_file, "country_production")
 
-	var project_listbox: GUIListBox = get_gui_listbox_from_nodepath(^"./country_production/good_production/project_listbox")
-	if project_listbox:
-		project_listbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_click_mask_from_nodepaths([^"./country_production/main_bg"])
 
 	var close_button: GUIIconButton = get_gui_icon_button_from_nodepath(^"./country_production/close_button")
 	if close_button:
 		close_button.pressed.connect(Events.NationManagementScreens.close_nation_management_screen.bind(_screen))
+
+	_main_window = get_panel_from_nodepath(^"./country_production")
+	if not _main_window:
+		return
+
+	for child: Node in _main_window.get_children():
+		if child is CanvasItem and not (child.name in _KEPT_ELEMENTS):
+			child.hide()
+
+	_state_listbox = GUINode.get_gui_listbox_from_node(_main_window.get_node_or_null(^"./state_listbox"))
+
+	_setup_build_dialog()
 
 	_update_info()
 
@@ -32,12 +83,401 @@ func _notification(what: int) -> void:
 
 func _on_update_active_nation_management_screen(active_screen: NationManagement.Screen) -> void:
 	_active = active_screen == _screen
+	if not _active and _build_dialog:
+		_build_dialog.hide()
 	_update_info()
 
 
+func _set_label_text(label: GUILabel, text: String) -> void:
+	if label:
+		label.set_auto_translate(false)
+		label.set_text(text)
+
+
+func _set_goods_icon(icon: GUIIcon, good_index: int) -> void:
+	if icon:
+		icon.set_icon_index(good_index + _GOODS_ICON_OFFSET)
+
+
 func _update_info() -> void:
-	if _active:
-		# TODO - update UI state
-		show()
-	else:
+	if not _active:
 		hide()
+		return
+
+	show()
+
+	if not _state_listbox:
+		return
+
+	var states: Array = PlayerSingleton.get_production_info()
+
+	_states_by_province.clear()
+	var shown_states: Array = []
+	for state: Dictionary in states:
+		_states_by_province[state[&"province_index"]] = state
+		# States with nothing to show and nothing that can be built are not listed
+		if not state[&"factories"].is_empty() or not state[&"buildable"].is_empty():
+			shown_states.append(state)
+
+	# States with the most factories first
+	shown_states.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool: return a[&"factories"].size() > b[&"factories"].size()
+	)
+
+	if _state_listbox.get_child_count() != shown_states.size():
+		_state_listbox.clear_children(shown_states.size())
+		while _state_listbox.get_child_count() < shown_states.size():
+			var entry: Panel = GUINode.generate_gui_element(_gui_file, "state_info")
+			if not entry:
+				break
+			_setup_state_entry(entry)
+			_state_listbox.add_child(entry)
+
+	for i: int in mini(_state_listbox.get_child_count(), shown_states.size()):
+		_update_state_entry(_state_listbox.get_child(i), shown_states[i])
+
+	if _build_dialog and _build_dialog.visible:
+		_refresh_build_dialog()
+
+
+# ---- State entries ----
+
+
+func _setup_state_entry(entry: Panel) -> void:
+	# The factory windows are taller than the state window of the original interface, leave room for them
+	entry.custom_minimum_size.y = _STATE_ENTRY_HEIGHT
+	entry.size.y = _STATE_ENTRY_HEIGHT
+
+	for hidden_name: NodePath in [^"./state_focus", ^"./pop_info_bounds"]:
+		var node: Node = entry.get_node_or_null(hidden_name)
+		if node is CanvasItem:
+			node.hide()
+
+	var build_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(entry, ^"./build_new_factory")
+	if build_button:
+		build_button.pressed.connect(func() -> void: _open_build_dialog(int(entry.get_meta(&"province_index", -1))))
+
+
+func _update_state_entry(entry: Panel, state: Dictionary) -> void:
+	var factories: Array = state[&"factories"]
+	entry.set_meta(&"province_index", state[&"province_index"])
+
+	_set_label_text(GUINode.get_gui_label_from_node_and_path(entry, ^"./state_name"), state[&"name"])
+	_set_label_text(
+		GUINode.get_gui_label_from_node_and_path(entry, ^"./factory_count"),
+		"%d / %d" % [factories.size(), factories.size() + int(state[&"free_slots"])]
+	)
+
+	var build_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(entry, ^"./build_new_factory")
+	if build_button:
+		# Nothing can be built when there is no free slot or no type left to build
+		build_button.visible = int(state[&"free_slots"]) > 0 and not state[&"buildable"].is_empty()
+
+	var bounds: Node = entry.get_node_or_null(^"./factory_info_bounds")
+	if not bounds:
+		return
+
+	while bounds.get_child_count() > factories.size():
+		var extra: Node = bounds.get_child(bounds.get_child_count() - 1)
+		bounds.remove_child(extra)
+		extra.queue_free()
+
+	while bounds.get_child_count() < factories.size():
+		var factory_panel: Panel = GUINode.generate_gui_element(_gui_file, "factory_info")
+		if not factory_panel:
+			break
+		_setup_factory_panel(factory_panel)
+		# The factory windows are centred in the bounds window, so slots are laid out from its left edge
+		var bounds_width: float = bounds.size.x if bounds is Control and bounds.size.x > 0 else _DEFAULT_BOUNDS_WIDTH
+		factory_panel.position = Vector2(
+			-bounds_width / 2.0 + _FACTORY_WIDTH / 2.0 + bounds.get_child_count() * _FACTORY_WIDTH,
+			_FACTORY_Y_OFFSET,
+		)
+		bounds.add_child(factory_panel)
+
+	for i: int in mini(bounds.get_child_count(), factories.size()):
+		_update_factory_panel(bounds.get_child(i), state[&"province_index"], factories[i])
+
+
+# ---- Factories ----
+
+
+func _setup_factory_panel(panel: Panel) -> void:
+	# Features that do not exist yet
+	for hidden_name: NodePath in [^"./subsidise", ^"./priority", ^"./prod_cancel_progress", ^"./delete_factory"]:
+		var node: Node = panel.get_node_or_null(hidden_name)
+		if node is CanvasItem:
+			node.hide()
+
+	# Clicking the factory or the open/close button opens or closes it
+	var toggle_open: Callable = func() -> void:
+		if not panel.has_meta(&"building_type_index"):
+			return
+		PlayerSingleton.set_factory_open(
+			panel.get_meta(&"province_index"),
+			panel.get_meta(&"building_type_index"),
+			not panel.get_meta(&"open", true)
+		)
+
+	for button_name: NodePath in [^"./output", ^"./open_close"]:
+		var toggle_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, button_name)
+		if toggle_button:
+			toggle_button.pressed.connect(toggle_open)
+
+	var upgrade_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./upgrade")
+	if upgrade_button:
+		upgrade_button.pressed.connect(
+			func() -> void:
+				if not panel.has_meta(&"building_type_index"):
+					return
+				PlayerSingleton.build_factory(panel.get_meta(&"province_index"), panel.get_meta(&"building_type_index"))
+		)
+
+	for progress_name: NodePath in [^"./build_factory_progress", ^"./upgrade_factory_progress"]:
+		var bar: GUIProgressBar = GUINode.get_gui_progress_bar_from_node_and_path(panel, progress_name)
+		if bar:
+			bar.max_value = 1.0
+			bar.step = 0.01
+
+
+func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionary) -> void:
+	panel.set_meta(&"province_index", province_index)
+	panel.set_meta(&"building_type_index", factory[&"building_type_index"])
+	panel.set_meta(&"open", factory[&"open"])
+
+	var level: int = factory[&"level"]
+	var constructing: bool = factory[&"constructing"]
+	var is_new: bool = constructing and level == 0
+	var is_upgrading: bool = constructing and level > 0
+
+	_set_label_text(GUINode.get_gui_label_from_node_and_path(panel, ^"./level"), str(level) if level > 0 else "")
+
+	var output_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./output")
+	if output_button:
+		output_button.set_icon_index(int(factory[&"output_good_index"]) + _GOODS_ICON_OFFSET)
+		output_button.tooltip_string = "%s\n%s" % [factory[&"name"], tr("Click to open or close the factory")]
+
+	# Inputs of the factory and which of them are running out
+	var inputs: Array = factory[&"inputs"]
+	for i: int in _MAX_INPUT_ICONS:
+		var icon: GUIIcon = GUINode.get_gui_icon_from_node_and_path(panel, NodePath("./input_%d" % i))
+		var lack_icon: GUIIcon = GUINode.get_gui_icon_from_node_and_path(panel, NodePath("./input_%d_lack2" % i))
+		var has_input: bool = i < inputs.size() and not is_new
+		if icon:
+			icon.visible = has_input
+			if has_input:
+				_set_goods_icon(icon, inputs[i][&"good_index"])
+		if lack_icon:
+			lack_icon.visible = has_input and inputs[i][&"lacking"] and factory[&"open"] and level > 0
+
+	# Employment
+	var employment_icon: GUIIcon = GUINode.get_gui_icon_from_node_and_path(panel, ^"./employment_ratio")
+	if employment_icon:
+		employment_icon.visible = level > 0
+		employment_icon.set_icon_index(
+			clampi(roundi(factory[&"employment_ratio"] * _EMPLOYMENT_FRAMES), 0, _EMPLOYMENT_FRAMES) + 1
+		)
+
+	# Income of yesterday
+	var profit: float = factory[&"profit"]
+	var income_label: GUILabel = GUINode.get_gui_label_from_node_and_path(panel, ^"./income")
+	if income_label:
+		income_label.visible = level > 0
+		_set_label_text(income_label, "§%s%s%s§!" % [
+			"G" if profit >= 0 else "R", "+" if profit >= 0 else "", GUINode.float_to_string_dp(profit, 1),
+		])
+	var income_icon: Node = panel.get_node_or_null(^"./income_icon")
+	if income_icon is CanvasItem:
+		income_icon.visible = level > 0
+
+	# Construction and expansion
+	var in_progress_bg: Node = panel.get_node_or_null(^"./prod_factory_inprogress_bg")
+	if in_progress_bg is CanvasItem:
+		in_progress_bg.visible = is_new
+
+	var build_bar: GUIProgressBar = GUINode.get_gui_progress_bar_from_node_and_path(panel, ^"./build_factory_progress")
+	if build_bar:
+		build_bar.visible = is_new
+		build_bar.value = factory[&"construction_progress"]
+
+	var upgrade_bar: GUIProgressBar = GUINode.get_gui_progress_bar_from_node_and_path(
+		panel, ^"./upgrade_factory_progress"
+	)
+	if upgrade_bar:
+		upgrade_bar.visible = is_upgrading
+		upgrade_bar.value = factory[&"construction_progress"]
+	var overlay: Node = panel.get_node_or_null(^"./progress_overlay_16_64")
+	if overlay is CanvasItem:
+		overlay.visible = is_upgrading
+
+	var upgrade_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./upgrade")
+	if upgrade_button:
+		upgrade_button.visible = factory[&"can_expand"] and not constructing and level > 0
+		upgrade_button.tooltip_string = "%s (%s)" % [tr("Expand"), GUINode.float_to_string_dp(factory[&"upgrade_cost"], 0)]
+
+	var is_closed: bool = not factory[&"open"] and level > 0
+	for closed_name: NodePath in [^"./closed_overlay", ^"./factory_closed_text"]:
+		var closed_node: Node = panel.get_node_or_null(closed_name)
+		if closed_node is CanvasItem:
+			closed_node.visible = is_closed
+
+	# The open/close button is only useful for finished factories
+	var open_close: Node = panel.get_node_or_null(^"./open_close")
+	if open_close is CanvasItem:
+		open_close.visible = level > 0
+
+
+# ---- Build dialog ----
+
+
+func _setup_build_dialog() -> void:
+	add_gui_element(_gui_file, "build_factory")
+	_build_dialog = get_panel_from_nodepath(^"./build_factory")
+	if not _build_dialog:
+		return
+
+	_build_dialog.hide()
+
+	for hidden_name: NodePath in [^"./employment_info", ^"./goods_cost_info"]:
+		var node: Node = _build_dialog.get_node_or_null(hidden_name)
+		if node is CanvasItem:
+			node.hide()
+
+	_build_state_name = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./state_name")
+	_build_option_list = GUINode.get_gui_listbox_from_node(_build_dialog.get_node_or_null(^"./factory_type"))
+	_build_output_icon = GUINode.get_gui_icon_from_node_and_path(_build_dialog, ^"./output")
+	_build_building_name = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./building_name")
+	_build_output_amount = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./output_amount")
+	_build_description = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./description_text")
+	_build_workers = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./needed_workers_count")
+	_build_cost = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./prod_cost")
+
+	for i: int in _MAX_INPUT_ICONS:
+		_build_input_icons.append(GUINode.get_gui_icon_from_node_and_path(_build_dialog, NodePath("./input_%d" % i)))
+		_build_input_amounts.append(
+			GUINode.get_gui_label_from_node_and_path(_build_dialog, NodePath("./input_%d_amount" % i))
+		)
+
+	var cancel_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(_build_dialog, ^"./Cancel")
+	if cancel_button:
+		cancel_button.pressed.connect(_build_dialog.hide)
+
+	_build_button = GUINode.get_gui_icon_button_from_node_and_path(_build_dialog, ^"./Build")
+	if _build_button:
+		_build_button.pressed.connect(_on_build_confirmed)
+
+
+func _open_build_dialog(province_index: int) -> void:
+	if not _build_dialog or not _states_by_province.has(province_index):
+		return
+
+	_build_province_index = province_index
+	_build_selected = -1
+	_refresh_build_dialog()
+	_build_dialog.show()
+	_build_dialog.move_to_front()
+
+
+func _refresh_build_dialog() -> void:
+	var state: Dictionary = _states_by_province.get(_build_province_index, {})
+	if state.is_empty():
+		_build_dialog.hide()
+		return
+
+	_build_options = state[&"buildable"]
+	_set_label_text(_build_state_name, state[&"name"])
+
+	if _build_selected >= _build_options.size():
+		_build_selected = -1
+
+	if _build_option_list:
+		_build_option_list.clear_children(_build_options.size())
+		while _build_option_list.get_child_count() < _build_options.size():
+			var option_panel: Panel = GUINode.generate_gui_element(_gui_file, "new_factory_option")
+			if not option_panel:
+				break
+			_build_option_list.add_child(option_panel)
+
+		for i: int in mini(_build_option_list.get_child_count(), _build_options.size()):
+			_setup_build_option(_build_option_list.get_child(i), i, _build_options[i])
+
+	_update_build_details()
+
+
+func _setup_build_option(option_panel: Panel, index: int, option: Dictionary) -> void:
+	_set_label_text(GUINode.get_gui_label_from_node_and_path(option_panel, ^"./name"), option[&"name"])
+	_set_label_text(
+		GUINode.get_gui_label_from_node_and_path(option_panel, ^"./total_build_cost"),
+		GUINode.float_to_string_dp(option[&"cost"], 0)
+	)
+	_set_label_text(
+		GUINode.get_gui_label_from_node_and_path(option_panel, ^"./buildtime"),
+		tr("{days} days").format({ "days": option[&"build_time_days"] })
+	)
+	_set_goods_icon(GUINode.get_gui_icon_from_node_and_path(option_panel, ^"./output"), option[&"output_good_index"])
+
+	var select_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(option_panel, ^"./bg")
+	if select_button:
+		# The panel is reused between refreshes, so only connect once
+		if not option_panel.has_meta(&"connected"):
+			option_panel.set_meta(&"connected", true)
+			select_button.pressed.connect(
+				func() -> void:
+					_build_selected = int(option_panel.get_meta(&"option_index"))
+					_update_build_details()
+			)
+	option_panel.set_meta(&"option_index", index)
+
+
+func _update_build_details() -> void:
+	var has_selection: bool = _build_selected >= 0 and _build_selected < _build_options.size()
+	var option: Dictionary = _build_options[_build_selected] if has_selection else {}
+
+	if _build_output_icon:
+		_build_output_icon.visible = has_selection
+		if has_selection:
+			_set_goods_icon(_build_output_icon, option[&"output_good_index"])
+
+	_set_label_text(_build_building_name, option.get(&"name", ""))
+	_set_label_text(
+		_build_output_amount,
+		GUINode.float_to_string_dp(option[&"output_quantity"], 2) if has_selection else ""
+	)
+
+	var description: String = option.get(&"description", "")
+	_set_label_text(_build_description, "" if description.ends_with("_desc") else description)
+	_set_label_text(
+		_build_workers,
+		GUINode.int_to_string_suffixed(option[&"workforce"]) if has_selection else ""
+	)
+	_set_label_text(
+		_build_cost,
+		GUINode.float_to_string_dp(option[&"cost"], 0) if has_selection else ""
+	)
+
+	var inputs: Array = option.get(&"inputs", [])
+	for i: int in _MAX_INPUT_ICONS:
+		var has_input: bool = i < inputs.size()
+		if _build_input_icons[i]:
+			_build_input_icons[i].visible = has_input
+			if has_input:
+				_set_goods_icon(_build_input_icons[i], inputs[i][&"good_index"])
+		if _build_input_amounts[i]:
+			_build_input_amounts[i].visible = has_input
+			if has_input:
+				_set_label_text(_build_input_amounts[i], GUINode.float_to_string_dp(inputs[i][&"quantity"], 2))
+
+	if _build_button:
+		_build_button.disabled = not has_selection or not option[&"can_build"]
+
+
+func _on_build_confirmed() -> void:
+	if _build_selected < 0 or _build_selected >= _build_options.size():
+		return
+
+	var option: Dictionary = _build_options[_build_selected]
+	if not option[&"can_build"]:
+		return
+
+	if PlayerSingleton.build_factory(_build_province_index, option[&"building_type_index"]):
+		_build_dialog.hide()

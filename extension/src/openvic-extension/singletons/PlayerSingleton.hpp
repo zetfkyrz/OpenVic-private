@@ -74,6 +74,12 @@ namespace OpenVic {
 		void set_strata_tax_rate_slider_value(Strata const& strata, fixed_point_t const value) const;
 		void set_tariff_rate_slider_value(fixed_point_t const value) const;
 
+		// Production
+		// Array of { province_index, name, free_slots, factories: [...], buildable: [...] } for the states of the player
+		godot::Array get_production_info() const;
+		bool build_factory(int32_t province_index, int32_t building_type_index) const;
+		bool set_factory_open(int32_t province_index, int32_t building_type_index, bool open) const;
+
 		// Technology
 		// { folders: [{ index, identifier, name, researched_count, total_count, areas: [{ identifier, name,
 		// technologies: [{ index, identifier, name, year, cost, status, position }] }] }], current: {...}, ... }

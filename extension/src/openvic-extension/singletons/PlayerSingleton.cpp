@@ -9,6 +9,11 @@
 #include <openvic-simulation/country/CountryInstance.hpp>
 #include <openvic-simulation/diplomacy/CountryRelation.hpp>
 #include <openvic-simulation/diplomacy/DiplomaticAction.hpp>
+#include <openvic-simulation/economy/BuildingType.hpp>
+#include <openvic-simulation/economy/production/FactoryInstance.hpp>
+#include <openvic-simulation/economy/production/ProductionType.hpp>
+#include <openvic-simulation/economy/trading/MarketInstance.hpp>
+#include <openvic-simulation/map/State.hpp>
 #include <openvic-simulation/politics/Government.hpp>
 #include <openvic-simulation/research/ResearchManager.hpp>
 #include <openvic-simulation/research/Technology.hpp>
@@ -75,6 +80,10 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_auto_create_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_auto_assign_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_mobilise, { "value" });
+
+	OV_BIND_METHOD(PlayerSingleton::get_production_info);
+	OV_BIND_METHOD(PlayerSingleton::build_factory, { "province_index", "building_type_index" });
+	OV_BIND_METHOD(PlayerSingleton::set_factory_open, { "province_index", "building_type_index", "open" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_technology_info);
 	OV_BIND_METHOD(PlayerSingleton::start_research, { "technology_index" });
@@ -624,5 +633,193 @@ bool PlayerSingleton::start_research(int32_t technology_index) const {
 
 	return instance_manager->queue_game_action<start_research_argument_t>(
 	    player_country->index, technology_index_t(static_cast<uint32_t>(technology_index))
+	);
+}
+
+// Production
+Array PlayerSingleton::get_production_info() const {
+	Array result;
+
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton const* game_singleton = GameSingleton::get_singleton();
+	ERR_FAIL_NULL_V(game_singleton, result);
+	InstanceManager const* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	MarketInstance const& market_instance = instance_manager->get_market_instance();
+	const Date today = instance_manager->get_today();
+	const fixed_point_t cash = player_country->get_cash_stockpile().load();
+
+	BuildingTypeManager const& building_type_manager =
+	    game_singleton->get_definition_manager().get_economy_manager().get_building_type_manager();
+
+	// Factory types the player can build, with their current cost
+	struct FactoryTypeInfo {
+		BuildingType const* building_type;
+		fixed_point_t cost;
+	};
+	std::vector<FactoryTypeInfo> factory_types;
+	for (BuildingType const& building_type : building_type_manager.get_building_types()) {
+		ProductionType const* production_type = building_type.production_type;
+		if (production_type != nullptr && production_type->template_type == ProductionType::template_type_t::FACTORY &&
+		    player_country->is_building_type_unlocked(building_type)) {
+			factory_types.push_back(
+			    { &building_type, FactoryInstance::calculate_construction_cost(building_type, market_instance) }
+			);
+		}
+	}
+
+	for (StateSet const& state_set : instance_manager->get_map_instance().get_state_manager().get_state_sets()) {
+		for (State const& state : state_set.get_states()) {
+			if (state.get_owner() != player_country || state.get_capital() == nullptr) {
+				continue;
+			}
+
+			const bool has_free_slot = state.has_free_factory_slot();
+
+			Array factories;
+			for (FactoryInstance const& factory : state.get_factories()) {
+				BuildingType const& building_type = factory.building_type;
+				const String identifier = convert_to<String>(building_type.get_identifier());
+
+				Dictionary factory_dict;
+				factory_dict["building_type_index"] = static_cast<int32_t>(type_safe::get(building_type.index));
+				factory_dict["identifier"] = identifier;
+				factory_dict["name"] = menu_singleton->tr(identifier);
+				factory_dict["output_good"] =
+				    menu_singleton->tr(convert_to<String>(factory.production_type.output_good.get_identifier()));
+				factory_dict["output_good_index"] =
+				    static_cast<int32_t>(type_safe::get(factory.production_type.output_good.index));
+
+				const int32_t level_value = static_cast<int32_t>(type_safe::get(factory.get_level()));
+				const int32_t max_employees_for_input = static_cast<int32_t>(type_safe::get(factory.get_max_employee_count()));
+				Array factory_inputs;
+				for (FactoryInstance::Input const& input : factory.get_inputs()) {
+					// What the factory needs for a day at its current employment and throttle
+					const fixed_point_t needed = input.quantity_per_level * std::max(level_value, 1);
+					const fixed_point_t needed_now = needed * factory.get_throttle() *
+					    (max_employees_for_input > 0
+					         ? fp::from_fraction(
+					               static_cast<int32_t>(type_safe::get(factory.get_employee_count())), max_employees_for_input
+					           )
+					         : fixed_point_t { 1 });
+
+					Dictionary input_dict;
+					input_dict["good_index"] = static_cast<int32_t>(type_safe::get(input.good.index));
+					input_dict["quantity"] = static_cast<float>(needed);
+					input_dict["stockpile"] = static_cast<float>(input.stockpile);
+					// Less than a day of inputs left
+					input_dict["lacking"] = input.stockpile < needed_now;
+					factory_inputs.push_back(std::move(input_dict));
+				}
+				factory_dict["inputs"] = std::move(factory_inputs);
+
+				const int32_t max_employees_value = static_cast<int32_t>(type_safe::get(factory.get_max_employee_count()));
+				factory_dict["employment_ratio"] = max_employees_value > 0
+				    ? static_cast<float>(type_safe::get(factory.get_employee_count())) / static_cast<float>(max_employees_value)
+				    : 0.0f;
+				factory_dict["level"] = static_cast<int32_t>(type_safe::get(factory.get_level()));
+				factory_dict["max_level"] = static_cast<int32_t>(type_safe::get(building_type.max_level));
+				factory_dict["constructing"] = factory.is_under_construction();
+				factory_dict["construction_progress"] = static_cast<float>(factory.get_construction_progress(today));
+				factory_dict["open"] = factory.is_open();
+				factory_dict["employees"] = static_cast<int32_t>(type_safe::get(factory.get_employee_count()));
+				factory_dict["max_employees"] = static_cast<int32_t>(type_safe::get(factory.get_max_employee_count()));
+				factory_dict["efficiency"] = static_cast<float>(factory.get_efficiency());
+				factory_dict["throttle"] = static_cast<float>(factory.get_throttle());
+				factory_dict["budget"] = static_cast<float>(factory.get_budget());
+				factory_dict["output_quantity"] = static_cast<float>(factory.get_output_quantity_yesterday());
+				factory_dict["revenue"] = static_cast<float>(factory.get_revenue_yesterday());
+				factory_dict["input_cost"] = static_cast<float>(factory.get_input_cost_yesterday());
+				factory_dict["wages"] = static_cast<float>(factory.get_wages_yesterday());
+				factory_dict["profit"] = static_cast<float>(factory.get_profit_yesterday());
+				factory_dict["upgrade_cost"] =
+				    static_cast<float>(FactoryInstance::calculate_construction_cost(building_type, market_instance));
+				factory_dict["can_expand"] = factory.can_be_expanded();
+				factories.push_back(std::move(factory_dict));
+			}
+
+			Array buildable;
+			for (FactoryTypeInfo const& info : factory_types) {
+				if (state.find_factory(*info.building_type) != nullptr) {
+					continue;
+				}
+
+				const String identifier = convert_to<String>(info.building_type->get_identifier());
+
+				Dictionary buildable_dict;
+				buildable_dict["building_type_index"] = static_cast<int32_t>(type_safe::get(info.building_type->index));
+				buildable_dict["identifier"] = identifier;
+				buildable_dict["name"] = menu_singleton->tr(identifier);
+				buildable_dict["output_good"] = menu_singleton->tr(
+				    convert_to<String>(info.building_type->production_type->output_good.get_identifier())
+				);
+				buildable_dict["output_good_index"] = static_cast<int32_t>(
+				    type_safe::get(info.building_type->production_type->output_good.index)
+				);
+				buildable_dict["output_quantity"] =
+				    static_cast<float>(info.building_type->production_type->base_output_quantity);
+				buildable_dict["workforce"] =
+				    static_cast<int32_t>(type_safe::get(info.building_type->production_type->base_workforce_size));
+				buildable_dict["build_time_days"] =
+				    static_cast<int32_t>(FactoryInstance::calculate_construction_time(*info.building_type).to_int());
+				buildable_dict["description"] = menu_singleton->tr(identifier + String("_desc"));
+
+				Array buildable_inputs;
+				for (auto const& [good, quantity] : info.building_type->production_type->input_goods) {
+					Dictionary input_dict;
+					input_dict["good_index"] = static_cast<int32_t>(type_safe::get(good->index));
+					input_dict["quantity"] = static_cast<float>(quantity);
+					buildable_inputs.push_back(std::move(input_dict));
+				}
+				buildable_dict["inputs"] = std::move(buildable_inputs);
+
+				buildable_dict["cost"] = static_cast<float>(info.cost);
+				buildable_dict["can_build"] = has_free_slot && cash >= info.cost &&
+				    info.building_type->production_type->is_valid_for_factory_in(state);
+				buildable.push_back(std::move(buildable_dict));
+			}
+
+			Dictionary state_dict;
+			state_dict["province_index"] = static_cast<int32_t>(type_safe::get(state.get_capital()->index));
+			state_dict["name"] = Utilities::get_state_name(*menu_singleton, state);
+			state_dict["free_slots"] = static_cast<int32_t>(
+			    FactoryInstance::MAX_FACTORIES_PER_STATE - std::min(FactoryInstance::MAX_FACTORIES_PER_STATE, state.get_factories().size())
+			);
+			state_dict["factories"] = std::move(factories);
+			state_dict["buildable"] = std::move(buildable);
+			result.push_back(std::move(state_dict));
+		}
+	}
+
+	return result;
+}
+
+bool PlayerSingleton::build_factory(int32_t province_index, int32_t building_type_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0, false);
+
+	return instance_manager->queue_game_action<build_factory_argument_t>(
+	    player_country->index,
+	    province_index_t(static_cast<uint32_t>(province_index)),
+	    building_type_index_t(static_cast<uint32_t>(building_type_index))
+	);
+}
+
+bool PlayerSingleton::set_factory_open(int32_t province_index, int32_t building_type_index, bool open) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0, false);
+
+	return instance_manager->queue_game_action<set_factory_open_argument_t>(
+	    player_country->index,
+	    province_index_t(static_cast<uint32_t>(province_index)),
+	    building_type_index_t(static_cast<uint32_t>(building_type_index)),
+	    open
 	);
 }
