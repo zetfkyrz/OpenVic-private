@@ -118,6 +118,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_auto_plan, { "enabled" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_market_overview);
+	OV_BIND_METHOD(PlayerSingleton::get_notifications, { "after_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_country_ranking);
 	OV_BIND_METHOD(PlayerSingleton::get_politics_info);
 	OV_BIND_METHOD(PlayerSingleton::enact_reform, { "reform_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_peace_info, { "war_id" });
@@ -2741,4 +2743,63 @@ bool PlayerSingleton::enact_reform(int32_t reform_index) const {
 	ERR_FAIL_NULL_V(instance_manager, false);
 	ERR_FAIL_COND_V(reform_index < 0, false);
 	return instance_manager->queue_game_action<enact_reform_argument_t>(player_country->index, reform_index_t(static_cast<size_t>(reform_index)));
+}
+
+Array PlayerSingleton::get_notifications(int64_t after_id) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	for (NotificationLog::Entry const& entry : instance_manager->get_notification_log().get_entries()) {
+		if (static_cast<int64_t>(entry.id) <= after_id) {
+			continue;
+		}
+		// Only what concerns the player: his own events and the wars and peace he is a part of
+		const bool mine = entry.country == player_country || entry.other_country == player_country;
+		if (!mine) {
+			continue;
+		}
+		Dictionary dict;
+		dict["id"] = static_cast<int64_t>(entry.id);
+		dict["date"] = format_date(entry.date);
+		dict["kind"] = convert_to<String>(entry.kind);
+		dict["subject"] = menu_singleton->tr(convert_to<String>(entry.subject));
+		dict["country"] = entry.country != nullptr ? Utilities::get_country_name(*menu_singleton, *entry.country) : String {};
+		dict["other"] = entry.other_country != nullptr ? Utilities::get_country_name(*menu_singleton, *entry.other_country) : String {};
+		dict["we_are_first"] = entry.country == player_country;
+		result.push_back(dict);
+	}
+	return result;
+}
+
+Array PlayerSingleton::get_country_ranking() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	CountryInstanceManager const& manager = instance_manager->get_country_instance_manager();
+	const size_t great_power_count = manager.get_great_powers().size();
+	for (CountryInstance& country : manager.get_total_ranking()) {
+		Dictionary entry;
+		entry["rank"] = static_cast<int32_t>(country.get_total_rank());
+		entry["name"] = Utilities::get_country_name(*menu_singleton, country);
+		entry["country_index"] = static_cast<int32_t>(type_safe::get(country.index));
+		entry["is_player"] = &country == player_country;
+		entry["prestige"] = static_cast<float>(country.get_prestige_untracked());
+		entry["prestige_rank"] = static_cast<int32_t>(country.get_prestige_rank());
+		entry["industrial"] = static_cast<float>(country.get_industrial_power_untracked());
+		entry["industrial_rank"] = static_cast<int32_t>(country.get_industrial_rank());
+		entry["military"] = static_cast<float>(country.military_power.get_untracked());
+		entry["military_rank"] = static_cast<int32_t>(country.get_military_rank());
+		entry["total"] = static_cast<float>(country.total_score.get_untracked());
+		entry["great_power"] = static_cast<size_t>(country.get_total_rank()) <= great_power_count;
+		result.push_back(entry);
+	}
+	return result;
 }

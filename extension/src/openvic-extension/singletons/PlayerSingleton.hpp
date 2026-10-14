@@ -174,6 +174,13 @@ namespace OpenVic {
 		bool disband_regiment(int64_t regiment_id) const;
 		bool disband_army(int64_t army_id) const;
 
+		// Events for the player (E1): [{ id, date, kind, subject, text_args... }] with id greater than after_id, oldest first.
+		// kind: invention, technology, election, uprising, war_declared, peace_signed; country / other are names
+		godot::Array get_notifications(int64_t after_id) const;
+
+		// Rankings (E3): [{ rank, name, country_index, is_player, prestige, industrial, military, total, great_power }]
+		godot::Array get_country_ranking() const;
+
 		// Politics (D3): { government, ruling_party, ruling_ideology, holds_elections, last_election, days_to_election,
 		//   voters_share, parties: [{ name, ideology, vote_share, ruling, colour }], ideologies: [{ name, share, colour }],
 		//   upper_house: [{ name, share, colour }],
