@@ -19,6 +19,8 @@
 #include <openvic-simulation/military/UnitInstanceGroup.hpp>
 #include <openvic-simulation/military/War.hpp>
 #include <openvic-simulation/politics/Government.hpp>
+#include <openvic-simulation/politics/PoliticsDynamics.hpp>
+#include <openvic-simulation/country/CountryParty.hpp>
 #include <openvic-simulation/research/ResearchManager.hpp>
 #include <openvic-simulation/research/Technology.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
@@ -116,6 +118,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_auto_plan, { "enabled" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_market_overview);
+	OV_BIND_METHOD(PlayerSingleton::get_politics_info);
+	OV_BIND_METHOD(PlayerSingleton::enact_reform, { "reform_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_peace_info, { "war_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_peace_demand, { "war_id", "kind", "province_number", "enabled" });
 	OV_BIND_METHOD(PlayerSingleton::send_peace_offer, { "war_id" });
@@ -2600,4 +2604,141 @@ Array PlayerSingleton::get_market_overview() const {
 		}
 	}
 	return result;
+}
+
+Dictionary PlayerSingleton::get_politics_info() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	PoliticsManager const& politics = game_singleton->get_definition_manager().get_politics_manager();
+	CountryInstance const& country = *player_country;
+	const Date today = instance_manager->get_today();
+	const double total_population = static_cast<double>(type_safe::get(country.get_total_population()));
+
+	GovernmentType const* government = country.get_government_type_untracked();
+	result["government"] = government != nullptr ? menu_singleton->tr(convert_to<String>(government->get_identifier())) : String {};
+	CountryParty const* ruling = country.get_ruling_party_untracked();
+	result["ruling_party"] = ruling != nullptr ? menu_singleton->tr(convert_to<String>(ruling->get_identifier())) : String {};
+	result["ruling_ideology"] = ruling != nullptr && ruling->ideology != nullptr
+		? menu_singleton->tr(convert_to<String>(ruling->ideology->get_identifier())) : String {};
+	result["holds_elections"] = government != nullptr && government->holds_elections;
+	int32_t days_to_election = -1;
+	if (government != nullptr && government->holds_elections && country.get_last_election() != Date {}) {
+		days_to_election = static_cast<int32_t>((country.get_last_election() + government->term_duration - today).to_int());
+	}
+	result["days_to_election"] = days_to_election;
+
+	// Parties and their votes
+	Array parties;
+	double votes_total = 0.0;
+	for (CountryParty const& party : country.country_definition.get_parties()) {
+		votes_total += static_cast<double>(country.get_vote_equivalents_by_party(party));
+	}
+	result["voters_share"] = total_population > 0.0 ? static_cast<float>(votes_total / total_population) : 0.0f;
+	for (CountryParty const& party : country.country_definition.get_parties()) {
+		if (!(party.start_date <= today && today <= party.end_date)) {
+			continue;
+		}
+		Dictionary entry;
+		entry["name"] = menu_singleton->tr(convert_to<String>(party.get_identifier()));
+		entry["ideology"] = party.ideology != nullptr ? menu_singleton->tr(convert_to<String>(party.ideology->get_identifier())) : String {};
+		entry["vote_share"] = votes_total > 0.0 ? static_cast<float>(static_cast<double>(country.get_vote_equivalents_by_party(party)) / votes_total) : 0.0f;
+		entry["ruling"] = &party == ruling;
+		entry["colour"] = convert_to<Color>(party.get_colour());
+		parties.push_back(entry);
+	}
+	result["parties"] = parties;
+
+	Array ideologies, upper_house;
+	for (Ideology const& ideology : politics.get_ideology_manager().get_ideologies()) {
+		Dictionary entry;
+		entry["name"] = menu_singleton->tr(convert_to<String>(ideology.get_identifier()));
+		entry["colour"] = convert_to<Color>(ideology.get_colour());
+		entry["share"] = total_population > 0.0
+			? static_cast<float>(static_cast<double>(country.get_supporter_equivalents_by_ideology()[ideology.index]) / total_population) : 0.0f;
+		ideologies.push_back(entry);
+
+		Dictionary house = entry.duplicate();
+		house["share"] = static_cast<float>(country.get_upper_house_proportion_by_ideology().at(ideology));
+		upper_house.push_back(house);
+	}
+	result["ideologies"] = ideologies;
+	result["upper_house"] = upper_house;
+
+	// Reforms
+	Array groups;
+	for (ReformGroup const& group : politics.get_issue_manager().get_reform_groups()) {
+		Dictionary group_entry;
+		group_entry["name"] = menu_singleton->tr(convert_to<String>(group.get_identifier()));
+		group_entry["type"] = menu_singleton->tr(convert_to<String>(group.reform_type.get_identifier()));
+		group_entry["ordered"] = group.is_ordered;
+		group_entry["civilizing"] = group.is_civilizing();
+		Array options;
+		Reform const* current = country.get_reforms().at(group);
+		for (Reform const& reform : group.get_reforms()) {
+			PoliticsDynamics::ReformStatus status = PoliticsDynamics::get_reform_status(*instance_manager, country, reform);
+			Dictionary option;
+			option["index"] = static_cast<int32_t>(type_safe::get(reform.index));
+			option["name"] = menu_singleton->tr(convert_to<String>(reform.get_identifier()));
+			option["current"] = &reform == current;
+			option["support"] = static_cast<float>(status.support);
+			option["upper_house"] = static_cast<float>(status.upper_house);
+			option["can_enact"] = status.can_enact;
+			option["reason"] = String::utf8(status.reason.c_str());
+			options.push_back(option);
+		}
+		group_entry["options"] = options;
+		groups.push_back(group_entry);
+	}
+	result["groups"] = groups;
+
+	// Unrest: average militancy, the most restless provinces and the risings in progress
+	double militancy_sum = 0.0, people_sum = 0.0;
+	std::vector<std::pair<double, ProvinceInstance const*>> restless;
+	for (ProvinceInstance const* province : country.get_owned_provinces()) {
+		double province_militancy = 0.0, province_people = 0.0;
+		for (Pop const& pop : province->get_pops()) {
+			const double size = static_cast<double>(type_safe::get(pop.get_size()));
+			province_militancy += static_cast<double>(pop.get_militancy()) * size;
+			province_people += size;
+		}
+		militancy_sum += province_militancy;
+		people_sum += province_people;
+		if (province_people > 0.0) {
+			restless.emplace_back(province_militancy / province_people, province);
+		}
+	}
+	result["average_militancy"] = people_sum > 0.0 ? static_cast<float>(militancy_sum / people_sum) : 0.0f;
+	std::sort(restless.begin(), restless.end(), [](auto const& a, auto const& b) { return a.first > b.first; });
+	Array restless_array;
+	for (size_t i = 0; i < restless.size() && i < 6; ++i) {
+		Dictionary entry;
+		entry["name"] = menu_singleton->tr(convert_to<String>(restless[i].second->get_identifier()));
+		entry["militancy"] = static_cast<float>(restless[i].first);
+		restless_array.push_back(entry);
+	}
+	result["restless"] = restless_array;
+	Array uprisings;
+	for (auto const& uprising : RebelDynamics::get_uprisings(*instance_manager, country)) {
+		Dictionary entry;
+		entry["name"] = menu_singleton->tr(convert_to<String>(uprising.province->get_identifier()));
+		entry["regiments"] = uprising.regiments;
+		entry["strength"] = static_cast<float>(uprising.strength);
+		uprisings.push_back(entry);
+	}
+	result["uprisings"] = uprisings;
+	return result;
+}
+
+bool PlayerSingleton::enact_reform(int32_t reform_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(reform_index < 0, false);
+	return instance_manager->queue_game_action<enact_reform_argument_t>(player_country->index, reform_index_t(static_cast<size_t>(reform_index)));
 }

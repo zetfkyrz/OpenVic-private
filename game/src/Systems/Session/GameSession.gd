@@ -3,6 +3,7 @@ extends Node
 const _WarPanel: GDScript = preload("res://src/UI/Session/WarPanel.gd")
 const _UnitBanners: GDScript = preload("res://src/UI/Session/UnitBanners.gd")
 const _ArmyPanel: GDScript = preload("res://src/UI/Session/ArmyPanel.gd")
+const _PoliticsWindow: GDScript = preload("res://src/UI/Session/PoliticsWindow.gd")
 const _MarketWindow: GDScript = preload("res://src/UI/Session/MarketWindow.gd")
 const _PeaceWindow: GDScript = preload("res://src/UI/Session/PeaceWindow.gd")
 const _FleetPanel: GDScript = preload("res://src/UI/Session/FleetPanel.gd")
@@ -34,6 +35,9 @@ func _ready() -> void:
 	var market_window := Control.new()
 	market_window.set_script(_MarketWindow)
 	_game_session_menu.get_parent().add_child(market_window)
+	var politics_window := Control.new()
+	politics_window.set_script(_PoliticsWindow)
+	_game_session_menu.get_parent().add_child(politics_window)
 
 	# Banners over the armies (selection, strength, battles, sieges), under the windows of the interface
 	_unit_banners = Control.new()

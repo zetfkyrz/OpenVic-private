@@ -174,6 +174,13 @@ namespace OpenVic {
 		bool disband_regiment(int64_t regiment_id) const;
 		bool disband_army(int64_t army_id) const;
 
+		// Politics (D3): { government, ruling_party, ruling_ideology, holds_elections, last_election, days_to_election,
+		//   voters_share, parties: [{ name, ideology, vote_share, ruling, colour }], ideologies: [{ name, share, colour }],
+		//   upper_house: [{ name, share, colour }],
+		//   groups: [{ name, type, ordered, options: [{ index, name, current, support, can_enact, reason, upper_house }] }] }
+		godot::Dictionary get_politics_info() const;
+		bool enact_reform(int32_t reform_index) const;
+
 		// World market (C): [{ name, category, price, price_change, base_price, supply, demand, traded, stockpile,
 		//   price_history: PackedFloat32Array (oldest first) }] of the trading goods
 		godot::Array get_market_overview() const;
