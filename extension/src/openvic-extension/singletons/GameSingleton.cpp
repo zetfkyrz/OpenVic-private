@@ -67,6 +67,11 @@ void GameSingleton::_bind_methods() {
 	OV_BIND_METHOD(GameSingleton::is_bookmark_loaded);
 
 	OV_BIND_METHOD(GameSingleton::start_game_session);
+	OV_BIND_METHOD(GameSingleton::save_game, { "path", "label" });
+	OV_BIND_METHOD(GameSingleton::read_save_header, { "path" });
+	OV_BIND_METHOD(GameSingleton::prepare_load_game, { "path" });
+	OV_BIND_METHOD(GameSingleton::has_pending_replay);
+	OV_BIND_METHOD(GameSingleton::step_pending_replay, { "batch_count" });
 	OV_BIND_METHOD(GameSingleton::end_game_session);
 	OV_BIND_METHOD(GameSingleton::is_game_session_active);
 
@@ -289,6 +294,104 @@ godot::Error GameSingleton::start_game_session() {
 	}
 
 	return ERR(game_manager.start_game_session());
+}
+
+static constexpr const char* SAVE_MAGIC = "OVSAVE 1";
+
+godot::Error GameSingleton::save_game(godot::String const& path, godot::String const& label) {
+	InstanceManager* instance_manager = get_instance_manager();
+	ERR_FAIL_NULL_V_MSG(instance_manager, FAILED, "Cannot save without a game instance!");
+	Bookmark const* bookmark = instance_manager->get_bookmark();
+	ERR_FAIL_NULL_V_MSG(bookmark, FAILED, "Cannot save without a loaded bookmark!");
+	CountryInstance const* player_country = PlayerSingleton::get_singleton()->get_player_country();
+	ERR_FAIL_NULL_V_MSG(player_country, FAILED, "Cannot save without a player country!");
+
+	godot::String text = godot::String(SAVE_MAGIC) + "\n";
+	text += "#bookmark " + godot::String::num_int64(type_safe::get(bookmark->index)) + "\n";
+	text += "#country " + convert_to<godot::String>(player_country->get_identifier()) + "\n";
+	text += "#date " + Utilities::date_to_formatted_string(instance_manager->get_today(), false) + "\n";
+	text += "#saved " + godot::String::num_int64(static_cast<int64_t>(godot::Time::get_singleton()->get_unix_time_from_system())) + "\n";
+	text += "#label " + label.replace("\n", " ") + "\n";
+	text += convert_to<godot::String>(Replay::serialise(instance_manager->get_action_history()));
+
+	godot::Ref<godot::FileAccess> file = godot::FileAccess::open(path, godot::FileAccess::WRITE);
+	ERR_FAIL_COND_V_MSG(file.is_null(), FAILED, "Could not open the save file for writing.");
+	file->store_string(text);
+	return OK;
+}
+
+godot::Dictionary GameSingleton::read_save_header(godot::String const& path) const {
+	godot::Dictionary result;
+	godot::Ref<godot::FileAccess> file = godot::FileAccess::open(path, godot::FileAccess::READ);
+	if (file.is_null()) {
+		return result;
+	}
+	if (file->get_line() != godot::String(SAVE_MAGIC)) {
+		return result;
+	}
+	while (!file->eof_reached()) {
+		const godot::String line = file->get_line();
+		if (!line.begins_with("#")) {
+			break;
+		}
+		const int64_t space = line.find(" ");
+		if (space < 0) {
+			continue;
+		}
+		result[line.substr(1, space - 1)] = line.substr(space + 1);
+	}
+	result["valid"] = true;
+	return result;
+}
+
+godot::Dictionary GameSingleton::prepare_load_game(godot::String const& path) {
+	pending_replay.clear();
+	pending_replay_index = 0;
+	godot::Dictionary header = read_save_header(path);
+	if (!header.has("valid")) {
+		return header;
+	}
+	godot::Ref<godot::FileAccess> file = godot::FileAccess::open(path, godot::FileAccess::READ);
+	const godot::String content = file->get_as_text();
+	const int64_t replay_start = content.find("OVREPLAY");
+	if (replay_start < 0 || !Replay::deserialise(content.substr(replay_start).utf8().get_data(), pending_replay)) {
+		pending_replay.clear();
+		header.erase("valid");
+	}
+	return header;
+}
+
+bool GameSingleton::has_pending_replay() const {
+	return pending_replay_index < pending_replay.size();
+}
+
+int32_t GameSingleton::step_pending_replay(int32_t batch_count) {
+	InstanceManager* instance_manager = get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, 1000);
+	if (!has_pending_replay()) {
+		return 1000;
+	}
+	std::vector<ReplayEntry> slice;
+	uint32_t last_batch = 0;
+	int32_t batches = 0;
+	while (pending_replay_index < pending_replay.size()) {
+		ReplayEntry const& entry = pending_replay[pending_replay_index];
+		if (!slice.empty() && entry.batch != last_batch) {
+			if (++batches >= batch_count) {
+				break;
+			}
+		}
+		last_batch = entry.batch;
+		slice.push_back(entry);
+		pending_replay_index++;
+	}
+	instance_manager->replay_actions(slice);
+	if (!has_pending_replay()) {
+		pending_replay.clear();
+		pending_replay_index = 0;
+		return 1000;
+	}
+	return static_cast<int32_t>(pending_replay_index * 1000 / pending_replay.size());
 }
 
 godot::Error GameSingleton::end_game_session() {

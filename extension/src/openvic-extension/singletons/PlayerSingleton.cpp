@@ -50,6 +50,7 @@ void PlayerSingleton::_bind_methods() {
 
 	// Player country
 	OV_BIND_METHOD(PlayerSingleton::set_player_country_by_province_number, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::set_player_country_by_identifier, { "identifier" });
 	OV_BIND_METHOD(PlayerSingleton::get_player_country_capital_position);
 	OV_BIND_METHOD(PlayerSingleton::get_player_country_identifier);
 	OV_BIND_METHOD(PlayerSingleton::get_player_country_name);
@@ -218,6 +219,17 @@ void PlayerSingleton::set_player_country(CountryInstance* new_player_country) {
 	SPDLOG_INFO("Set player country to: {}", ovfmt::validate(player_country));
 
 	game_singleton._on_gamestate_updated();
+}
+
+bool PlayerSingleton::set_player_country_by_identifier(godot::String const& identifier) {
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	CountryInstance* country = instance_manager->get_country_instance_manager().get_country_instance_by_identifier(
+		identifier.utf8().get_data()
+	);
+	ERR_FAIL_NULL_V_MSG(country, false, "Unknown country in the save.");
+	set_player_country(country);
+	return true;
 }
 
 void PlayerSingleton::set_player_country_by_province_number(int32_t province_number) {

@@ -12,6 +12,9 @@ const _PeaceWindow: GDScript = preload("res://src/UI/Session/PeaceWindow.gd")
 const _FleetPanel: GDScript = preload("res://src/UI/Session/FleetPanel.gd")
 const _RecruitmentWindow: GDScript = preload("res://src/UI/Session/RecruitmentWindow.gd")
 const _RECRUITMENT_KEY: Key = KEY_F7
+const _SaveGameWindow := preload("res://src/UI/Session/SaveGameWindow.gd")
+# Autosave interval in real seconds
+const _AUTOSAVE_SECONDS: float = 300.0
 
 @export var _map_view: MapView
 @export var _model_manager: ModelManager
@@ -21,6 +24,10 @@ var _unit_banners: Control
 var _army_panel: Control
 var _fleet_panel: Control
 var _recruitment_window: Control
+var _save_window: Control
+var _replaying: bool = false
+var _reloading: bool = false
+var _replay_bar: ProgressBar
 
 
 func _ready() -> void:
@@ -47,6 +54,17 @@ func _ready() -> void:
 	var ranking_window := Control.new()
 	ranking_window.set_script(_RankingWindow)
 	_game_session_menu.get_parent().add_child(ranking_window)
+	_save_window = Control.new()
+	_save_window.set_script(_SaveGameWindow)
+	_game_session_menu.get_parent().add_child(_save_window)
+	_save_window.load_requested.connect(_load_game)
+	var autosave_timer := Timer.new()
+	autosave_timer.wait_time = _AUTOSAVE_SECONDS
+	autosave_timer.autostart = true
+	autosave_timer.timeout.connect(func() -> void:
+		if not _replaying:
+			_save_window.save_to(_SaveGameWindow.AUTOSAVE, "Автосохранение"))
+	add_child(autosave_timer)
 	var feed := VBoxContainer.new()
 	feed.set_script(_NotificationFeed)
 	_game_session_menu.get_parent().add_child(feed)
@@ -80,16 +98,62 @@ func _ready() -> void:
 	# In game, the province selector uses the normal glove cursor.
 	CursorManager.set_compat_cursor(&"normal", Input.CURSOR_IBEAM)
 
+	if GameSingleton.has_pending_replay():
+		_run_pending_replay.call_deferred()
+
 
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_PREDELETE:
-			if GameSingleton.end_game_session() != OK:
+			if not _reloading and GameSingleton.end_game_session() != OK:
 				push_error("Failed to end game session")
 
 
 func _process(_delta: float) -> void:
-	GameSingleton.update_clock()
+	if not _replaying:
+		GameSingleton.update_clock()
+
+
+## Loads a save game: the game is set up again from the bookmark and the player country of the save, then the scene is
+## reloaded and replays the saved actions (the simulation is deterministic, so the state is the same).
+func _load_game(path: String) -> void:
+	var header: Dictionary = GameSingleton.prepare_load_game(path)
+	if not header.has("valid"):
+		push_error("Failed to read the save game " + path)
+		return
+	if GameSingleton.end_game_session() != OK:
+		push_error("Failed to end game session")
+		return
+	if GameSingleton.setup_game(int(header["bookmark"])) != OK \
+			or not PlayerSingleton.set_player_country_by_identifier(header["country"]):
+		push_error("Failed to set up the game from the save")
+		return
+	_reloading = true
+	get_tree().reload_current_scene()
+
+
+func _run_pending_replay() -> void:
+	_replaying = true
+	var layer := PanelContainer.new()
+	layer.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	layer.custom_minimum_size = Vector2(420, 60)
+	var box := VBoxContainer.new()
+	layer.add_child(box)
+	var label := Label.new()
+	label.text = "Загрузка сохранения: восстановление хода игры…"
+	box.add_child(label)
+	_replay_bar = ProgressBar.new()
+	_replay_bar.max_value = 1000
+	box.add_child(_replay_bar)
+	_game_session_menu.get_parent().add_child(layer)
+	while true:
+		var progress: int = GameSingleton.step_pending_replay(15)
+		_replay_bar.value = progress
+		if progress >= 1000:
+			break
+		await get_tree().process_frame
+	layer.queue_free()
+	_replaying = false
 
 
 # Armies go to the panel of the army, fleets to the panel of the fleet

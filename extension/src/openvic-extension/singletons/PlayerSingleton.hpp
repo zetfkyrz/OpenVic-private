@@ -45,6 +45,7 @@ namespace OpenVic {
 		}
 		void set_player_country(CountryInstance* new_player_country);
 		void set_player_country_by_province_number(int32_t province_number);
+		bool set_player_country_by_identifier(godot::String const& identifier);
 		godot::Vector2 get_player_country_capital_position() const;
 		godot::String get_player_country_identifier() const;
 		godot::String get_player_country_name() const;
