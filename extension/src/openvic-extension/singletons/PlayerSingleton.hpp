@@ -146,6 +146,26 @@ namespace OpenVic {
 		bool assign_free_armies(int32_t front_id) const;
 		bool set_auto_plan(bool enabled) const;
 
+		// Credit and the central bank
+		// { cash, central_bank: { internal_rate, external_rate }, total_debt, monthly_interest,
+		//   external_taken: [{ id, lender_index, lender_name, principal, remaining, rate, due, interest_paid }],
+		//   external_given: [{ id, borrower_index, borrower_name, principal, remaining, rate, due, interest_paid }],
+		//   internal_given: [{ id, province_index, province_identifier, principal, remaining, unspent, rate, term, grace_end, due,
+		//                      policy }],
+		//   offers: [{ lender_index, lender_name, max_amount, rate }],
+		//   states: [{ province_index, province_identifier, capitalist_money, capitalists }],
+		//   selected_targets: [country_index], alliance_requests: [{ from_index, from_name, date }] }
+		godot::Dictionary get_credit_overview() const;
+		bool take_external_loan(int32_t lender_index, float amount, int32_t term) const;
+		// group: 0 = all countries, 1 = allies, 2 = friends (relations above 100), 3 = the selected countries
+		bool give_external_loans(int32_t group, float amount_each, float rate, int32_t term) const;
+		bool stage_loan_target(int32_t country_index, bool selected) const;
+		// term: 0 = 5 years, 1 = 10 years, 2 = 20 years; policy: 0 = forgive, 1 = soft collection, 2 = hard collection
+		bool give_internal_loan(int32_t province_index, float amount, float rate, int32_t term, int32_t policy) const;
+		bool repay_loan(int32_t loan_id, float amount) const;
+		bool set_central_bank_rates(float internal_rate, float external_rate) const;
+		bool answer_alliance_request(int32_t from_index, bool accept) const;
+
 		// Military
 		// Argument true for general, false for admiral
 		void create_leader(bool is_general) const;

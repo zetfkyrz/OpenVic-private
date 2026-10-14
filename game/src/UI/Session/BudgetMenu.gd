@@ -15,6 +15,8 @@ var _overseas_cost_val_label: GUILabel
 var _ind_sub_val_label: GUILabel
 # Which subsidised factories the state pays the losses of: all / state owned / by the share of ownership
 var _subsidy_mode_option: OptionButton
+const _CreditPanel: GDScript = preload("res://src/UI/Session/CreditPanel.gd")
+var _credit_panel: PanelContainer
 const _SUBSIDY_MODE_NAMES: PackedStringArray = [
 	"Субсидировать все предприятия", "Только государственные", "По доле владения",
 ]
@@ -68,6 +70,18 @@ func _ready() -> void:
 			func(index: int) -> void: PlayerSingleton.set_subsidy_mode(index)
 		)
 		budget_window.add_child(_subsidy_mode_option)
+
+		# Central bank and credit
+		var bank_button := Button.new()
+		bank_button.text = "Центробанк и кредиты"
+		bank_button.position = Vector2(572, 112)
+		bank_button.size = Vector2(250, 24)
+		bank_button.pressed.connect(func() -> void: _open_credit_panel(0))
+		budget_window.add_child(bank_button)
+
+	_credit_panel = PanelContainer.new()
+	_credit_panel.set_script(_CreditPanel)
+	add_child(_credit_panel)
 
 	# debt buttons
 	var _tab_takenloans_button: GUIIconButton = get_gui_icon_button_from_nodepath(^"./country_budget/tab_takenloans")
@@ -152,7 +166,13 @@ func _update_info() -> void:
 		hide()
 
 
+func _open_credit_panel(tab: int) -> void:
+	if _credit_panel:
+		_credit_panel.open(tab)
+
+
 func _switch_loans_tab(taken_loans: bool) -> void:
+	_open_credit_panel(1 if taken_loans else 3)
 	# TODO - code the necessary logic
 	#if taken_loans:
 	#else: # given loans
@@ -167,10 +187,8 @@ func _sort_loans(sort_by_country: bool) -> void:
 
 
 func _take_loan() -> void:
-	# TODO - code the necessary logic
-	pass
+	_open_credit_panel(2)
 
 
 func _repay_loan() -> void:
-	# TODO - code the necessary logic
-	pass
+	_open_credit_panel(1)
