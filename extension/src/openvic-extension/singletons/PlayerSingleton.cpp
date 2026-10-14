@@ -86,6 +86,14 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_production_info);
 	OV_BIND_METHOD(PlayerSingleton::build_factory, { "province_index", "building_type_index" });
+	OV_BIND_METHOD(PlayerSingleton::set_factory_subsidised, { "province_index", "building_type_index", "subsidised" });
+	OV_BIND_METHOD(PlayerSingleton::set_all_factories_open, { "open" });
+	OV_BIND_METHOD(PlayerSingleton::set_all_factories_subsidised, { "subsidised" });
+	OV_BIND_METHOD(PlayerSingleton::expand_all_factories);
+	OV_BIND_METHOD(PlayerSingleton::set_subsidy_mode, { "mode" });
+	OV_BIND_METHOD(PlayerSingleton::get_subsidy_info);
+	OV_BIND_METHOD(PlayerSingleton::buy_factory_share, { "province_index", "building_type_index", "percent" });
+	OV_BIND_METHOD(PlayerSingleton::sell_factory_share, { "province_index", "building_type_index", "percent" });
 	OV_BIND_METHOD(PlayerSingleton::set_factory_open, { "province_index", "building_type_index", "open" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_technology_info);
@@ -754,6 +762,20 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["upgrade_cost"] =
 				    static_cast<float>(building_type.cost);
 				factory_dict["can_expand"] = factory.can_be_expanded();
+				// Ownership, treasury and subsidies
+				factory_dict["state_share"] = static_cast<float>(factory.get_state_share());
+				factory_dict["subsidised"] = factory.is_subsidised();
+				factory_dict["built_by_state"] = factory.was_built_by_state();
+				factory_dict["expansion_fund"] = static_cast<float>(factory.get_expansion_fund());
+				factory_dict["expansion_cost"] =
+				    static_cast<float>(FactoryInstance::calculate_construction_cost(building_type, market_instance));
+				factory_dict["subsidy"] = static_cast<float>(factory.get_subsidy_yesterday());
+				factory_dict["private_cover"] = static_cast<float>(factory.get_private_cover_yesterday());
+				factory_dict["average_profit"] = static_cast<float>(factory.get_average_profit());
+				factory_dict["value"] = static_cast<float>(factory.calculate_value(market_instance));
+				factory_dict["state_dividends"] = static_cast<float>(factory.get_state_income_yesterday());
+				factory_dict["owner_dividends"] = static_cast<float>(factory.get_owner_income_yesterday());
+				factory_dict["capitalist_fund"] = static_cast<float>(state.get_capitalist_fund());
 				factories.push_back(std::move(factory_dict));
 			}
 
@@ -823,6 +845,95 @@ bool PlayerSingleton::build_factory(int32_t province_index, int32_t building_typ
 	    player_country->index,
 	    province_index_t(static_cast<uint32_t>(province_index)),
 	    building_type_index_t(static_cast<uint32_t>(building_type_index))
+	);
+}
+
+bool PlayerSingleton::set_factory_subsidised(int32_t province_index, int32_t building_type_index, bool subsidised) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0, false);
+
+	return instance_manager->queue_game_action<set_factory_subsidised_argument_t>(
+	    player_country->index,
+	    province_index_t(static_cast<uint32_t>(province_index)),
+	    building_type_index_t(static_cast<uint32_t>(building_type_index)),
+	    subsidised
+	);
+}
+
+bool PlayerSingleton::set_all_factories_open(bool open) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<set_all_factories_open_argument_t>(player_country->index, open);
+}
+
+bool PlayerSingleton::set_all_factories_subsidised(bool subsidised) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<set_all_factories_subsidised_argument_t>(player_country->index, subsidised);
+}
+
+bool PlayerSingleton::expand_all_factories() const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<expand_all_factories_argument_t>(player_country->index);
+}
+
+bool PlayerSingleton::set_subsidy_mode(int32_t mode) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(mode < 0 || mode > 2, false);
+	return instance_manager->queue_game_action<set_subsidy_mode_argument_t>(player_country->index, static_cast<uint32_t>(mode));
+}
+
+Dictionary PlayerSingleton::get_subsidy_info() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+
+	fixed_point_t state_paid = 0, capitalists_paid = 0;
+	for (State const* state : player_country->get_states()) {
+		for (FactoryInstance const& factory : state->get_factories()) {
+			state_paid += factory.get_subsidy_yesterday();
+			capitalists_paid += factory.get_private_cover_yesterday();
+		}
+	}
+
+	result["mode"] = static_cast<int32_t>(player_country->get_subsidy_mode());
+	result["state_paid"] = static_cast<float>(state_paid);
+	result["capitalists_paid"] = static_cast<float>(capitalists_paid);
+	return result;
+}
+
+bool PlayerSingleton::buy_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0 || percent <= 0 || percent > 100, false);
+
+	return instance_manager->queue_game_action<buy_factory_share_argument_t>(
+	    player_country->index,
+	    province_index_t(static_cast<uint32_t>(province_index)),
+	    building_type_index_t(static_cast<uint32_t>(building_type_index)),
+	    static_cast<uint32_t>(percent)
+	);
+}
+
+bool PlayerSingleton::sell_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0 || percent <= 0 || percent > 100, false);
+
+	return instance_manager->queue_game_action<sell_factory_share_argument_t>(
+	    player_country->index,
+	    province_index_t(static_cast<uint32_t>(province_index)),
+	    building_type_index_t(static_cast<uint32_t>(building_type_index)),
+	    static_cast<uint32_t>(percent)
 	);
 }
 

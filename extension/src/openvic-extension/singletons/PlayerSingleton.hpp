@@ -83,6 +83,18 @@ namespace OpenVic {
 		// Array of { province_index, name, free_slots, factories: [...], buildable: [...] } for the states of the player
 		godot::Array get_production_info() const;
 		bool build_factory(int32_t province_index, int32_t building_type_index) const;
+		bool set_factory_subsidised(int32_t province_index, int32_t building_type_index, bool subsidised) const;
+		// Actions for all factories of the player country
+		bool set_all_factories_open(bool open) const;
+		bool set_all_factories_subsidised(bool subsidised) const;
+		bool expand_all_factories() const;
+		// 0 = the state pays all losses of subsidised factories, 1 = state owned factories only, 2 = by ownership share
+		bool set_subsidy_mode(int32_t mode) const;
+		// { mode, state_paid, capitalists_paid } the subsidies of yesterday
+		godot::Dictionary get_subsidy_info() const;
+		// The state buys / sells a part (in percent) of a factory from / to the capitalists
+		bool buy_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
+		bool sell_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
 		bool set_factory_open(int32_t province_index, int32_t building_type_index, bool open) const;
 
 		// Technology

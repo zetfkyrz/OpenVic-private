@@ -13,6 +13,16 @@ var _interest_val_label: GUILabel
 # costs
 var _overseas_cost_val_label: GUILabel
 var _ind_sub_val_label: GUILabel
+# Which subsidised factories the state pays the losses of: all / state owned / by the share of ownership
+var _subsidy_mode_option: OptionButton
+const _SUBSIDY_MODE_NAMES: PackedStringArray = [
+	"Субсидировать все предприятия", "Только государственные", "По доле владения",
+]
+const _SUBSIDY_MODE_TIPS: PackedStringArray = [
+	"Государство покрывает убытки всех субсидируемых заводов полностью, капиталисты не платят.",
+	"Заводы, целиком принадлежащие государству, государство субсидирует полностью, остальные считаются по доле владения.",
+	"Государство платит долю убытков, равную его доле владения, остальное покрывают капиталисты.",
+]
 var _lower_class_chart: GUIPieChart
 var _middle_class_chart: GUIPieChart
 var _upper_class_chart: GUIPieChart
@@ -45,6 +55,19 @@ func _ready() -> void:
 	_interest_val_label = get_gui_label_from_nodepath(^"./country_budget/interest_val")
 	# costs
 	_ind_sub_val_label = get_gui_label_from_nodepath(^"./country_budget/ind_sub_val")
+
+	# Choice of the subsidised factories, below the industrial subsidies label
+	var budget_window: Node = get_node_or_null(^"./country_budget")
+	if budget_window:
+		_subsidy_mode_option = OptionButton.new()
+		for mode_name in _SUBSIDY_MODE_NAMES:
+			_subsidy_mode_option.add_item(mode_name)
+		_subsidy_mode_option.position = Vector2(572, 84)
+		_subsidy_mode_option.size = Vector2(250, 24)
+		_subsidy_mode_option.item_selected.connect(
+			func(index: int) -> void: PlayerSingleton.set_subsidy_mode(index)
+		)
+		budget_window.add_child(_subsidy_mode_option)
 
 	# debt buttons
 	var _tab_takenloans_button: GUIIconButton = get_gui_icon_button_from_nodepath(^"./country_budget/tab_takenloans")
@@ -109,8 +132,17 @@ func _update_info() -> void:
 		if _interest_val_label:
 			_interest_val_label.text = "%s¤" % GUINode.float_to_string_dp(_incVal * 5, 2)
 
+		var subsidies: Dictionary = PlayerSingleton.get_subsidy_info()
 		if _ind_sub_val_label:
-			_ind_sub_val_label.text = "%s¤" % GUINode.float_to_string_dp(_incVal * 6, 1)
+			_ind_sub_val_label.text = "%s¤" % GUINode.float_to_string_dp(subsidies.get("state_paid", 0.0), 1)
+		if _subsidy_mode_option and not subsidies.is_empty():
+			var mode: int = subsidies["mode"]
+			if _subsidy_mode_option.selected != mode:
+				_subsidy_mode_option.select(mode)
+			_subsidy_mode_option.tooltip_text = "%s\n\nГосударство заплатило вчера: %s\nКапиталисты заплатили вчера: %s" % [
+				_SUBSIDY_MODE_TIPS[mode], GUINode.float_to_string_dp(subsidies["state_paid"], 1),
+				GUINode.float_to_string_dp(subsidies["capitalists_paid"], 1),
+			]
 
 		# TODO - set strata tax and debt charts
 		# TODO - update loans taken/given list and enable/disable take/give loan buttons
