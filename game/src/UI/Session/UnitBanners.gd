@@ -28,8 +28,14 @@ const _SIZE_FACTOR: float = 0.8
 
 const _SELECTED_MODULATE: Color = Color(1.5, 1.35, 0.6)
 const _ENEMY_FRAME: int = 3
+const _NAVY_TINT: Color = Color(0.55, 0.8, 1.4)
+
+## The armies that are selected changed (ids of the armies of the player)
+signal selection_changed(army_ids: Array[int])
 
 var _map_view: MapView
+# The selection that was last announced with the signal
+var _announced_selection: Array[int] = []
 # key -> { panel: Panel, anchor: Vector2, position: Vector2, slot: int, slot_count: int, drop: float, ids: Array, ... }
 var _icons: Dictionary[String, Dictionary] = {}
 # Selected armies of the player by army id. Armies (not icons) are selected, because the icon of an army changes when it
@@ -116,6 +122,17 @@ func _update_all_selection_visuals() -> void:
 	for key: String in _icons:
 		_update_selection_visual(key)
 	_sync_selection_markers()
+	_announce_selection()
+
+
+# Tells the panel of the army about the selection when it changed
+func _announce_selection() -> void:
+	var ids: Array[int] = _get_selected_army_ids()
+	ids.sort()
+	if ids == _announced_selection:
+		return
+	_announced_selection = ids
+	selection_changed.emit(ids)
 
 
 # Orders every selected army to go to the province, with queued = true (Shift) the province is added to the end of the
@@ -179,17 +196,18 @@ func _refresh() -> void:
 	var units: Array = PlayerSingleton.get_map_units()
 
 	# Group by province
-	var by_province: Dictionary[int, Array] = {}
+	# (armies and fleets of a province are separate groups, a fleet in a port is drawn at sea)
+	var by_province: Dictionary[String, Array] = {}
 	for unit: Dictionary in units:
-		var province_number: int = unit[&"province_number"]
-		if not by_province.has(province_number):
-			by_province[province_number] = []
-		by_province[province_number].append(unit)
+		var bucket: String = ("n%d" if unit.get(&"is_navy", false) else "p%d") % int(unit[&"province_number"])
+		if not by_province.has(bucket):
+			by_province[bucket] = []
+		by_province[bucket].append(unit)
 
 	var present: Dictionary[String, bool] = {}
 
-	for province_number: int in by_province:
-		var group: Array = by_province[province_number]
+	for bucket: String in by_province:
+		var group: Array = by_province[bucket]
 
 		var in_combat: bool = false
 		for unit: Dictionary in group:
@@ -197,14 +215,14 @@ func _refresh() -> void:
 
 		# A battle is one icon with both sides
 		if in_combat and group.size() >= 2:
-			var key: String = "p%d_combat" % province_number
+			var key: String = "%s_combat" % bucket
 			present[key] = true
 			_update_combat_icon(key, group[0], group[1])
 			continue
 
 		for slot: int in group.size():
 			var unit: Dictionary = group[slot]
-			var key: String = "p%d_c%d" % [province_number, unit[&"country_index"]]
+			var key: String = "%s_c%d" % [bucket, unit[&"country_index"]]
 			present[key] = true
 			_update_unit_icon(key, unit, slot, group.size())
 
@@ -280,11 +298,15 @@ func _set_flag(panel: Node, path: NodePath, country_identifier: String) -> void:
 
 
 func _describe(unit: Dictionary) -> String:
+	if unit.get(&"is_navy", false):
+		return _describe_fleet(unit)
 	var lines: PackedStringArray = [
 		"%s: %d, %s: %d" % [tr("Armies"), unit[&"army_count"], tr("Regiments"), unit[&"regiments"]],
 		"%s: %d%%" % [tr("Strength"), roundi(float(unit[&"strength"]) * 100.0)],
 		"%s: %d%%" % [tr("Organisation"), roundi(float(unit[&"organisation"]) * 100.0)],
 	]
+	if unit.get(&"attrition", false):
+		lines.append("Армия несёт потери: чужая земля или нет снабжения")
 	if unit[&"in_combat"]:
 		lines.append(tr("In battle"))
 	elif unit[&"moving"]:
@@ -293,6 +315,25 @@ func _describe(unit: Dictionary) -> String:
 		lines.append("%s: %d%%" % [tr("Siege"), roundi(float(unit[&"siege_progress"]) * 100.0)])
 	if unit[&"is_player"]:
 		lines.append(tr("Click to select, then right click a province to move"))
+	return "\n".join(lines)
+
+
+func _describe_fleet(unit: Dictionary) -> String:
+	var lines: PackedStringArray = [
+		"Флотов: %d, кораблей: %d" % [unit[&"army_count"], unit[&"regiments"]],
+		"%s: %d%%" % [tr("Strength"), roundi(float(unit[&"strength"]) * 100.0)],
+		"%s: %d%%" % [tr("Organisation"), roundi(float(unit[&"organisation"]) * 100.0)],
+	]
+	if unit.get(&"carried", 0) > 0:
+		lines.append("Перевозит полков: %d" % unit[&"carried"])
+	if unit.get(&"blockade", false):
+		lines.append("Порт заблокирован")
+	if unit[&"in_combat"]:
+		lines.append("Морской бой")
+	elif unit[&"moving"]:
+		lines.append("В плавании")
+	if unit[&"is_player"]:
+		lines.append("Нажмите, чтобы выбрать; правый клик по морю или порту - приказ плыть")
 	return "\n".join(lines)
 
 
@@ -317,6 +358,8 @@ func _update_unit_icon(key: String, unit: Dictionary, slot: int, slot_count: int
 	var colour: GUIIcon = GUINode.get_gui_icon_from_node_and_path(panel, ^"./unit_panel_color")
 	if colour:
 		colour.set_icon_index(1 if unit[&"is_player"] else _ENEMY_FRAME)
+		# Fleets have a blue tint
+		colour.modulate = _NAVY_TINT if unit.get(&"is_navy", false) else Color.WHITE
 
 	var background: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./unit_panel_bg")
 	if background:
@@ -325,10 +368,10 @@ func _update_unit_icon(key: String, unit: Dictionary, slot: int, slot_count: int
 			panel.set_meta(&"connected", true)
 			background.pressed.connect(_on_icon_pressed.bind(key))
 
-	# Armies that are moving or fighting show the attrition icon slot only when needed
+	# The attrition icon is shown for armies that lose men: outside of friendly lands or without supplies
 	var attr: Node = panel.get_node_or_null(^"./unit_panel_attr")
 	if attr is CanvasItem:
-		attr.visible = false
+		attr.visible = unit.get(&"attrition", false) or unit.get(&"blockade", false)
 
 	_update_selection_visual(key)
 

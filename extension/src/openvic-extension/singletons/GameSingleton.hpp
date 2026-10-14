@@ -1,5 +1,9 @@
 #pragma once
 
+#include <vector>
+
+#include <openvic-simulation/misc/Replay.hpp>
+
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/texture2d_array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
@@ -40,6 +44,9 @@ namespace OpenVic {
 
 		static godot::StringName const& _signal_gamestate_updated();
 		static godot::StringName const& _signal_mapmode_changed();
+
+		std::vector<ReplayEntry> pending_replay;
+		size_t pending_replay_index = 0;
 
 		godot::Error _load_map_images();
 		godot::Error _load_terrain_variants();
@@ -93,6 +100,17 @@ namespace OpenVic {
 		bool is_bookmark_loaded() const;
 
 		godot::Error start_game_session();
+
+		/* Save games are replays of the player's and the simulation's actions: a header (bookmark, country, date, label)
+		   followed by the action history. Loading sets up the bookmark and country, then replays the actions in steps
+		   (see step_pending_replay) so that the interface can show the progress. */
+		godot::Error save_game(godot::String const& path, godot::String const& label);
+		godot::Dictionary read_save_header(godot::String const& path) const;
+		// Reads the file and remembers the actions to replay; returns the header (bookmark_index, country, ...)
+		godot::Dictionary prepare_load_game(godot::String const& path);
+		bool has_pending_replay() const;
+		// Replays up to batch_count batches of the pending replay, returns the progress from 0 to 1000 (1000 = done)
+		int32_t step_pending_replay(int32_t batch_count);
 		godot::Error end_game_session();
 		bool is_game_session_active() const;
 

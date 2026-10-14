@@ -1,6 +1,7 @@
 #include "PlayerSingleton.hpp"
 
 #include <algorithm>
+#include <unordered_set>
 #include <vector>
 
 #include <openvic-simulation/core/FormatValidate.hpp>
@@ -18,6 +19,9 @@
 #include <openvic-simulation/military/UnitInstanceGroup.hpp>
 #include <openvic-simulation/military/War.hpp>
 #include <openvic-simulation/politics/Government.hpp>
+#include <openvic-simulation/politics/PoliticsDynamics.hpp>
+#include <openvic-simulation/country/CountryParty.hpp>
+#include <openvic-simulation/country/Colonisation.hpp>
 #include <openvic-simulation/research/ResearchManager.hpp>
 #include <openvic-simulation/research/Technology.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
@@ -46,6 +50,7 @@ void PlayerSingleton::_bind_methods() {
 
 	// Player country
 	OV_BIND_METHOD(PlayerSingleton::set_player_country_by_province_number, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::set_player_country_by_identifier, { "identifier" });
 	OV_BIND_METHOD(PlayerSingleton::get_player_country_capital_position);
 	OV_BIND_METHOD(PlayerSingleton::get_player_country_identifier);
 	OV_BIND_METHOD(PlayerSingleton::get_player_country_name);
@@ -113,6 +118,46 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_front_army, { "front_id", "army_id", "assigned" });
 	OV_BIND_METHOD(PlayerSingleton::assign_free_armies, { "front_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_auto_plan, { "enabled" });
+	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_market_overview);
+	OV_BIND_METHOD(PlayerSingleton::get_colonisation_info);
+	OV_BIND_METHOD(PlayerSingleton::start_colonisation, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::cancel_colonisation, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::get_notifications, { "after_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_country_ranking);
+	OV_BIND_METHOD(PlayerSingleton::get_lobby_country_info);
+	OV_BIND_METHOD(PlayerSingleton::get_politics_info);
+	OV_BIND_METHOD(PlayerSingleton::enact_reform, { "reform_index" });
+	OV_BIND_METHOD(PlayerSingleton::get_peace_info, { "war_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_peace_demand, { "war_id", "kind", "province_number", "enabled" });
+	OV_BIND_METHOD(PlayerSingleton::send_peace_offer, { "war_id" });
+	OV_BIND_METHOD(PlayerSingleton::answer_peace_offer, { "war_id", "accept" });
+	OV_BIND_METHOD(PlayerSingleton::get_peace_offers);
+	OV_BIND_METHOD(PlayerSingleton::get_declarable_countries);
+	OV_BIND_METHOD(PlayerSingleton::get_war_goal_states, { "country_index" });
+	OV_BIND_METHOD(PlayerSingleton::declare_war_with_goal, { "country_index", "goal_type", "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::get_generals);
+	OV_BIND_METHOD(PlayerSingleton::get_admirals);
+	OV_BIND_METHOD(PlayerSingleton::load_army, { "army_id", "navy_id" });
+	OV_BIND_METHOD(PlayerSingleton::unload_army, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::land_army, { "army_id", "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::get_ship_types, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::start_ship_building, { "ship_type_index", "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::get_blockade_info);
+	OV_BIND_METHOD(PlayerSingleton::get_mergeable_armies, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_leader_settings);
+	OV_BIND_METHOD(PlayerSingleton::set_leader_auto, { "auto_create", "auto_assign" });
+	OV_BIND_METHOD(PlayerSingleton::create_general);
+	OV_BIND_METHOD(PlayerSingleton::split_regiment, { "regiment_id" });
+	OV_BIND_METHOD(PlayerSingleton::merge_armies, { "target_army_id", "source_army_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_leader, { "army_id", "leader_id" });
+	OV_BIND_METHOD(PlayerSingleton::disband_regiment, { "regiment_id" });
+	OV_BIND_METHOD(PlayerSingleton::disband_army, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_recruitment_info, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::get_recruitment_block_reason, { "regiment_type_index", "province_number", "pop_id" });
+	OV_BIND_METHOD(PlayerSingleton::start_recruitment, { "regiment_type_index", "province_number", "pop_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_recruitment_queue);
+	OV_BIND_METHOD(PlayerSingleton::cancel_recruitment, { "order_id" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_credit_overview);
 	OV_BIND_METHOD(PlayerSingleton::take_external_loan, { "lender_index", "amount", "term" });
@@ -176,6 +221,17 @@ void PlayerSingleton::set_player_country(CountryInstance* new_player_country) {
 	SPDLOG_INFO("Set player country to: {}", ovfmt::validate(player_country));
 
 	game_singleton._on_gamestate_updated();
+}
+
+bool PlayerSingleton::set_player_country_by_identifier(godot::String const& identifier) {
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	CountryInstance* country = instance_manager->get_country_instance_manager().get_country_instance_by_identifier(
+		identifier.utf8().get_data()
+	);
+	ERR_FAIL_NULL_V_MSG(country, false, "Unknown country in the save.");
+	set_player_country(country);
+	return true;
 }
 
 void PlayerSingleton::set_player_country_by_province_number(int32_t province_number) {
@@ -1228,6 +1284,15 @@ bool PlayerSingleton::set_auto_plan(bool enabled) const {
 
 // Map units
 namespace {
+	// Where a group is drawn for a province: ships in a port are drawn in the sea next to it
+	Vector2 get_province_anchor(GameSingleton const& game_singleton, ProvinceInstance const& province, unit_branch_t branch) {
+		ProvinceDefinition const& definition = province.province_definition;
+		if (branch == unit_branch_t::NAVAL && !definition.is_water() && definition.get_port_adjacent_province() != nullptr) {
+			return game_singleton.normalise_map_position(definition.get_port_adjacent_province()->get_unit_position());
+		}
+		return game_singleton.normalise_map_position(definition.get_unit_position());
+	}
+
 	// Positions (normalised map coordinates) of the path of a moving group, starting at its current province
 	PackedVector2Array get_unit_path_positions(GameSingleton const& game_singleton, UnitInstanceGroup const& unit) {
 		PackedVector2Array positions;
@@ -1235,30 +1300,29 @@ namespace {
 			return positions;
 		}
 
-		positions.push_back(game_singleton.normalise_map_position(unit.get_location().province_definition.get_unit_position()));
+		positions.push_back(get_province_anchor(game_singleton, unit.get_location(), unit.branch));
 		for (ProvinceInstance const& province : unit.get_path()) {
-			positions.push_back(game_singleton.normalise_map_position(province.province_definition.get_unit_position()));
+			positions.push_back(get_province_anchor(game_singleton, province, unit.branch));
 		}
 		return positions;
 	}
 
 	// Position of a group on the map, between its province and the next one of its path while it moves
 	Vector2 get_unit_current_position(GameSingleton const& game_singleton, UnitInstanceGroup const& unit) {
-		ProvinceDefinition const& location = unit.get_location().province_definition;
-		Vector2 position = game_singleton.normalise_map_position(location.get_unit_position());
+		Vector2 position = get_province_anchor(game_singleton, unit.get_location(), unit.branch);
 
 		if (unit.get_path().empty()) {
 			return position;
 		}
 
 		ProvinceInstance const& next = unit.get_path().front().get();
-		ProvinceDefinition::adjacency_t const* adjacency = location.get_adjacency_to(next.province_definition);
-		if (adjacency == nullptr) {
+		const fixed_point_t step = unit.get_step_distance(unit.get_location(), next);
+		if (step < fixed_point_t::_0) {
 			return position;
 		}
 
-		const Vector2 target = game_singleton.normalise_map_position(next.province_definition.get_unit_position());
-		const float distance = static_cast<float>(adjacency->get_distance());
+		const Vector2 target = get_province_anchor(game_singleton, next, unit.branch);
+		const float distance = static_cast<float>(step);
 		const float progress = distance > 0.0f ? static_cast<float>(unit.get_movement_progress()) / distance : 0.0f;
 		return position.lerp(target, std::clamp(progress, 0.0f, 1.0f));
 	}
@@ -1279,6 +1343,9 @@ Array PlayerSingleton::get_map_units() const {
 		int32_t army_count = 0, regiments = 0;
 		fixed_point_t strength = 0, max_strength = 0, organisation = 0, max_organisation = 0;
 		bool in_combat = false, moving = false;
+		// The armies lose men: outside of friendly lands or without supplies
+		bool attrition = false;
+		int32_t carried = 0; // regiments carried by the fleets
 		Array army_ids;
 		Array paths;
 		// Position of the last army of the group, which is also the one drawn on the map
@@ -1295,6 +1362,10 @@ Array PlayerSingleton::get_map_units() const {
 		groups.clear();
 
 		for (ArmyInstance const& army : province.get_armies()) {
+			// Armies on board of ships are shown with the fleet
+			if (army.get_transport_navy() != nullptr) {
+				continue;
+			}
 			CountryInstance const* country = &army.get_country();
 
 			CountryGroup* group = nullptr;
@@ -1317,6 +1388,12 @@ Array PlayerSingleton::get_map_units() const {
 			group->max_organisation += army.get_total_max_organisation();
 			group->in_combat = group->in_combat || army.is_in_combat();
 			group->moving = group->moving || army.is_moving();
+			{
+				CountryInstance const* owner = province.get_owner();
+				const bool friendly = owner == country || (owner != nullptr && country->has_alliance_with(*owner));
+				const bool unsupplied = country->is_at_war() && country->get_army_supply_ratio() < (fixed_point_t(3) / 4);
+				group->attrition = group->attrition || (!country->is_rebel_country() && (!friendly || unsupplied));
+			}
 			group->army_ids.push_back(static_cast<int64_t>(army.unique_id));
 
 			if (army.is_moving()) {
@@ -1349,7 +1426,9 @@ Array PlayerSingleton::get_map_units() const {
 			    group.max_organisation > 0 ? static_cast<float>(group.organisation / group.max_organisation) : 0.0f;
 			entry["in_combat"] = group.in_combat;
 			entry["moving"] = group.moving;
+			entry["attrition"] = group.attrition;
 			entry["army_ids"] = group.army_ids;
+			entry["is_navy"] = false;
 			entry["occupied"] = occupied;
 
 			float siege_progress = -1.0f;
@@ -1358,6 +1437,81 @@ Array PlayerSingleton::get_map_units() const {
 			}
 			entry["siege_progress"] = siege_progress;
 
+			result.push_back(std::move(entry));
+		}
+	}
+
+	// Fleets, in the sea or docked in a port (drawn in the sea next to it)
+	for (ProvinceInstance const& province : instance_manager->get_map_instance().get_province_instances()) {
+		if (province.get_navies().empty()) {
+			continue;
+		}
+
+		groups.clear();
+		for (NavyInstance const& navy : province.get_navies()) {
+			if (navy.empty()) {
+				continue;
+			}
+			CountryInstance const* country = &navy.get_country();
+
+			CountryGroup* group = nullptr;
+			for (CountryGroup& existing : groups) {
+				if (existing.country == country) {
+					group = &existing;
+					break;
+				}
+			}
+			if (group == nullptr) {
+				groups.push_back({ country });
+				group = &groups.back();
+			}
+
+			group->army_count++;
+			group->regiments += static_cast<int32_t>(navy.get_unit_count());
+			group->strength += navy.get_total_strength();
+			group->max_strength += navy.get_total_max_strength();
+			group->organisation += navy.get_total_organisation();
+			group->max_organisation += navy.get_total_max_organisation();
+			group->in_combat = group->in_combat || navy.is_in_combat();
+			group->moving = group->moving || navy.is_moving();
+			group->army_ids.push_back(static_cast<int64_t>(navy.unique_id));
+			group->carried += static_cast<int32_t>(navy.get_carried_regiment_count());
+			if (war_manager.is_blockaded(province)) {
+				group->attrition = true;
+			}
+
+			if (navy.is_moving()) {
+				PackedVector2Array path_positions = get_unit_path_positions(*game_singleton, navy);
+				if (!path_positions.is_empty()) {
+					group->paths.push_back(std::move(path_positions));
+				}
+			}
+			group->position = get_unit_current_position(*game_singleton, navy);
+			group->has_position = true;
+		}
+
+		for (CountryGroup const& group : groups) {
+			Dictionary entry;
+			entry["province_number"] = static_cast<int32_t>(province.province_definition.get_province_number());
+			entry["position"] = group.has_position ? group.position : get_province_anchor(*game_singleton, province, unit_branch_t::NAVAL);
+			entry["paths"] = group.paths;
+			entry["country_identifier"] = convert_to<String>(group.country->get_identifier());
+			entry["country_index"] = static_cast<int32_t>(type_safe::get(group.country->index));
+			entry["is_player"] = group.country == player_country;
+			entry["army_count"] = group.army_count;
+			entry["regiments"] = group.regiments;
+			entry["carried"] = group.carried;
+			entry["strength"] = group.max_strength > 0 ? static_cast<float>(group.strength / group.max_strength) : 0.0f;
+			entry["organisation"] =
+			    group.max_organisation > 0 ? static_cast<float>(group.organisation / group.max_organisation) : 0.0f;
+			entry["in_combat"] = group.in_combat;
+			entry["moving"] = group.moving;
+			entry["attrition"] = false;
+			entry["blockade"] = group.attrition;
+			entry["army_ids"] = group.army_ids;
+			entry["is_navy"] = true;
+			entry["occupied"] = false;
+			entry["siege_progress"] = -1.0f;
 			result.push_back(std::move(entry));
 		}
 	}
@@ -1586,4 +1740,1192 @@ Dictionary PlayerSingleton::get_tariff_info() const {
 	    static_cast<float>(player_country->get_administrative_efficiency_from_administrators_untracked());
 	result["tariff_efficiency"] = static_cast<float>(player_country->tariff_efficiency.get_untracked());
 	return result;
+}
+
+// Selected army panel and recruitment
+namespace {
+	Dictionary make_fleet_details(
+		InstanceManager& instance_manager, MenuSingleton& menu_singleton, NavyInstance const& navy, CountryInstance const* player
+	) {
+		Dictionary result;
+		CountryInstance const& country = navy.get_country();
+		ProvinceInstance const& location = navy.get_location();
+		const bool at_sea = location.province_definition.is_water();
+
+		result["is_navy"] = true;
+		result["id"] = static_cast<int64_t>(navy.unique_id);
+		result["name"] = convert_to<String>(navy.get_name());
+		result["country_index"] = static_cast<int32_t>(type_safe::get(country.index));
+		result["country_name"] = Utilities::get_country_name(menu_singleton, country);
+		result["is_player"] = &country == player;
+		result["province_number"] = static_cast<int32_t>(location.province_definition.get_province_number());
+		result["province_identifier"] = convert_to<String>(location.get_identifier());
+		result["province_name"] = menu_singleton.tr(convert_to<String>(location.get_identifier()));
+		result["docked"] = !at_sea;
+		result["regiments"] = static_cast<int32_t>(navy.get_unit_count()); // ships
+		result["strength"] = static_cast<float>(navy.get_total_strength());
+		result["max_strength"] = static_cast<float>(navy.get_total_max_strength());
+		result["organisation"] = static_cast<float>(navy.get_organisation_proportion());
+		result["moving"] = navy.is_moving();
+		result["in_combat"] = navy.is_in_combat();
+		result["speed"] = static_cast<float>(navy.get_movement_speed());
+		result["eta_days"] = navy.get_movement_days_left();
+		result["dig_in"] = 0;
+		result["dig_in_cap"] = 0;
+		result["supply"] = static_cast<float>(country.get_army_supply_ratio());
+		result["capacity"] = static_cast<int32_t>(navy.get_transport_capacity());
+		result["carried_regiments"] = static_cast<int32_t>(navy.get_carried_regiment_count());
+
+		ProvinceInstance const* destination = navy.get_movement_destination_province();
+		result["destination_number"] =
+			destination != nullptr ? static_cast<int32_t>(destination->province_definition.get_province_number()) : 0;
+		result["destination_name"] =
+			destination != nullptr ? menu_singleton.tr(convert_to<String>(destination->get_identifier())) : String {};
+
+		LeaderInstance const* leader = navy.get_leader();
+		result["leader_id"] = leader != nullptr ? static_cast<int64_t>(leader->unique_id) : 0;
+		if (leader != nullptr) {
+			result["leader"] = menu_singleton.make_leader_dict(*leader);
+		}
+
+		Array units;
+		for (UnitInstance const& unit : navy.get_units()) {
+			ShipType const& type = static_cast<ShipInstance const&>(unit).get_ship_type();
+			Dictionary entry;
+			entry["id"] = static_cast<int64_t>(unit.unique_id);
+			entry["name"] = convert_to<String>(unit.get_name());
+			entry["type_identifier"] = convert_to<String>(type.get_identifier());
+			entry["type_name"] = menu_singleton.tr(convert_to<String>(type.get_identifier()));
+			entry["strength"] = static_cast<float>(unit.get_strength());
+			entry["max_strength"] = static_cast<float>(unit.get_max_strength());
+			entry["organisation"] = static_cast<float>(unit.get_organisation());
+			entry["max_organisation"] = static_cast<float>(unit.get_max_organisation());
+			entry["hull"] = static_cast<float>(type.hull);
+			entry["gun_power"] = static_cast<float>(type.gun_power);
+			entry["is_transport"] = type.is_transport;
+			units.push_back(entry);
+		}
+		result["units"] = units;
+
+		Array carried;
+		for (ArmyInstance const& army : navy.get_carried_armies()) {
+			Dictionary entry;
+			entry["id"] = static_cast<int64_t>(army.unique_id);
+			entry["name"] = convert_to<String>(army.get_name());
+			entry["regiments"] = static_cast<int32_t>(army.get_unit_count());
+			carried.push_back(entry);
+		}
+		result["carried"] = carried;
+
+		// Armies in the port that can be loaded
+		Array loadable;
+		if (!at_sea) {
+			for (ArmyInstance const& army : location.get_armies()) {
+				if (&army.get_country() != &country || army.get_transport_navy() != nullptr || army.is_moving() || army.is_in_combat()) {
+					continue;
+				}
+				Dictionary entry;
+				entry["id"] = static_cast<int64_t>(army.unique_id);
+				entry["name"] = convert_to<String>(army.get_name());
+				entry["regiments"] = static_cast<int32_t>(army.get_unit_count());
+				loadable.push_back(entry);
+			}
+		}
+		result["loadable"] = loadable;
+
+		// Coasts next to the sea where the carried armies can land
+		Array targets;
+		if (at_sea) {
+			for (ProvinceDefinition::adjacency_t const& adjacency : location.province_definition.get_adjacencies()) {
+				ProvinceDefinition const& to = adjacency.get_to();
+				if (to.is_water() || adjacency.get_type() != ProvinceDefinition::adjacency_t::type_t::COASTAL) {
+					continue;
+				}
+				ProvinceInstance const& target = instance_manager.get_map_instance().get_province_instance_by_definition(to);
+				if (!UnitInstanceGroup::can_country_enter(country, target)) {
+					continue;
+				}
+				Dictionary entry;
+				entry["number"] = static_cast<int32_t>(to.get_province_number());
+				entry["name"] = menu_singleton.tr(convert_to<String>(target.get_identifier()));
+				entry["hostile"] = target.get_owner() != &country && target.get_controller() != &country;
+				targets.push_back(entry);
+			}
+		}
+		result["landing_targets"] = targets;
+
+		// Blockade: the fleet sits in front of a port of an enemy
+		result["blockading"] = at_sea && [&]() -> bool {
+			WarManager const& war_manager = instance_manager.get_war_manager();
+			for (ProvinceInstance const& port : instance_manager.get_map_instance().get_province_instances()) {
+				if (port.province_definition.get_port_adjacent_province() == &location.province_definition
+					&& war_manager.is_blockaded(port) && port.get_owner() != nullptr && port.get_owner()->is_at_war_with(country)) {
+					return true;
+				}
+			}
+			return false;
+		}();
+
+		return result;
+	}
+
+	ArmyInstance* get_player_army(InstanceManager& instance_manager, CountryInstance const* player, const int64_t army_id) {
+		UnitInstanceGroup* const group = instance_manager.get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+			static_cast<unique_id_t>(army_id)
+		);
+		if (group == nullptr || group->branch != unit_branch_t::LAND || &group->get_country() != player) {
+			return nullptr;
+		}
+		return static_cast<ArmyInstance*>(group);
+	}
+}
+
+Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	// Any army can be looked at, but only the armies of the player can be ordered
+	UnitInstanceGroup* const group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+		static_cast<unique_id_t>(army_id)
+	);
+	if (group == nullptr) {
+		return result;
+	}
+	if (group->branch == unit_branch_t::NAVAL) {
+		return make_fleet_details(*instance_manager, *menu_singleton, static_cast<NavyInstance const&>(*group), player_country);
+	}
+	ArmyInstance const& army = static_cast<ArmyInstance const&>(*group);
+	CountryInstance const& country = army.get_country();
+	result["is_navy"] = false;
+
+	result["id"] = static_cast<int64_t>(army.unique_id);
+	result["name"] = convert_to<String>(army.get_name());
+	result["country_index"] = static_cast<int32_t>(type_safe::get(country.index));
+	result["country_name"] = Utilities::get_country_name(*menu_singleton, country);
+	result["is_player"] = &country == player_country;
+	result["province_number"] = static_cast<int32_t>(army.get_location().province_definition.get_province_number());
+	result["province_identifier"] = convert_to<String>(army.get_location().get_identifier());
+	result["province_name"] = menu_singleton->tr(convert_to<String>(army.get_location().get_identifier()));
+	result["regiments"] = static_cast<int32_t>(army.get_unit_count());
+	result["strength"] = static_cast<float>(army.get_total_strength());
+	result["max_strength"] = static_cast<float>(army.get_total_max_strength());
+	result["organisation"] = static_cast<float>(army.get_organisation_proportion());
+	result["dig_in"] = static_cast<int32_t>(army.get_dig_in_level());
+	result["dig_in_cap"] = static_cast<int32_t>(country.get_dig_in_cap());
+	result["moving"] = army.is_moving();
+	result["in_combat"] = army.is_in_combat();
+	result["supply"] = static_cast<float>(country.get_army_supply_ratio());
+	result["speed"] = static_cast<float>(army.get_movement_speed());
+	result["eta_days"] = army.get_movement_days_left();
+
+	ProvinceInstance const* destination = army.get_movement_destination_province();
+	result["destination_number"] =
+		destination != nullptr ? static_cast<int32_t>(destination->province_definition.get_province_number()) : 0;
+	result["destination_name"] =
+		destination != nullptr ? menu_singleton->tr(convert_to<String>(destination->get_identifier())) : String {};
+
+	int32_t front_id = 0;
+	for (Front const& front : instance_manager->get_war_manager().get_fronts()) {
+		if (front.country == &country) {
+			for (const unique_id_t front_army : front.army_ids) {
+				if (front_army == army.unique_id) {
+					front_id = static_cast<int32_t>(front.id);
+				}
+			}
+		}
+	}
+	result["front_id"] = front_id;
+
+	LeaderInstance const* leader = army.get_leader();
+	result["leader_id"] = leader != nullptr ? static_cast<int64_t>(leader->unique_id) : 0;
+	if (leader != nullptr) {
+		result["leader"] = menu_singleton->make_leader_dict(*leader);
+	}
+
+	Array units;
+	for (UnitInstance const& unit : army.get_units()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int64_t>(unit.unique_id);
+		entry["name"] = convert_to<String>(unit.get_name());
+		entry["type_identifier"] = convert_to<String>(unit.unit_type.get_identifier());
+		entry["type_name"] = menu_singleton->tr(convert_to<String>(unit.unit_type.get_identifier()));
+		entry["strength"] = static_cast<float>(unit.get_strength());
+		entry["max_strength"] = static_cast<float>(unit.get_max_strength());
+		entry["organisation"] = static_cast<float>(unit.get_organisation());
+		entry["max_organisation"] = static_cast<float>(unit.get_max_organisation());
+		Pop const* pop = static_cast<RegimentInstance const&>(unit).get_pop();
+		entry["pop_type"] = pop != nullptr ? menu_singleton->tr(convert_to<String>(pop->get_type().get_identifier())) : String {};
+		entry["pop_culture"] =
+			pop != nullptr ? menu_singleton->tr(convert_to<String>(pop->culture.get_identifier())) : String {};
+		units.push_back(entry);
+	}
+	result["units"] = units;
+
+	return result;
+}
+
+namespace {
+	Array make_leader_list(CountryInstance const* player, MenuSingleton* menu_singleton, const unit_branch_t branch) {
+		Array result;
+		const auto add = [&](auto const& leaders) -> void {
+			for (LeaderInstance const& leader : leaders) {
+				Dictionary entry = menu_singleton->make_leader_dict(leader).duplicate();
+				entry["leader_id"] = static_cast<int64_t>(leader.unique_id);
+				entry["prestige"] = static_cast<float>(leader.get_prestige());
+				entry["personality"] = leader.get_personality() != nullptr
+					? menu_singleton->tr(convert_to<String>(leader.get_personality()->get_identifier())) : String {};
+				entry["background"] = leader.get_background() != nullptr
+					? menu_singleton->tr(convert_to<String>(leader.get_background()->get_identifier())) : String {};
+				UnitInstanceGroup const* group = leader.get_unit_instance_group();
+				entry["army_id"] = group != nullptr ? static_cast<int64_t>(group->unique_id) : 0;
+				entry["army_name"] = group != nullptr ? convert_to<String>(group->get_name()) : String {};
+				result.push_back(entry);
+			}
+		};
+		if (branch == unit_branch_t::LAND) {
+			add(player->get_leaders<unit_branch_t::LAND>());
+		} else {
+			add(player->get_leaders<unit_branch_t::NAVAL>());
+		}
+		return result;
+	}
+}
+
+Array PlayerSingleton::get_generals() const {
+	ERR_FAIL_NULL_V(player_country, Array {});
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, Array {});
+	return make_leader_list(player_country, menu_singleton, unit_branch_t::LAND);
+}
+
+Array PlayerSingleton::get_admirals() const {
+	ERR_FAIL_NULL_V(player_country, Array {});
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, Array {});
+	return make_leader_list(player_country, menu_singleton, unit_branch_t::NAVAL);
+}
+
+Array PlayerSingleton::get_mergeable_armies(int64_t army_id) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	ArmyInstance* const army = get_player_army(*instance_manager, player_country, army_id);
+	if (army == nullptr) {
+		return result;
+	}
+	for (ArmyInstance const& other : army->get_location().get_armies()) {
+		if (&other == army || &other.get_country() != player_country || other.is_moving() || other.is_in_combat()) {
+			continue;
+		}
+		Dictionary entry;
+		entry["id"] = static_cast<int64_t>(other.unique_id);
+		entry["name"] = convert_to<String>(other.get_name());
+		entry["regiments"] = static_cast<int32_t>(other.get_unit_count());
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Dictionary PlayerSingleton::get_leader_settings() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	const fixed_point_t cost = GameSingleton::get_singleton()->get_definition_manager().get_define_manager()
+		.get_military_defines().get_leader_recruit_cost();
+	result["auto_create"] = player_country->get_auto_create_leaders();
+	result["auto_assign"] = player_country->get_auto_assign_leaders();
+	result["leadership_points"] = static_cast<float>(player_country->get_leadership_point_stockpile());
+	result["monthly_leadership_points"] = static_cast<float>(player_country->get_monthly_leadership_points());
+	result["leader_cost"] = static_cast<float>(cost);
+	result["can_create"] = player_country->get_leadership_point_stockpile() >= cost;
+	return result;
+}
+
+bool PlayerSingleton::set_leader_auto(bool auto_create, bool auto_assign) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	bool changed = false;
+	if (player_country->get_auto_create_leaders() != auto_create) {
+		changed |= instance_manager->queue_game_action<set_auto_create_leaders_argument_t>(player_country->index, auto_create);
+	}
+	if (player_country->get_auto_assign_leaders() != auto_assign) {
+		changed |= instance_manager->queue_game_action<set_auto_assign_leaders_argument_t>(player_country->index, auto_assign);
+	}
+	return changed;
+}
+
+bool PlayerSingleton::create_general() const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<create_leader_argument_t>(player_country->index, unit_branch_t::LAND);
+}
+
+bool PlayerSingleton::split_regiment(int64_t regiment_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstance* const unit =
+		instance_manager->get_unit_instance_manager().get_unit_instance_by_unique_id(static_cast<unique_id_t>(regiment_id));
+	ERR_FAIL_NULL_V(unit, false);
+	ArmyInstance* const army = instance_manager->get_unit_instance_manager().get_army_of_regiment(
+		static_cast<RegimentInstance&>(*unit)
+	);
+	ERR_FAIL_COND_V(army == nullptr || &army->get_country() != player_country, false);
+	return instance_manager->queue_game_action<split_regiment_argument_t>(static_cast<unique_id_t>(regiment_id));
+}
+
+bool PlayerSingleton::merge_armies(int64_t target_army_id, int64_t source_army_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, target_army_id), false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, source_army_id), false);
+	return instance_manager->queue_game_action<merge_armies_argument_t>(
+		static_cast<unique_id_t>(target_army_id), static_cast<unique_id_t>(source_army_id)
+	);
+}
+
+bool PlayerSingleton::set_army_leader(int64_t army_id, int64_t leader_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstanceGroup* const leader_group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+		static_cast<unique_id_t>(army_id)
+	);
+	ERR_FAIL_NULL_V(leader_group, false);
+	ERR_FAIL_COND_V(&leader_group->get_country() != player_country, false);
+	return instance_manager->queue_game_action<set_army_leader_argument_t>(
+		static_cast<unique_id_t>(army_id), static_cast<unique_id_t>(leader_id)
+	);
+}
+
+bool PlayerSingleton::disband_regiment(int64_t regiment_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstance* const unit =
+		instance_manager->get_unit_instance_manager().get_unit_instance_by_unique_id(static_cast<unique_id_t>(regiment_id));
+	ERR_FAIL_NULL_V(unit, false);
+	ArmyInstance* const army = instance_manager->get_unit_instance_manager().get_army_of_regiment(
+		static_cast<RegimentInstance&>(*unit)
+	);
+	ERR_FAIL_COND_V(army == nullptr || &army->get_country() != player_country, false);
+	return instance_manager->queue_game_action<disband_regiment_argument_t>(static_cast<unique_id_t>(regiment_id));
+}
+
+bool PlayerSingleton::disband_army(int64_t army_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, army_id), false);
+	return instance_manager->queue_game_action<disband_army_argument_t>(static_cast<unique_id_t>(army_id));
+}
+
+Dictionary PlayerSingleton::get_recruitment_info(int32_t province_number) const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, result);
+
+	result["province_number"] = province_number;
+	result["province_name"] = menu_singleton->tr(convert_to<String>(province->get_identifier()));
+	result["owned"] = province->get_owner() == player_country && province->get_controller() == player_country;
+
+	Array regiment_types;
+	for (RegimentType const& regiment_type :
+		 game_singleton->get_definition_manager().get_military_manager().get_unit_type_manager().get_regiment_types()) {
+		Dictionary entry;
+		entry["index"] = static_cast<int32_t>(type_safe::get(regiment_type.index));
+		entry["identifier"] = convert_to<String>(regiment_type.get_identifier());
+		entry["name"] = menu_singleton->tr(convert_to<String>(regiment_type.get_identifier()));
+		entry["days"] = UnitInstanceManager::get_recruitment_days(*player_country, regiment_type);
+		entry["unlocked"] = player_country->is_unit_type_unlocked(regiment_type);
+
+		Array cost;
+		for (auto const& [good, amount] : regiment_type.get_build_cost()) {
+			Dictionary cost_entry;
+			cost_entry["good_name"] = menu_singleton->tr(convert_to<String>(good->get_identifier()));
+			cost_entry["amount"] = static_cast<float>(amount);
+			cost_entry["have"] = static_cast<float>(player_country->get_good_data(*good).stockpile_amount);
+			cost.push_back(cost_entry);
+		}
+		entry["cost"] = cost;
+		regiment_types.push_back(entry);
+	}
+	result["regiment_types"] = regiment_types;
+
+	Array pops;
+	for (Pop const& pop : province->get_pops()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(type_safe::get(pop.id_in_province));
+		entry["type_name"] = menu_singleton->tr(convert_to<String>(pop.get_type().get_identifier()));
+		entry["culture_name"] = menu_singleton->tr(convert_to<String>(pop.culture.get_identifier()));
+		entry["size"] = static_cast<int32_t>(type_safe::get(pop.get_size()));
+		entry["regiments"] = static_cast<int32_t>(pop.get_regiment_count());
+		entry["max_regiments"] = static_cast<int32_t>(pop.get_max_supported_regiments());
+		entry["recruitable"] = pop.get_type().can_be_recruited;
+		entry["culture_ok"] = Pop::is_culture_status_allowed(
+			player_country->get_allowed_regiment_cultures(), pop.get_culture_status()
+		);
+		pops.push_back(entry);
+	}
+	result["pops"] = pops;
+
+	return result;
+}
+
+String PlayerSingleton::get_recruitment_block_reason(int32_t regiment_type_index, int32_t province_number, int32_t pop_id) const {
+	ERR_FAIL_NULL_V(player_country, String {});
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, String {});
+
+	RegimentType const* regiment_type = game_singleton->get_definition_manager().get_military_manager()
+		.get_unit_type_manager().get_regiment_type_by_index(regiment_type_index_t(regiment_type_index));
+	ERR_FAIL_NULL_V(regiment_type, String {});
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, String {});
+	Pop const* pop = province->find_pop_by_id(pop_id_in_province_t(static_cast<size_t>(pop_id)));
+	ERR_FAIL_NULL_V(pop, String {});
+
+	return String::utf8(
+		UnitInstanceManager::get_recruitment_block_reason(*player_country, *regiment_type, *province, *pop).data()
+	);
+}
+
+bool PlayerSingleton::start_recruitment(int32_t regiment_type_index, int32_t province_number, int32_t pop_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	ERR_FAIL_COND_V(province->get_owner() != player_country, false);
+
+	return instance_manager->queue_game_action<start_land_unit_recruitment_argument_t>(
+		regiment_type_index_t(regiment_type_index), province->index, pop_id_in_province_t(static_cast<size_t>(pop_id))
+	);
+}
+
+Array PlayerSingleton::get_recruitment_queue() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	for (RecruitmentOrder const& order : instance_manager->get_unit_instance_manager().get_recruitment_orders()) {
+		if (order.country != player_country) {
+			continue;
+		}
+		Dictionary entry;
+		entry["id"] = static_cast<int64_t>(order.id);
+		entry["type_name"] = menu_singleton->tr(convert_to<String>(
+			order.ship_type != nullptr ? order.ship_type->get_identifier() : order.regiment_type->get_identifier()
+		));
+		entry["is_ship"] = order.ship_type != nullptr;
+		entry["province_number"] = static_cast<int32_t>(order.province->province_definition.get_province_number());
+		entry["province_name"] = menu_singleton->tr(convert_to<String>(order.province->get_identifier()));
+		entry["days_left"] = order.days_left;
+		entry["days_total"] = order.days_total;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::cancel_recruitment(int64_t order_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<cancel_recruitment_argument_t>(
+		player_country->index, static_cast<unique_id_t>(order_id)
+	);
+}
+
+// Fleets: transport and ship building
+bool PlayerSingleton::load_army(int64_t army_id, int64_t navy_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, army_id), false);
+	return instance_manager->queue_game_action<load_army_argument_t>(static_cast<unique_id_t>(army_id), static_cast<unique_id_t>(navy_id));
+}
+
+bool PlayerSingleton::unload_army(int64_t army_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, army_id), false);
+	return instance_manager->queue_game_action<unload_army_argument_t>(static_cast<unique_id_t>(army_id));
+}
+
+bool PlayerSingleton::land_army(int64_t army_id, int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, army_id), false);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	return instance_manager->queue_game_action<land_army_argument_t>(static_cast<unique_id_t>(army_id), province->index);
+}
+
+Array PlayerSingleton::get_ship_types(int32_t province_number) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, result);
+
+	for (ShipType const& ship_type :
+		 game_singleton->get_definition_manager().get_military_manager().get_unit_type_manager().get_ship_types()) {
+		Dictionary entry;
+		entry["index"] = static_cast<int32_t>(type_safe::get(ship_type.index));
+		entry["identifier"] = convert_to<String>(ship_type.get_identifier());
+		entry["name"] = menu_singleton->tr(convert_to<String>(ship_type.get_identifier()));
+		entry["days"] = UnitInstanceManager::get_recruitment_days(*player_country, ship_type);
+		entry["unlocked"] = player_country->is_unit_type_unlocked(ship_type);
+		entry["transport"] = ship_type.is_transport;
+		entry["hull"] = static_cast<float>(ship_type.hull);
+		entry["gun_power"] = static_cast<float>(ship_type.gun_power);
+		entry["min_port_level"] = static_cast<int32_t>(ship_type.min_port_level);
+		entry["reason"] = String::utf8(
+			instance_manager->get_unit_instance_manager().get_ship_block_reason(*player_country, ship_type, *province).data()
+		);
+
+		Array cost;
+		for (auto const& [good, amount] : ship_type.get_build_cost()) {
+			Dictionary cost_entry;
+			cost_entry["good_name"] = menu_singleton->tr(convert_to<String>(good->get_identifier()));
+			cost_entry["amount"] = static_cast<float>(amount);
+			cost_entry["have"] = static_cast<float>(player_country->get_good_data(*good).stockpile_amount);
+			cost.push_back(cost_entry);
+		}
+		entry["cost"] = cost;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::start_ship_building(int32_t ship_type_index, int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	ERR_FAIL_COND_V(province->get_owner() != player_country, false);
+	return instance_manager->queue_game_action<start_ship_building_argument_t>(ship_type_index_t(ship_type_index), province->index);
+}
+
+Dictionary PlayerSingleton::get_blockade_info() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	WarManager const& war_manager = instance_manager->get_war_manager();
+	result["share"] = static_cast<float>(war_manager.get_blockade_share(*player_country));
+
+	Array our_ports, enemy_ports;
+	for (ProvinceInstance const& province : instance_manager->get_map_instance().get_province_instances()) {
+		if (!war_manager.is_blockaded(province) || province.get_owner() == nullptr) {
+			continue;
+		}
+		Dictionary entry;
+		entry["number"] = static_cast<int32_t>(province.province_definition.get_province_number());
+		entry["name"] = menu_singleton->tr(convert_to<String>(province.get_identifier()));
+		entry["owner"] = Utilities::get_country_name(*menu_singleton, *province.get_owner());
+		if (province.get_owner() == player_country) {
+			our_ports.push_back(entry);
+		} else if (province.get_owner()->is_at_war_with(*player_country)) {
+			enemy_ports.push_back(entry);
+		}
+	}
+	result["our_blockaded_ports"] = our_ports;
+	result["enemy_blockaded_ports"] = enemy_ports;
+	return result;
+}
+
+// Peace negotiations
+namespace {
+	String state_name(MenuSingleton& menu_singleton, ProvinceInstance const& state_province) {
+		return menu_singleton.tr(convert_to<String>(state_province.get_identifier()));
+	}
+
+	Dictionary make_offer_entry(
+		MenuSingleton& menu_singleton, WarManager const& war_manager, War const& war, PeaceOffer const& offer, Date const today
+	) {
+		Dictionary entry;
+		entry["war_id"] = static_cast<int32_t>(offer.war_id);
+		entry["from_name"] = Utilities::get_country_name(menu_singleton, *offer.from);
+		entry["concede"] = offer.terms.concede;
+		Array states;
+		for (ProvinceInstance const* state : offer.terms.states) {
+			states.push_back(state_name(menu_singleton, *state));
+		}
+		entry["states"] = states;
+		entry["reparations"] = offer.terms.reparations;
+		entry["humiliate"] = offer.terms.humiliate;
+		entry["cost"] = static_cast<float>(war_manager.get_terms_cost(war, *offer.from, offer.terms));
+		entry["days_left"] = WarManager::OFFER_VALID_DAYS - static_cast<int32_t>((today - offer.date).to_int());
+		return entry;
+	}
+}
+
+Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	WarManager& war_manager = instance_manager->get_war_manager();
+	War const* war = war_manager.get_war_by_id(static_cast<std::uint32_t>(war_id));
+	if (war == nullptr || !war->has_participant(*player_country)) {
+		return result;
+	}
+	const bool we_attack = war->is_attacker(*player_country);
+	const Date today = instance_manager->get_today();
+
+	result["war_id"] = war_id;
+	result["we_attack"] = we_attack;
+	result["days"] = static_cast<int32_t>((today - war->start_date).to_int());
+	result["our_score"] = static_cast<float>(war->get_score(we_attack));
+	result["their_score"] = static_cast<float>(war->get_score(!we_attack));
+	result["goal_type"] = static_cast<int32_t>(war->goal.type);
+	result["goal_name"] = war->goal.state_province != nullptr ? state_name(*menu_singleton, *war->goal.state_province) : String {};
+
+	Array attackers, defenders;
+	for (CountryInstance const* country : war->attackers) {
+		attackers.push_back(Utilities::get_country_name(*menu_singleton, *country));
+	}
+	for (CountryInstance const* country : war->defenders) {
+		defenders.push_back(Utilities::get_country_name(*menu_singleton, *country));
+	}
+	result["attackers"] = attackers;
+	result["defenders"] = defenders;
+
+	PeaceTerms const* draft_ptr = war_manager.find_peace_draft(*player_country);
+	PeaceTerms draft;
+	if (draft_ptr != nullptr && draft_ptr->war_id == static_cast<std::uint32_t>(war_id)) {
+		draft = *draft_ptr;
+	}
+	draft.war_id = static_cast<std::uint32_t>(war_id);
+	result["concede"] = draft.concede;
+	result["reparations"] = draft.reparations;
+	result["humiliate"] = draft.humiliate;
+	result["reparations_cost"] = WarManager::REPARATIONS_COST;
+	result["humiliate_cost"] = WarManager::HUMILIATE_COST;
+
+	const bool winners_are_attackers = draft.concede ? !we_attack : we_attack;
+	Array states;
+	for (ProvinceInstance const* candidate : war_manager.get_peace_candidates(*war, *player_country, draft.concede)) {
+		Dictionary entry;
+		entry["province_number"] = static_cast<int32_t>(candidate->province_definition.get_province_number());
+		entry["name"] = state_name(*menu_singleton, *candidate);
+		entry["owner_name"] = candidate->get_owner() != nullptr ? Utilities::get_country_name(*menu_singleton, *candidate->get_owner()) : String {};
+		entry["cost"] = static_cast<float>(war_manager.get_state_cost(*war, winners_are_attackers, *candidate));
+		bool selected = false;
+		for (ProvinceInstance const* chosen : draft.states) {
+			selected = selected || chosen == candidate
+				|| (chosen->get_state() != nullptr && chosen->get_state() == candidate->get_state());
+		}
+		entry["selected"] = selected;
+		entry["is_goal"] = war->goal.type == WarGoal::type_t::CONQUER_STATE && war->goal.state_province != nullptr
+			&& (war->goal.state_province == candidate
+				|| (war->goal.state_province->get_state() != nullptr && war->goal.state_province->get_state() == candidate->get_state()));
+		states.push_back(entry);
+	}
+	result["states"] = states;
+
+	const fixed_point_t cost = war_manager.get_terms_cost(*war, *player_country, draft);
+	result["cost"] = static_cast<float>(cost);
+	result["available"] = static_cast<float>(draft.concede ? war->get_score(!we_attack) : war->get_score(we_attack));
+
+	memory::string reason;
+	result["accepts"] = war_manager.evaluate_offer(*instance_manager, *war, we_attack, draft, &reason);
+	result["reason"] = String::utf8(reason.c_str());
+
+	if (PeaceResponse const* response = war_manager.get_last_response(*player_country)) {
+		Dictionary last;
+		last["accepted"] = response->accepted;
+		last["text"] = String::utf8(response->text.c_str());
+		last["days_ago"] = static_cast<int32_t>((today - response->date).to_int());
+		result["last_response"] = last;
+	}
+
+	Array offers;
+	for (PeaceOffer const& offer : war_manager.get_offers_for(*player_country)) {
+		if (offer.war_id == static_cast<std::uint32_t>(war_id)) {
+			offers.push_back(make_offer_entry(*menu_singleton, war_manager, *war, offer, today));
+		}
+	}
+	result["offers"] = offers;
+	return result;
+}
+
+bool PlayerSingleton::set_peace_demand(int32_t war_id, int32_t kind, int32_t province_number, bool enabled) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(war_id <= 0 || kind < 0, false);
+
+	ProvinceInstance const* province = province_number > 0
+		? instance_manager->get_map_instance().get_province_instance_from_number(province_number) : nullptr;
+	province_index_t index = province != nullptr ? province->index : province_index_t(0);
+	return instance_manager->queue_game_action<set_peace_demand_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(war_id), static_cast<std::uint32_t>(kind), index, enabled
+	);
+}
+
+bool PlayerSingleton::send_peace_offer(int32_t war_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(war_id <= 0, false);
+	return instance_manager->queue_game_action<send_peace_offer_argument_t>(player_country->index, static_cast<std::uint32_t>(war_id));
+}
+
+bool PlayerSingleton::answer_peace_offer(int32_t war_id, bool accept) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(war_id <= 0, false);
+	return instance_manager->queue_game_action<answer_peace_offer_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(war_id), accept
+	);
+}
+
+Array PlayerSingleton::get_peace_offers() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	WarManager const& war_manager = instance_manager->get_war_manager();
+	for (PeaceOffer const& offer : war_manager.get_offers_for(*player_country)) {
+		War const* war = war_manager.get_war_by_id(offer.war_id);
+		if (war != nullptr) {
+			result.push_back(make_offer_entry(*menu_singleton, war_manager, *war, offer, instance_manager->get_today()));
+		}
+	}
+	return result;
+}
+
+Array PlayerSingleton::get_declarable_countries() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	WarManager const& war_manager = instance_manager->get_war_manager();
+	for (CountryInstance const& country : instance_manager->get_country_instance_manager().get_country_instances()) {
+		if (!war_manager.can_declare_war(*player_country, country, instance_manager->get_today())) {
+			continue;
+		}
+		Dictionary entry;
+		entry["index"] = static_cast<int32_t>(type_safe::get(country.index));
+		entry["name"] = Utilities::get_country_name(*menu_singleton, country);
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Array PlayerSingleton::get_war_goal_states(int32_t country_index) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	ERR_FAIL_COND_V(country_index < 0, result);
+
+	CountryInstance const& country = instance_manager->get_country_instance_manager().get_country_instance_by_index(
+		country_index_t(static_cast<size_t>(country_index))
+	);
+	std::unordered_set<State const*> seen;
+	for (ProvinceInstance const* province : country.get_owned_provinces()) {
+		State const* state = province->get_state();
+		if (state != nullptr && !seen.insert(state).second) {
+			continue;
+		}
+		ProvinceInstance const* key = state != nullptr && state->get_capital() != nullptr ? state->get_capital() : province;
+		Dictionary entry;
+		entry["province_number"] = static_cast<int32_t>(key->province_definition.get_province_number());
+		entry["name"] = state_name(*menu_singleton, *key);
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::declare_war_with_goal(int32_t country_index, int32_t goal_type, int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(country_index < 0 || goal_type < 0, false);
+
+	ProvinceInstance const* province = province_number > 0
+		? instance_manager->get_map_instance().get_province_instance_from_number(province_number) : nullptr;
+	province_index_t index = province != nullptr ? province->index : province_index_t(0);
+	return instance_manager->queue_game_action<declare_war_goal_argument_t>(
+		player_country->index, country_index_t(static_cast<size_t>(country_index)), static_cast<std::uint32_t>(goal_type), index
+	);
+}
+
+Array PlayerSingleton::get_market_overview() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	GoodInstanceManager const& good_instance_manager = instance_manager->get_good_instance_manager();
+	for (GoodCategory const& category : game_singleton->get_definition_manager().get_economy_manager().get_good_definition_manager().get_good_categories()) {
+		for (GoodDefinition const& good_definition : category.get_good_definitions()) {
+			GoodInstance const& good = good_instance_manager.get_good_instance_by_definition(good_definition);
+			if (!good.is_trading_good()) {
+				continue;
+			}
+			Dictionary entry;
+			entry["name"] = menu_singleton->tr(convert_to<String>(good_definition.get_identifier()));
+			entry["category"] = menu_singleton->tr(convert_to<String>(category.get_identifier()));
+			entry["price"] = static_cast<float>(good.get_price());
+			entry["price_change"] = static_cast<float>(good.get_price_change_yesterday());
+			entry["base_price"] = static_cast<float>(good_definition.base_price);
+			entry["supply"] = static_cast<float>(good.get_total_supply_yesterday());
+			entry["demand"] = static_cast<float>(good.get_total_demand_yesterday());
+			entry["traded"] = static_cast<float>(good.get_quantity_traded_yesterday());
+			entry["stockpile"] = static_cast<float>(player_country->get_good_data(good).stockpile_amount);
+
+			PackedFloat32Array history;
+			for (fixed_point_t const& price : good.get_price_history()) {
+				history.push_back(static_cast<float>(price));
+			}
+			entry["price_history"] = history;
+			result.push_back(entry);
+		}
+	}
+	return result;
+}
+
+Dictionary PlayerSingleton::get_politics_info() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	PoliticsManager const& politics = game_singleton->get_definition_manager().get_politics_manager();
+	CountryInstance const& country = *player_country;
+	const Date today = instance_manager->get_today();
+	const double total_population = static_cast<double>(type_safe::get(country.get_total_population()));
+
+	GovernmentType const* government = country.get_government_type_untracked();
+	result["government"] = government != nullptr ? menu_singleton->tr(convert_to<String>(government->get_identifier())) : String {};
+	CountryParty const* ruling = country.get_ruling_party_untracked();
+	result["ruling_party"] = ruling != nullptr ? menu_singleton->tr(convert_to<String>(ruling->get_identifier())) : String {};
+	result["ruling_ideology"] = ruling != nullptr && ruling->ideology != nullptr
+		? menu_singleton->tr(convert_to<String>(ruling->ideology->get_identifier())) : String {};
+	result["holds_elections"] = government != nullptr && government->holds_elections;
+	int32_t days_to_election = -1;
+	if (government != nullptr && government->holds_elections && country.get_last_election() != Date {}) {
+		days_to_election = static_cast<int32_t>((country.get_last_election() + government->term_duration - today).to_int());
+	}
+	result["days_to_election"] = days_to_election;
+
+	// Parties and their votes
+	Array parties;
+	double votes_total = 0.0;
+	for (CountryParty const& party : country.country_definition.get_parties()) {
+		votes_total += static_cast<double>(country.get_vote_equivalents_by_party(party));
+	}
+	result["voters_share"] = total_population > 0.0 ? static_cast<float>(votes_total / total_population) : 0.0f;
+	for (CountryParty const& party : country.country_definition.get_parties()) {
+		if (!(party.start_date <= today && today <= party.end_date)) {
+			continue;
+		}
+		Dictionary entry;
+		entry["name"] = menu_singleton->tr(convert_to<String>(party.get_identifier()));
+		entry["ideology"] = party.ideology != nullptr ? menu_singleton->tr(convert_to<String>(party.ideology->get_identifier())) : String {};
+		entry["vote_share"] = votes_total > 0.0 ? static_cast<float>(static_cast<double>(country.get_vote_equivalents_by_party(party)) / votes_total) : 0.0f;
+		entry["ruling"] = &party == ruling;
+		entry["colour"] = convert_to<Color>(party.get_colour());
+		parties.push_back(entry);
+	}
+	result["parties"] = parties;
+
+	Array ideologies, upper_house;
+	for (Ideology const& ideology : politics.get_ideology_manager().get_ideologies()) {
+		Dictionary entry;
+		entry["name"] = menu_singleton->tr(convert_to<String>(ideology.get_identifier()));
+		entry["colour"] = convert_to<Color>(ideology.get_colour());
+		entry["share"] = total_population > 0.0
+			? static_cast<float>(static_cast<double>(country.get_supporter_equivalents_by_ideology()[ideology.index]) / total_population) : 0.0f;
+		ideologies.push_back(entry);
+
+		Dictionary house = entry.duplicate();
+		house["share"] = static_cast<float>(country.get_upper_house_proportion_by_ideology().at(ideology));
+		upper_house.push_back(house);
+	}
+	result["ideologies"] = ideologies;
+	result["upper_house"] = upper_house;
+
+	// Reforms
+	Array groups;
+	for (ReformGroup const& group : politics.get_issue_manager().get_reform_groups()) {
+		Dictionary group_entry;
+		group_entry["name"] = menu_singleton->tr(convert_to<String>(group.get_identifier()));
+		group_entry["type"] = menu_singleton->tr(convert_to<String>(group.reform_type.get_identifier()));
+		group_entry["ordered"] = group.is_ordered;
+		group_entry["civilizing"] = group.is_civilizing();
+		Array options;
+		Reform const* current = country.get_reforms().at(group);
+		for (Reform const& reform : group.get_reforms()) {
+			PoliticsDynamics::ReformStatus status = PoliticsDynamics::get_reform_status(*instance_manager, country, reform);
+			Dictionary option;
+			option["index"] = static_cast<int32_t>(type_safe::get(reform.index));
+			option["name"] = menu_singleton->tr(convert_to<String>(reform.get_identifier()));
+			option["current"] = &reform == current;
+			option["support"] = static_cast<float>(status.support);
+			option["upper_house"] = static_cast<float>(status.upper_house);
+			option["can_enact"] = status.can_enact;
+			option["reason"] = String::utf8(status.reason.c_str());
+			options.push_back(option);
+		}
+		group_entry["options"] = options;
+		groups.push_back(group_entry);
+	}
+	result["groups"] = groups;
+
+	// Unrest: average militancy, the most restless provinces and the risings in progress
+	double militancy_sum = 0.0, people_sum = 0.0;
+	std::vector<std::pair<double, ProvinceInstance const*>> restless;
+	for (ProvinceInstance const* province : country.get_owned_provinces()) {
+		double province_militancy = 0.0, province_people = 0.0;
+		for (Pop const& pop : province->get_pops()) {
+			const double size = static_cast<double>(type_safe::get(pop.get_size()));
+			province_militancy += static_cast<double>(pop.get_militancy()) * size;
+			province_people += size;
+		}
+		militancy_sum += province_militancy;
+		people_sum += province_people;
+		if (province_people > 0.0) {
+			restless.emplace_back(province_militancy / province_people, province);
+		}
+	}
+	result["average_militancy"] = people_sum > 0.0 ? static_cast<float>(militancy_sum / people_sum) : 0.0f;
+	std::sort(restless.begin(), restless.end(), [](auto const& a, auto const& b) { return a.first > b.first; });
+	Array restless_array;
+	for (size_t i = 0; i < restless.size() && i < 6; ++i) {
+		Dictionary entry;
+		entry["name"] = menu_singleton->tr(convert_to<String>(restless[i].second->get_identifier()));
+		entry["militancy"] = static_cast<float>(restless[i].first);
+		restless_array.push_back(entry);
+	}
+	result["restless"] = restless_array;
+	Array uprisings;
+	for (auto const& uprising : RebelDynamics::get_uprisings(*instance_manager, country)) {
+		Dictionary entry;
+		entry["name"] = menu_singleton->tr(convert_to<String>(uprising.province->get_identifier()));
+		entry["regiments"] = uprising.regiments;
+		entry["strength"] = static_cast<float>(uprising.strength);
+		uprisings.push_back(entry);
+	}
+	result["uprisings"] = uprisings;
+	return result;
+}
+
+bool PlayerSingleton::enact_reform(int32_t reform_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(reform_index < 0, false);
+	return instance_manager->queue_game_action<enact_reform_argument_t>(player_country->index, reform_index_t(static_cast<size_t>(reform_index)));
+}
+
+Array PlayerSingleton::get_notifications(int64_t after_id) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	for (NotificationLog::Entry const& entry : instance_manager->get_notification_log().get_entries()) {
+		if (static_cast<int64_t>(entry.id) <= after_id) {
+			continue;
+		}
+		// Only what concerns the player: his own events and the wars and peace he is a part of
+		const bool mine = entry.country == player_country || entry.other_country == player_country;
+		if (!mine) {
+			continue;
+		}
+		Dictionary dict;
+		dict["id"] = static_cast<int64_t>(entry.id);
+		dict["date"] = format_date(entry.date);
+		dict["kind"] = convert_to<String>(entry.kind);
+		dict["subject"] = menu_singleton->tr(convert_to<String>(entry.subject));
+		dict["country"] = entry.country != nullptr ? Utilities::get_country_name(*menu_singleton, *entry.country) : String {};
+		dict["other"] = entry.other_country != nullptr ? Utilities::get_country_name(*menu_singleton, *entry.other_country) : String {};
+		dict["we_are_first"] = entry.country == player_country;
+		result.push_back(dict);
+	}
+	return result;
+}
+
+// Short description of the selected country for the game lobby: flag, population, provinces, ranks
+Dictionary PlayerSingleton::get_lobby_country_info() const {
+	Dictionary result;
+	if (player_country == nullptr) {
+		return result;
+	}
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(game_singleton, result);
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	result["name"] = Utilities::get_country_name(*menu_singleton, *player_country);
+	result["population"] = static_cast<int64_t>(type_safe::get(player_country->get_total_population()));
+	result["provinces"] = static_cast<int32_t>(player_country->get_owned_provinces().size());
+	result["rank"] = static_cast<int32_t>(player_country->get_total_rank());
+	result["prestige_rank"] = static_cast<int32_t>(player_country->get_prestige_rank());
+	result["industrial_rank"] = static_cast<int32_t>(player_country->get_industrial_rank());
+	result["military_rank"] = static_cast<int32_t>(player_country->get_military_rank());
+	result["score"] = static_cast<float>(player_country->total_score.get_untracked());
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	if (instance_manager != nullptr) {
+		result["great_power"] = static_cast<size_t>(player_country->get_total_rank()) <=
+			instance_manager->get_country_instance_manager().get_great_powers().size();
+	}
+	GovernmentType const* government_type = player_country->get_government_type_untracked();
+	if (government_type != nullptr) {
+		result["government"] = menu_singleton->tr(convert_to<String>(government_type->get_identifier()));
+		const int32_t flag_index = game_singleton->get_flag_sheet_index(
+			player_country->index, convert_to<String>(government_type->get_flag_type())
+		);
+		if (flag_index >= 0) {
+			result["flag_rect"] = game_singleton->get_flag_sheet_rect(flag_index);
+		}
+	}
+	return result;
+}
+
+Array PlayerSingleton::get_country_ranking() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	CountryInstanceManager const& manager = instance_manager->get_country_instance_manager();
+	const size_t great_power_count = manager.get_great_powers().size();
+	for (CountryInstance& country : manager.get_total_ranking()) {
+		Dictionary entry;
+		entry["rank"] = static_cast<int32_t>(country.get_total_rank());
+		entry["name"] = Utilities::get_country_name(*menu_singleton, country);
+		entry["country_index"] = static_cast<int32_t>(type_safe::get(country.index));
+		entry["is_player"] = &country == player_country;
+		entry["prestige"] = static_cast<float>(country.get_prestige_untracked());
+		entry["prestige_rank"] = static_cast<int32_t>(country.get_prestige_rank());
+		entry["industrial"] = static_cast<float>(country.get_industrial_power_untracked());
+		entry["industrial_rank"] = static_cast<int32_t>(country.get_industrial_rank());
+		entry["military"] = static_cast<float>(country.military_power.get_untracked());
+		entry["military_rank"] = static_cast<int32_t>(country.get_military_rank());
+		entry["total"] = static_cast<float>(country.total_score.get_untracked());
+		entry["great_power"] = static_cast<size_t>(country.get_total_rank()) <= great_power_count;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Dictionary PlayerSingleton::get_colonisation_info() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	ColonisationManager& colonisation = instance_manager->get_colonisation_manager();
+	result["total_points"] = static_cast<float>(colonisation.get_total_points(*instance_manager, *player_country));
+	result["used_points"] = static_cast<float>(colonisation.get_used_points(*instance_manager, *player_country));
+	result["rank_ok"] = player_country->get_total_rank() > 0 && player_country->get_total_rank() <= ColonisationManager::MAX_COLONIAL_RANK;
+
+	Array candidates;
+	for (ProvinceInstance* province : colonisation.get_candidates(*instance_manager, *player_country)) {
+		Dictionary entry;
+		entry["province_number"] = static_cast<int32_t>(province->province_definition.get_province_number());
+		entry["name"] = menu_singleton->tr(convert_to<String>(province->get_identifier()));
+		entry["cost"] = static_cast<float>(colonisation.get_project_cost(*instance_manager, *player_country, *province));
+		entry["reason"] = String::utf8(colonisation.get_block_reason(*instance_manager, *player_country, *province).c_str());
+		entry["people"] = static_cast<int32_t>(type_safe::get(province->get_total_population()));
+		candidates.push_back(entry);
+	}
+	result["candidates"] = candidates;
+
+	Array projects;
+	for (ColonisationManager::Project const& project : colonisation.get_projects()) {
+		if (project.country != player_country) {
+			continue;
+		}
+		Dictionary entry;
+		entry["province_number"] = static_cast<int32_t>(project.province->province_definition.get_province_number());
+		entry["name"] = menu_singleton->tr(convert_to<String>(project.province->get_identifier()));
+		entry["days_done"] = project.days_done;
+		entry["days_total"] = project.days_total;
+		entry["cost"] = static_cast<float>(project.cost);
+		projects.push_back(entry);
+	}
+	result["projects"] = projects;
+	return result;
+}
+
+bool PlayerSingleton::start_colonisation(int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	return instance_manager->queue_game_action<start_colonisation_argument_t>(player_country->index, province->index);
+}
+
+bool PlayerSingleton::cancel_colonisation(int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	return instance_manager->queue_game_action<cancel_colonisation_argument_t>(player_country->index, province->index);
 }

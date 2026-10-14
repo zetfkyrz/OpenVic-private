@@ -14,9 +14,23 @@ var _tabs: TabContainer
 var _wars_list: ItemList
 var _war_info: Label
 var _war_buttons: Array[Button]
+## Window of the peace negotiations, set by the game session
+var peace_window: Control
+var _declare_country_option: OptionButton
+var _declare_goal_option: OptionButton
+var _declare_signature: String = ""
+var _declare_goal_country: int = -2
 
 var _armies_list: ItemList
 var _army_info: Label
+
+var _generals_list: ItemList
+var _general_info: Label
+var _auto_create_check: CheckButton
+var _auto_assign_check: CheckButton
+var _general_ids: Array[int] = []
+
+var _blockade_info: Label
 
 var _fronts_list: ItemList
 var _front_info: Label
@@ -63,6 +77,8 @@ func _ready() -> void:
 
 	_build_wars_tab()
 	_build_armies_tab()
+	_build_generals_tab()
+	_build_blockade_tab()
 	_build_fronts_tab()
 
 	GameSingleton.gamestate_updated.connect(_refresh)
@@ -127,6 +143,82 @@ func _build_wars_tab() -> void:
 	_war_buttons.append(_make_button("Белый мир", _on_peace_pressed.bind(_PEACE_WHITE), buttons))
 	_war_buttons.append(_make_button("Потребовать занятые нами земли", _on_peace_pressed.bind(_PEACE_TAKE), buttons))
 	_war_buttons.append(_make_button("Уступить земли, занятые врагом", _on_peace_pressed.bind(_PEACE_GIVE), buttons))
+	var negotiate := HBoxContainer.new()
+	tab.add_child(negotiate)
+	_make_button("Мирные переговоры (условия, области, прогноз)", _on_negotiate_pressed, negotiate)
+
+	# Declaration of a war with a war goal
+	var declare := HBoxContainer.new()
+	tab.add_child(declare)
+	var declare_caption := Label.new()
+	declare_caption.text = "Объявить войну:"
+	declare.add_child(declare_caption)
+	_declare_country_option = OptionButton.new()
+	_declare_country_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_declare_country_option.item_selected.connect(_on_declare_country_selected)
+	declare.add_child(_declare_country_option)
+	_declare_goal_option = OptionButton.new()
+	_declare_goal_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	declare.add_child(_declare_goal_option)
+	_make_button("Объявить", _on_declare_pressed, declare)
+
+
+func _on_negotiate_pressed() -> void:
+	var war_id: int = _get_selected_id(_wars_list, _war_ids)
+	if war_id > 0 and peace_window != null:
+		peace_window.open_for_war(war_id)
+
+
+func _refresh_declare_options() -> void:
+	var countries: Array = PlayerSingleton.get_declarable_countries()
+	var signature: String = str(countries.size())
+	for country: Dictionary in countries:
+		signature += ",%d" % country[&"index"]
+	if signature == _declare_signature:
+		return
+	_declare_signature = signature
+	var previous: int = _get_declare_country()
+	_declare_country_option.clear()
+	for country: Dictionary in countries:
+		_declare_country_option.add_item(country[&"name"])
+		_declare_country_option.set_item_metadata(_declare_country_option.item_count - 1, country[&"index"])
+	_declare_goal_country = -2
+	for i: int in _declare_country_option.item_count:
+		if _declare_country_option.get_item_metadata(i) == previous:
+			_declare_country_option.select(i)
+			break
+	_on_declare_country_selected(_declare_country_option.selected)
+
+
+func _get_declare_country() -> int:
+	if _declare_country_option.item_count == 0 or _declare_country_option.selected < 0:
+		return -1
+	return _declare_country_option.get_item_metadata(_declare_country_option.selected)
+
+
+func _on_declare_country_selected(_index: int) -> void:
+	var country_index: int = _get_declare_country()
+	if country_index == _declare_goal_country:
+		return
+	_declare_goal_country = country_index
+	_declare_goal_option.clear()
+	_declare_goal_option.add_item("Без цели (только оккупация)")
+	_declare_goal_option.set_item_metadata(0, 0)
+	if country_index < 0:
+		return
+	for state: Dictionary in PlayerSingleton.get_war_goal_states(country_index):
+		_declare_goal_option.add_item("Захватить: %s" % state[&"name"])
+		_declare_goal_option.set_item_metadata(_declare_goal_option.item_count - 1, state[&"province_number"])
+
+
+func _on_declare_pressed() -> void:
+	var country_index: int = _get_declare_country()
+	if country_index < 0:
+		return
+	var province_number: int = 0
+	if _declare_goal_option.selected > 0:
+		province_number = _declare_goal_option.get_item_metadata(_declare_goal_option.selected)
+	PlayerSingleton.declare_war_with_goal(country_index, 1 if province_number > 0 else 0, province_number)
 
 
 func _on_peace_pressed(peace_type: int) -> void:
@@ -158,6 +250,107 @@ func _on_stop_army_pressed() -> void:
 	var army_id: int = _get_selected_id(_armies_list, _army_ids)
 	if army_id > 0:
 		PlayerSingleton.stop_army(army_id)
+
+
+# Generals
+
+func _build_generals_tab() -> void:
+	var tab := _make_tab("Генералы")
+	_generals_list = _make_list(tab)
+	_general_info = _make_info(tab)
+	var options := HBoxContainer.new()
+	tab.add_child(options)
+	_auto_create_check = CheckButton.new()
+	_auto_create_check.text = "Создавать генералов сами"
+	_auto_create_check.tooltip_text = "Раз в месяц на очки лидерства создаётся генерал, пока армий больше, чем генералов"
+	_auto_create_check.toggled.connect(_on_leader_auto_toggled)
+	options.add_child(_auto_create_check)
+	_auto_assign_check = CheckButton.new()
+	_auto_assign_check.text = "Назначать в армии сами"
+	_auto_assign_check.tooltip_text = "Свободные генералы (лучший по престижу первым) встают во главе армий без генерала"
+	_auto_assign_check.toggled.connect(_on_leader_auto_toggled)
+	options.add_child(_auto_assign_check)
+	var buttons := HBoxContainer.new()
+	tab.add_child(buttons)
+	_make_button("Создать генерала (очки лидерства)", _on_create_general_pressed, buttons)
+	_make_button("Снять с армии", _on_unassign_general_pressed, buttons)
+
+
+func _on_leader_auto_toggled(_pressed: bool) -> void:
+	if not _updating:
+		PlayerSingleton.set_leader_auto(_auto_create_check.button_pressed, _auto_assign_check.button_pressed)
+
+
+func _on_create_general_pressed() -> void:
+	PlayerSingleton.create_general()
+
+
+func _on_unassign_general_pressed() -> void:
+	var leader_id: int = _get_selected_id(_generals_list, _general_ids)
+	if leader_id <= 0:
+		return
+	for general: Dictionary in PlayerSingleton.get_generals() + PlayerSingleton.get_admirals():
+		if general["leader_id"] == leader_id and general["army_id"] != 0:
+			PlayerSingleton.set_army_leader(general["army_id"], 0)
+
+
+func _refresh_generals() -> void:
+	var settings: Dictionary = PlayerSingleton.get_leader_settings()
+	if settings.is_empty():
+		return
+	_auto_create_check.button_pressed = settings["auto_create"]
+	_auto_assign_check.button_pressed = settings["auto_assign"]
+	var leaders: Array = PlayerSingleton.get_generals()
+	for admiral: Dictionary in PlayerSingleton.get_admirals():
+		admiral["is_admiral"] = true
+		leaders.append(admiral)
+	_fill_list(_generals_list, _general_ids, leaders, &"leader_id", func(general: Dictionary) -> String:
+		var assignment: String = "свободен"
+		if general["army_id"] != 0:
+			assignment = "ведёт %s" % general["army_name"]
+		return "%s%s, %s, %s, престиж %.2f - %s" % [
+			"[адмирал] " if general.get("is_admiral", false) else "", general.get("leader_name", "?"),
+			general["personality"], general["background"], general["prestige"], assignment,
+		]
+	)
+	_general_info.text = "Очки лидерства: %.0f (+%.1f в месяц), генерал стоит %.0f.%s" % [
+		settings["leadership_points"], settings["monthly_leadership_points"], settings["leader_cost"],
+		"" if settings["can_create"] else " Не хватает очков для нового генерала.",
+	]
+
+
+# Blockade
+
+func _build_blockade_tab() -> void:
+	var tab := _make_tab("Блокада")
+	_blockade_info = Label.new()
+	_blockade_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_blockade_info.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tab.add_child(_blockade_info)
+
+
+func _refresh_blockade() -> void:
+	var info: Dictionary = PlayerSingleton.get_blockade_info()
+	if info.is_empty():
+		return
+	var lines: PackedStringArray = []
+	lines.append("Доля ваших портов под блокадой: %d%%. Блокада режет снабжение армий (вдвое слабее, чем доля портов)." % \
+		roundi(float(info["share"]) * 100.0))
+	lines.append("")
+	lines.append("Ваши блокированные порты:")
+	for port: Dictionary in info["our_blockaded_ports"]:
+		lines.append("  " + str(port["name"]))
+	if info["our_blockaded_ports"].is_empty():
+		lines.append("  нет")
+	lines.append("")
+	lines.append("Порты врага, которые блокируют ваши флоты:")
+	for port: Dictionary in info["enemy_blockaded_ports"]:
+		lines.append("  %s (%s)" % [port["name"], port["owner"]])
+	if info["enemy_blockaded_ports"].is_empty():
+		lines.append("  нет")
+	lines.append("")
+	lines.append("Блокада: флот воюющей страны стоит в море у порта и там нет флота владельца порта или его союзников.")
+	_blockade_info.text = "\n".join(lines)
 
 
 # Fronts
@@ -322,6 +515,10 @@ func _refresh() -> void:
 			if not _enemy_indices.has(int(enemy["index"])):
 				_enemy_indices.append(int(enemy["index"]))
 				_enemy_option.add_item(enemy["name"])
+
+	_refresh_generals()
+	_refresh_blockade()
+	_refresh_declare_options()
 
 	_updating = false
 	_update_details()

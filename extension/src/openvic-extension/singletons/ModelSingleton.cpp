@@ -4,6 +4,7 @@
 
 #include <numbers>
 #include <span>
+#include <vector>
 
 #include <openvic-simulation/military/UnitInstanceGroup.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -214,24 +215,31 @@ namespace {
 		bool moving = false;
 	};
 
-	UnitMapPosition get_unit_map_position(GameSingleton const& game_singleton, UnitInstanceGroup const& unit) {
-		ProvinceDefinition const& location = unit.get_location().province_definition;
+	// Ships in a port are drawn in the sea next to it
+	Vector2 get_province_anchor(GameSingleton const& game_singleton, ProvinceInstance const& province, unit_branch_t branch) {
+		ProvinceDefinition const& definition = province.province_definition;
+		if (branch == unit_branch_t::NAVAL && !definition.is_water() && definition.get_port_adjacent_province() != nullptr) {
+			return game_singleton.normalise_map_position(definition.get_port_adjacent_province()->get_unit_position());
+		}
+		return game_singleton.normalise_map_position(definition.get_unit_position());
+	}
 
+	UnitMapPosition get_unit_map_position(GameSingleton const& game_singleton, UnitInstanceGroup const& unit) {
 		UnitMapPosition result;
-		result.position = game_singleton.normalise_map_position(location.get_unit_position());
+		result.position = get_province_anchor(game_singleton, unit.get_location(), unit.branch);
 
 		if (unit.get_path().empty()) {
 			return result;
 		}
 
 		ProvinceInstance const& next = unit.get_path().front().get();
-		ProvinceDefinition::adjacency_t const* adjacency = location.get_adjacency_to(next.province_definition);
-		if (adjacency == nullptr) {
+		const fixed_point_t step = unit.get_step_distance(unit.get_location(), next);
+		if (step < fixed_point_t::_0) {
 			return result;
 		}
 
-		const Vector2 target = game_singleton.normalise_map_position(next.province_definition.get_unit_position());
-		const float distance = static_cast<float>(adjacency->get_distance());
+		const Vector2 target = get_province_anchor(game_singleton, next, unit.branch);
+		const float distance = static_cast<float>(step);
 		const float progress = distance > 0.0f ? static_cast<float>(unit.get_movement_progress()) / distance : 0.0f;
 
 		const Vector2 direction = target - result.position;
@@ -398,21 +406,29 @@ TypedArray<Dictionary> ModelSingleton::get_units() {
 	TypedArray<Dictionary> ret;
 
 	for (ProvinceInstance const& province : instance_manager->get_map_instance().get_province_instances()) {
-		if (province.province_definition.is_water()) {
+		// Fleets are drawn at sea and in the sea next to the ports where they are docked
+		if (!province.get_navies().empty()) {
 			if (!add_unit_dict(std::span { province.get_navies() }, ret)) {
 				UtilityFunctions::push_error(
 				    "Error adding navy to province \"", convert_to<String>(province.get_identifier()), "\""
 				);
 			}
-		} else {
-			if (!add_unit_dict(std::span { province.get_armies() }, ret)) {
+		}
+
+		if (!province.province_definition.is_water()) {
+			// Armies on board of ships are not drawn
+			std::vector<std::reference_wrapper<ArmyInstance>> armies;
+			for (ArmyInstance& army : province.get_armies()) {
+				if (army.get_transport_navy() == nullptr) {
+					armies.emplace_back(army);
+				}
+			}
+			if (!add_unit_dict(std::span<const std::reference_wrapper<ArmyInstance>> { armies }, ret)) {
 				UtilityFunctions::push_error(
 				    "Error adding army to province \"", convert_to<String>(province.get_identifier()), "\""
 				);
 			}
 		}
-
-		// TODO - land units in ships
 	}
 
 	return ret;

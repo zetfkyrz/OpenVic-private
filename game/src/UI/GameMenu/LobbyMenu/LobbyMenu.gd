@@ -33,8 +33,65 @@ var _setup_start_date_index: int = -1
 @onready var _selected_country_label: Label = get_node_or_null(_SELECTED_COUNTRY_LABEL_PATH)
 
 
+var _flag_rect: TextureRect
+var _info_label: Label
+
+
 func _ready() -> void:
+	_build_country_preview()
 	_update_selected_country_label()
+
+
+# Flag and key figures of the selected country, under its name (task G2)
+func _build_country_preview() -> void:
+	if not _selected_country_label:
+		return
+	var box: Node = _selected_country_label.get_parent()
+	_flag_rect = TextureRect.new()
+	_flag_rect.custom_minimum_size = Vector2(128, 64)
+	_flag_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_flag_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_info_label = Label.new()
+	_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_flag_rect)
+	box.move_child(_flag_rect, _selected_country_label.get_index() + 1)
+	box.add_child(_info_label)
+	box.move_child(_info_label, _flag_rect.get_index() + 1)
+
+
+func _update_country_preview() -> void:
+	if not _info_label:
+		return
+	var info: Dictionary = PlayerSingleton.get_lobby_country_info() if _setup_start_date_index >= 0 else {}
+	if info.is_empty():
+		_flag_rect.texture = null
+		_info_label.text = ""
+		return
+	if info.has("flag_rect"):
+		var atlas := AtlasTexture.new()
+		atlas.atlas = GameSingleton.get_flag_sheet_texture()
+		atlas.region = Rect2(info["flag_rect"])
+		_flag_rect.texture = atlas
+	var lines: PackedStringArray = []
+	lines.append(tr("Population: {0}").format([_format_number(info.get("population", 0))]))
+	lines.append(tr("Provinces: {0}").format([info.get("provinces", 0)]))
+	lines.append(tr("Rank: {0}{1}").format([info.get("rank", 0), " (" + tr("Great Power") + ")" if info.get("great_power", false) else ""]))
+	lines.append(tr("Prestige {0} · Industry {1} · Military {2}").format(
+		[info.get("prestige_rank", 0), info.get("industrial_rank", 0), info.get("military_rank", 0)]
+	))
+	if info.has("government"):
+		lines.append(info["government"])
+	_info_label.text = "\n".join(lines)
+
+
+func _format_number(value: int) -> String:
+	var text: String = str(value)
+	var result: String = ""
+	for i: int in text.length():
+		if i > 0 and (text.length() - i) % 3 == 0:
+			result += " "
+		result += text[i]
+	return result
 
 
 # Sets the game up for the selected start date, so that the map can show the countries of that date
@@ -77,6 +134,7 @@ func _update_selected_country_label() -> void:
 
 	var country_name: String = PlayerSingleton.get_player_country_name() if _setup_start_date_index >= 0 else ""
 	_selected_country_label.text = country_name if not country_name.is_empty() else tr("Click on a country to select it")
+	_update_country_preview()
 
 
 func filter_for_tag(tag: StringName) -> void:
