@@ -174,6 +174,10 @@ namespace OpenVic {
 		bool disband_regiment(int64_t regiment_id) const;
 		bool disband_army(int64_t army_id) const;
 
+		// World market (C): [{ name, category, price, price_change, base_price, supply, demand, traded, stockpile,
+		//   price_history: PackedFloat32Array (oldest first) }] of the trading goods
+		godot::Array get_market_overview() const;
+
 		// Peace negotiations (B). get_peace_info(war_id):
 		// { war_id, we_attack, days, our_score, their_score, goal_type, goal_name, attackers: [name], defenders: [name],
 		//   concede, reparations, humiliate, reparations_cost, humiliate_cost, states: [{ province_number, name, owner_name,

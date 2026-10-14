@@ -115,6 +115,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::assign_free_armies, { "front_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_auto_plan, { "enabled" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_market_overview);
 	OV_BIND_METHOD(PlayerSingleton::get_peace_info, { "war_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_peace_demand, { "war_id", "kind", "province_number", "enabled" });
 	OV_BIND_METHOD(PlayerSingleton::send_peace_offer, { "war_id" });
@@ -2561,4 +2562,42 @@ bool PlayerSingleton::declare_war_with_goal(int32_t country_index, int32_t goal_
 	return instance_manager->queue_game_action<declare_war_goal_argument_t>(
 		player_country->index, country_index_t(static_cast<size_t>(country_index)), static_cast<std::uint32_t>(goal_type), index
 	);
+}
+
+Array PlayerSingleton::get_market_overview() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	GoodInstanceManager const& good_instance_manager = instance_manager->get_good_instance_manager();
+	for (GoodCategory const& category : game_singleton->get_definition_manager().get_economy_manager().get_good_definition_manager().get_good_categories()) {
+		for (GoodDefinition const& good_definition : category.get_good_definitions()) {
+			GoodInstance const& good = good_instance_manager.get_good_instance_by_definition(good_definition);
+			if (!good.is_trading_good()) {
+				continue;
+			}
+			Dictionary entry;
+			entry["name"] = menu_singleton->tr(convert_to<String>(good_definition.get_identifier()));
+			entry["category"] = menu_singleton->tr(convert_to<String>(category.get_identifier()));
+			entry["price"] = static_cast<float>(good.get_price());
+			entry["price_change"] = static_cast<float>(good.get_price_change_yesterday());
+			entry["base_price"] = static_cast<float>(good_definition.base_price);
+			entry["supply"] = static_cast<float>(good.get_total_supply_yesterday());
+			entry["demand"] = static_cast<float>(good.get_total_demand_yesterday());
+			entry["traded"] = static_cast<float>(good.get_quantity_traded_yesterday());
+			entry["stockpile"] = static_cast<float>(player_country->get_good_data(good).stockpile_amount);
+
+			PackedFloat32Array history;
+			for (fixed_point_t const& price : good.get_price_history()) {
+				history.push_back(static_cast<float>(price));
+			}
+			entry["price_history"] = history;
+			result.push_back(entry);
+		}
+	}
+	return result;
 }
