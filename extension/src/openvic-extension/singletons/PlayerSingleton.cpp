@@ -21,6 +21,7 @@
 #include <openvic-simulation/politics/Government.hpp>
 #include <openvic-simulation/politics/PoliticsDynamics.hpp>
 #include <openvic-simulation/country/CountryParty.hpp>
+#include <openvic-simulation/country/Colonisation.hpp>
 #include <openvic-simulation/research/ResearchManager.hpp>
 #include <openvic-simulation/research/Technology.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
@@ -118,6 +119,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_auto_plan, { "enabled" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_market_overview);
+	OV_BIND_METHOD(PlayerSingleton::get_colonisation_info);
+	OV_BIND_METHOD(PlayerSingleton::start_colonisation, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::cancel_colonisation, { "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::get_notifications, { "after_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_country_ranking);
 	OV_BIND_METHOD(PlayerSingleton::get_politics_info);
@@ -2802,4 +2806,64 @@ Array PlayerSingleton::get_country_ranking() const {
 		result.push_back(entry);
 	}
 	return result;
+}
+
+Dictionary PlayerSingleton::get_colonisation_info() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	ColonisationManager& colonisation = instance_manager->get_colonisation_manager();
+	result["total_points"] = static_cast<float>(colonisation.get_total_points(*instance_manager, *player_country));
+	result["used_points"] = static_cast<float>(colonisation.get_used_points(*instance_manager, *player_country));
+	result["rank_ok"] = player_country->get_total_rank() > 0 && player_country->get_total_rank() <= ColonisationManager::MAX_COLONIAL_RANK;
+
+	Array candidates;
+	for (ProvinceInstance* province : colonisation.get_candidates(*instance_manager, *player_country)) {
+		Dictionary entry;
+		entry["province_number"] = static_cast<int32_t>(province->province_definition.get_province_number());
+		entry["name"] = menu_singleton->tr(convert_to<String>(province->get_identifier()));
+		entry["cost"] = static_cast<float>(colonisation.get_project_cost(*instance_manager, *player_country, *province));
+		entry["reason"] = String::utf8(colonisation.get_block_reason(*instance_manager, *player_country, *province).c_str());
+		entry["people"] = static_cast<int32_t>(type_safe::get(province->get_total_population()));
+		candidates.push_back(entry);
+	}
+	result["candidates"] = candidates;
+
+	Array projects;
+	for (ColonisationManager::Project const& project : colonisation.get_projects()) {
+		if (project.country != player_country) {
+			continue;
+		}
+		Dictionary entry;
+		entry["province_number"] = static_cast<int32_t>(project.province->province_definition.get_province_number());
+		entry["name"] = menu_singleton->tr(convert_to<String>(project.province->get_identifier()));
+		entry["days_done"] = project.days_done;
+		entry["days_total"] = project.days_total;
+		entry["cost"] = static_cast<float>(project.cost);
+		projects.push_back(entry);
+	}
+	result["projects"] = projects;
+	return result;
+}
+
+bool PlayerSingleton::start_colonisation(int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	return instance_manager->queue_game_action<start_colonisation_argument_t>(player_country->index, province->index);
+}
+
+bool PlayerSingleton::cancel_colonisation(int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	return instance_manager->queue_game_action<cancel_colonisation_argument_t>(player_country->index, province->index);
 }

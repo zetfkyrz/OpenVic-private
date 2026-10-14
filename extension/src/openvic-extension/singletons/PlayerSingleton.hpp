@@ -174,6 +174,12 @@ namespace OpenVic {
 		bool disband_regiment(int64_t regiment_id) const;
 		bool disband_army(int64_t army_id) const;
 
+		// Colonisation (F2): { total_points, used_points, rank_ok, candidates: [{ province_number, name, cost, reason }],
+		//   projects: [{ province_number, name, days_done, days_total, cost }] }
+		godot::Dictionary get_colonisation_info() const;
+		bool start_colonisation(int32_t province_number) const;
+		bool cancel_colonisation(int32_t province_number) const;
+
 		// Events for the player (E1): [{ id, date, kind, subject, text_args... }] with id greater than after_id, oldest first.
 		// kind: invention, technology, election, uprising, war_declared, peace_signed; country / other are names
 		godot::Array get_notifications(int64_t after_id) const;

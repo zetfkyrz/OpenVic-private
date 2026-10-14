@@ -41,6 +41,10 @@ func _make_text(entry: Dictionary) -> String:
 			return "Исследована технология"
 		"election":
 			return "Выборы: к власти пришла партия %s" % entry[&"subject"]
+		"colony":
+			if we_first:
+				return "Основана колония: %s" % entry[&"subject"]
+			return ""
 		"uprising":
 			return "Восстание в провинции %s!" % entry[&"subject"]
 		"war_declared":
