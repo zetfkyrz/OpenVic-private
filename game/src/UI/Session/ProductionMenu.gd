@@ -367,7 +367,23 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 	var subsidise_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./subsidise")
 	if subsidise_button:
 		subsidise_button.visible = factory[&"level"] > 0
-		subsidise_button.modulate = Color(1.4, 1.3, 0.5) if factory[&"subsidised"] else Color.WHITE
+		# A tick over the button instead of a highlight: the checkbox shows whether the factory is subsidised
+		var check: Label = subsidise_button.get_node_or_null(^"./subsidy_check")
+		if check == null:
+			check = Label.new()
+			check.name = "subsidy_check"
+			check.text = "✔"
+			check.add_theme_color_override(&"font_color", Color(0.1, 0.55, 0.15))
+			check.add_theme_color_override(&"font_outline_color", Color.BLACK)
+			check.add_theme_constant_override(&"outline_size", 3)
+			check.add_theme_font_size_override(&"font_size", 18)
+			check.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			check.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			check.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			check.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			subsidise_button.add_child(check)
+		check.visible = factory[&"subsidised"]
+		subsidise_button.modulate = Color.WHITE
 		subsidise_button.tooltip_string = "%s\n%s: %s, %s: %s" % [
 			tr("Subsidise") if not factory[&"subsidised"] else tr("Remove the subsidy"),
 			tr("State paid"), GUINode.float_to_string_dp(factory[&"subsidy"], 1),

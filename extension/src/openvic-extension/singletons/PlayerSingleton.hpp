@@ -166,6 +166,7 @@ namespace OpenVic {
 		// term: 0 = 5 years, 1 = 10 years, 2 = 20 years; policy: 0 = forgive, 1 = soft collection, 2 = hard collection
 		bool give_internal_loan(int32_t province_index, float amount, float rate, int32_t term, int32_t policy) const;
 		bool repay_loan(int32_t loan_id, float amount) const;
+		bool set_loan_auto_repay(int32_t loan_id, bool auto_repay) const;
 		bool set_central_bank_rates(float internal_rate, float external_rate) const;
 		bool answer_alliance_request(int32_t from_index, bool accept) const;
 

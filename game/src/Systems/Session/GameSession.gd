@@ -72,6 +72,7 @@ func _on_map_view_province_unhovered() -> void:
 
 func _on_map_view_province_clicked(province_number: int) -> void:
 	_unit_banners.clear_selection()
+	SoundManager.play_effect_compat("click")
 	PlayerSingleton.set_selected_province_by_number(province_number)
 
 

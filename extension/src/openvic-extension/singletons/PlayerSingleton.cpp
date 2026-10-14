@@ -120,6 +120,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::stage_loan_target, { "country_index", "selected" });
 	OV_BIND_METHOD(PlayerSingleton::give_internal_loan, { "province_index", "amount", "rate", "term", "policy" });
 	OV_BIND_METHOD(PlayerSingleton::repay_loan, { "loan_id", "amount" });
+	OV_BIND_METHOD(PlayerSingleton::set_loan_auto_repay, { "loan_id", "auto_repay" });
 	OV_BIND_METHOD(PlayerSingleton::set_central_bank_rates, { "internal_rate", "external_rate" });
 	OV_BIND_METHOD(PlayerSingleton::answer_alliance_request, { "from_index", "accept" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_identifiers);
@@ -1378,6 +1379,7 @@ namespace {
 		entry["rate"] = static_cast<float>(loan.annual_rate);
 		entry["due"] = format_date(loan.due_date);
 		entry["interest_paid"] = static_cast<float>(loan.interest_paid);
+		entry["auto_repay"] = loan.auto_repay;
 		entry["term"] = static_cast<int32_t>(loan.term);
 		entry["policy"] = static_cast<int32_t>(loan.policy);
 		entry["unspent"] = static_cast<float>(loan.unspent);
@@ -1542,6 +1544,16 @@ bool PlayerSingleton::repay_loan(int32_t loan_id, float amount) const {
 	ERR_FAIL_COND_V(loan_id <= 0, false);
 	return instance_manager->queue_game_action<repay_loan_argument_t>(
 	    player_country->index, static_cast<uint32_t>(loan_id), fixed_point_t::parse_unsafe(amount)
+	);
+}
+
+bool PlayerSingleton::set_loan_auto_repay(int32_t loan_id, bool auto_repay) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(loan_id <= 0, false);
+	return instance_manager->queue_game_action<set_loan_auto_repay_argument_t>(
+	    player_country->index, static_cast<uint32_t>(loan_id), auto_repay
 	);
 }
 

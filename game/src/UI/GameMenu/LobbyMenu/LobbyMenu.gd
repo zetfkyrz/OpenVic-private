@@ -269,5 +269,6 @@ func _on_map_view_province_clicked(province_number: int) -> void:
 	if _setup_start_date_index < 0 or not GameSingleton.is_bookmark_loaded():
 		return
 
+	SoundManager.play_effect_compat("click")
 	PlayerSingleton.set_player_country_by_province_number(province_number)
 	_update_selected_country_label()

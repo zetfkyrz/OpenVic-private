@@ -217,9 +217,9 @@ func zoom_in() -> void:
 
 func zoom_out() -> void:
 	_zoom_target += _zoom_target_step
-	# For some reason, zooming out in the original game does not consider the
-	# cursor location. I'm not sure if we want to preserve this behavior.
-	_zoom_position = Vector2()
+	# Zooming out pushes the map away from the cursor (the opposite of zooming in), so the point under the cursor
+	# stays roughly where it is
+	_zoom_position = (Vector2(0.5, 0.5) - _mouse_pos_viewport * get_tree().root.content_scale_factor / _viewport_dims) * _zoom_position_multiplier
 
 
 func set_hovered_province_number(province_number: int) -> void:

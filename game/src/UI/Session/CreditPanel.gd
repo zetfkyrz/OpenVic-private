@@ -176,8 +176,8 @@ func _build_bank_tab() -> void:
 	)
 	tab.add_child(info)
 
-	_internal_rate = _spin(1.0, 50.0, 0.5, 5.0, " % в год")
-	_external_rate = _spin(1.0, 50.0, 0.5, 4.0, " % в год")
+	_internal_rate = _spin(0.0, 50.0, 0.5, 5.0, " % в год")
+	_external_rate = _spin(0.0, 50.0, 0.5, 4.0, " % в год")
 	_row(tab, "Внутренний кредит (капиталистам):", _internal_rate)
 	_row(tab, "Внешний кредит (странам):", _external_rate)
 
@@ -194,7 +194,13 @@ func _build_bank_tab() -> void:
 
 func _build_taken_tab() -> void:
 	var tab := _tab("Взятые кредиты")
-	_taken_tree = _make_tree(tab, ["Кредитор", "Взято", "Осталось", "Ставка", "Срок", "Выплачено %"], [0, 90, 90, 70, 90, 100])
+	_taken_tree = _make_tree(
+		tab, ["Кредитор", "Взято", "Осталось", "Ставка", "Срок", "Выплачено %", "Автовыплата", ""],
+		[0, 80, 80, 60, 80, 90, 90, 90]
+	)
+	# The check box of the automatic repayment is edited in the table, the last column pays the loan back at once
+	_taken_tree.item_edited.connect(_on_taken_item_edited)
+	_taken_tree.item_mouse_selected.connect(_on_taken_clicked)
 	var row := HBoxContainer.new()
 	tab.add_child(row)
 	_repay_amount = _spin(0.0, 100000000.0, 10.0, 0.0)
@@ -211,6 +217,21 @@ func _build_taken_tab() -> void:
 				PlayerSingleton.repay_loan(id, amount)
 	)
 	row.add_child(repay)
+
+
+func _on_taken_item_edited() -> void:
+	var item: TreeItem = _taken_tree.get_edited()
+	if item and _taken_tree.get_edited_column() == 6:
+		PlayerSingleton.set_loan_auto_repay(int(item.get_metadata(0)), item.is_checked(6))
+
+
+func _on_taken_clicked(_position: Vector2, mouse_button_index: int) -> void:
+	if mouse_button_index != MOUSE_BUTTON_LEFT:
+		return
+	var item: TreeItem = _taken_tree.get_selected()
+	if item and _taken_tree.get_selected_column() == 7:
+		# Pays back as much of the loan as the cash allows
+		PlayerSingleton.repay_loan(int(item.get_metadata(0)), 100000000.0)
 
 
 # ---- Offers ----
@@ -271,8 +292,8 @@ func _build_lend_tab() -> void:
 	_lend_amount = _spin(100.0, 100000.0, 100.0, 1000.0)
 	_lend_amount.tooltip_text = "Сумма каждой стране"
 	terms.add_child(_lend_amount)
-	_lend_rate = _spin(1.0, 50.0, 0.5, 4.0, " %")
-	_lend_rate.tooltip_text = "Годовая ставка, не меньше 1%"
+	_lend_rate = _spin(0.0, 50.0, 0.5, 4.0, " %")
+	_lend_rate.tooltip_text = "Годовая ставка, можно 0% (ИИ-страны не кредитуют дешевле 1%)"
 	terms.add_child(_lend_rate)
 	_lend_term = _term_option()
 	terms.add_child(_lend_term)
@@ -363,7 +384,7 @@ func _build_internal_tab() -> void:
 	_row(form, "Штат:", _state_option)
 	_internal_amount = _spin(100.0, 1000000.0, 100.0, 2000.0)
 	_row(form, "Сумма:", _internal_amount)
-	_internal_rate_field = _spin(1.0, 50.0, 0.5, 5.0, " % в год")
+	_internal_rate_field = _spin(0.0, 50.0, 0.5, 5.0, " % в год")
 	_row(form, "Процент:", _internal_rate_field)
 	_internal_term = _term_option()
 	_row(form, "Срок:", _internal_term)
@@ -512,6 +533,14 @@ func _fill_loans(tree: Tree, loans: Array, internal: bool) -> void:
 			item.set_text(3, "%.1f %%" % (float(loan["rate"]) * 100.0))
 			item.set_text(4, loan["due"])
 			item.set_text(5, "%d %%" % roundi((1.0 - remaining / maxf(principal, 0.01)) * 100.0) if tree == _taken_tree else _money(loan["interest_paid"]))
+			if tree == _taken_tree:
+				item.set_cell_mode(6, TreeItem.CELL_MODE_CHECK)
+				item.set_checked(6, bool(loan.get("auto_repay", false)))
+				item.set_editable(6, true)
+				item.set_tooltip_text(6, "Кредит будет выплачиваться автоматически, пока хватает денег в казне")
+				item.set_text(7, "Выплатить")
+				item.set_custom_color(7, Color(0.1, 0.4, 0.1))
+				item.set_tooltip_text(7, "Выплатить кредит сейчас (сколько позволяет казна)")
 		item.set_metadata(0, int(loan["id"]))
 		if int(loan["id"]) == previous:
 			item.select(0)
