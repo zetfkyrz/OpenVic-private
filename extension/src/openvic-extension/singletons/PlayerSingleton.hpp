@@ -174,6 +174,25 @@ namespace OpenVic {
 		bool disband_regiment(int64_t regiment_id) const;
 		bool disband_army(int64_t army_id) const;
 
+		// Peace negotiations (B). get_peace_info(war_id):
+		// { war_id, we_attack, days, our_score, their_score, goal_type, goal_name, attackers: [name], defenders: [name],
+		//   concede, reparations, humiliate, reparations_cost, humiliate_cost, states: [{ province_number, name, owner_name,
+		//   cost, selected, is_goal }], cost, available, accepts, reason, last_response: { accepted, text, days_ago } | {},
+		//   offers: [{ from_name, concede, states: [name], reparations, humiliate, cost, days_left }] }
+		godot::Dictionary get_peace_info(int32_t war_id) const;
+		// kind: 0 = state (province_number), 1 = reparations, 2 = humiliation, 3 = we give instead of demanding, 4 = clear
+		bool set_peace_demand(int32_t war_id, int32_t kind, int32_t province_number, bool enabled) const;
+		bool send_peace_offer(int32_t war_id) const;
+		bool answer_peace_offer(int32_t war_id, bool accept) const;
+		// Offers of the AI waiting for an answer: [{ war_id, from_name, ... }] (same fields as in get_peace_info offers)
+		godot::Array get_peace_offers() const;
+		// Countries the player can declare war on: [{ index, name }]
+		godot::Array get_declarable_countries() const;
+		// States of the country that can be a war goal: [{ province_number, name }]
+		godot::Array get_war_goal_states(int32_t country_index) const;
+		// goal_type: 0 = none, 1 = conquer the state of province_number, 2 = humiliate, 3 = reparations
+		bool declare_war_with_goal(int32_t country_index, int32_t goal_type, int32_t province_number) const;
+
 		// Fleets (A8-A10): details of a fleet are returned by get_army_details with is_navy = true:
 		// + docked, capacity, carried_regiments, carried: [{ id, name, regiments }], loadable: [{ id, name, regiments }] (armies in
 		//   the port), landing_targets: [{ number, name, hostile }], blockading, units: [{ ..., hull, gun_power, is_transport }]

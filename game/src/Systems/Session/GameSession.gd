@@ -3,6 +3,7 @@ extends Node
 const _WarPanel: GDScript = preload("res://src/UI/Session/WarPanel.gd")
 const _UnitBanners: GDScript = preload("res://src/UI/Session/UnitBanners.gd")
 const _ArmyPanel: GDScript = preload("res://src/UI/Session/ArmyPanel.gd")
+const _PeaceWindow: GDScript = preload("res://src/UI/Session/PeaceWindow.gd")
 const _FleetPanel: GDScript = preload("res://src/UI/Session/FleetPanel.gd")
 const _RecruitmentWindow: GDScript = preload("res://src/UI/Session/RecruitmentWindow.gd")
 const _RECRUITMENT_KEY: Key = KEY_F7
@@ -25,6 +26,10 @@ func _ready() -> void:
 	var war_panel: PanelContainer = PanelContainer.new()
 	war_panel.set_script(_WarPanel)
 	_game_session_menu.get_parent().add_child(war_panel)
+	var peace_window := Control.new()
+	peace_window.set_script(_PeaceWindow)
+	_game_session_menu.get_parent().add_child(peace_window)
+	war_panel.peace_window = peace_window
 
 	# Banners over the armies (selection, strength, battles, sieges), under the windows of the interface
 	_unit_banners = Control.new()

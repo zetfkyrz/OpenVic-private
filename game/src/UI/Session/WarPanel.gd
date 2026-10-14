@@ -14,6 +14,12 @@ var _tabs: TabContainer
 var _wars_list: ItemList
 var _war_info: Label
 var _war_buttons: Array[Button]
+## Window of the peace negotiations, set by the game session
+var peace_window: Control
+var _declare_country_option: OptionButton
+var _declare_goal_option: OptionButton
+var _declare_signature: String = ""
+var _declare_goal_country: int = -2
 
 var _armies_list: ItemList
 var _army_info: Label
@@ -137,6 +143,82 @@ func _build_wars_tab() -> void:
 	_war_buttons.append(_make_button("Белый мир", _on_peace_pressed.bind(_PEACE_WHITE), buttons))
 	_war_buttons.append(_make_button("Потребовать занятые нами земли", _on_peace_pressed.bind(_PEACE_TAKE), buttons))
 	_war_buttons.append(_make_button("Уступить земли, занятые врагом", _on_peace_pressed.bind(_PEACE_GIVE), buttons))
+	var negotiate := HBoxContainer.new()
+	tab.add_child(negotiate)
+	_make_button("Мирные переговоры (условия, области, прогноз)", _on_negotiate_pressed, negotiate)
+
+	# Declaration of a war with a war goal
+	var declare := HBoxContainer.new()
+	tab.add_child(declare)
+	var declare_caption := Label.new()
+	declare_caption.text = "Объявить войну:"
+	declare.add_child(declare_caption)
+	_declare_country_option = OptionButton.new()
+	_declare_country_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_declare_country_option.item_selected.connect(_on_declare_country_selected)
+	declare.add_child(_declare_country_option)
+	_declare_goal_option = OptionButton.new()
+	_declare_goal_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	declare.add_child(_declare_goal_option)
+	_make_button("Объявить", _on_declare_pressed, declare)
+
+
+func _on_negotiate_pressed() -> void:
+	var war_id: int = _get_selected_id(_wars_list, _war_ids)
+	if war_id > 0 and peace_window != null:
+		peace_window.open_for_war(war_id)
+
+
+func _refresh_declare_options() -> void:
+	var countries: Array = PlayerSingleton.get_declarable_countries()
+	var signature: String = str(countries.size())
+	for country: Dictionary in countries:
+		signature += ",%d" % country[&"index"]
+	if signature == _declare_signature:
+		return
+	_declare_signature = signature
+	var previous: int = _get_declare_country()
+	_declare_country_option.clear()
+	for country: Dictionary in countries:
+		_declare_country_option.add_item(country[&"name"])
+		_declare_country_option.set_item_metadata(_declare_country_option.item_count - 1, country[&"index"])
+	_declare_goal_country = -2
+	for i: int in _declare_country_option.item_count:
+		if _declare_country_option.get_item_metadata(i) == previous:
+			_declare_country_option.select(i)
+			break
+	_on_declare_country_selected(_declare_country_option.selected)
+
+
+func _get_declare_country() -> int:
+	if _declare_country_option.item_count == 0 or _declare_country_option.selected < 0:
+		return -1
+	return _declare_country_option.get_item_metadata(_declare_country_option.selected)
+
+
+func _on_declare_country_selected(_index: int) -> void:
+	var country_index: int = _get_declare_country()
+	if country_index == _declare_goal_country:
+		return
+	_declare_goal_country = country_index
+	_declare_goal_option.clear()
+	_declare_goal_option.add_item("Без цели (только оккупация)")
+	_declare_goal_option.set_item_metadata(0, 0)
+	if country_index < 0:
+		return
+	for state: Dictionary in PlayerSingleton.get_war_goal_states(country_index):
+		_declare_goal_option.add_item("Захватить: %s" % state[&"name"])
+		_declare_goal_option.set_item_metadata(_declare_goal_option.item_count - 1, state[&"province_number"])
+
+
+func _on_declare_pressed() -> void:
+	var country_index: int = _get_declare_country()
+	if country_index < 0:
+		return
+	var province_number: int = 0
+	if _declare_goal_option.selected > 0:
+		province_number = _declare_goal_option.get_item_metadata(_declare_goal_option.selected)
+	PlayerSingleton.declare_war_with_goal(country_index, 1 if province_number > 0 else 0, province_number)
 
 
 func _on_peace_pressed(peace_type: int) -> void:
@@ -436,6 +518,7 @@ func _refresh() -> void:
 
 	_refresh_generals()
 	_refresh_blockade()
+	_refresh_declare_options()
 
 	_updating = false
 	_update_details()
