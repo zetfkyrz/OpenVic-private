@@ -187,6 +187,7 @@ namespace OpenVic {
 
 		// Rankings (E3): [{ rank, name, country_index, is_player, prestige, industrial, military, total, great_power }]
 		godot::Array get_country_ranking() const;
+		godot::Dictionary get_lobby_country_info() const;
 
 		// Politics (D3): { government, ruling_party, ruling_ideology, holds_elections, last_election, days_to_election,
 		//   voters_share, parties: [{ name, ideology, vote_share, ruling, colour }], ideologies: [{ name, share, colour }],

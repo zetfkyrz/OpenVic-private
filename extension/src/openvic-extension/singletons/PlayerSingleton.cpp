@@ -125,6 +125,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::cancel_colonisation, { "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::get_notifications, { "after_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_country_ranking);
+	OV_BIND_METHOD(PlayerSingleton::get_lobby_country_info);
 	OV_BIND_METHOD(PlayerSingleton::get_politics_info);
 	OV_BIND_METHOD(PlayerSingleton::enact_reform, { "reform_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_peace_info, { "war_id" });
@@ -2787,6 +2788,43 @@ Array PlayerSingleton::get_notifications(int64_t after_id) const {
 		dict["other"] = entry.other_country != nullptr ? Utilities::get_country_name(*menu_singleton, *entry.other_country) : String {};
 		dict["we_are_first"] = entry.country == player_country;
 		result.push_back(dict);
+	}
+	return result;
+}
+
+// Short description of the selected country for the game lobby: flag, population, provinces, ranks
+Dictionary PlayerSingleton::get_lobby_country_info() const {
+	Dictionary result;
+	if (player_country == nullptr) {
+		return result;
+	}
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(game_singleton, result);
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	result["name"] = Utilities::get_country_name(*menu_singleton, *player_country);
+	result["population"] = static_cast<int64_t>(type_safe::get(player_country->get_total_population()));
+	result["provinces"] = static_cast<int32_t>(player_country->get_owned_provinces().size());
+	result["rank"] = static_cast<int32_t>(player_country->get_total_rank());
+	result["prestige_rank"] = static_cast<int32_t>(player_country->get_prestige_rank());
+	result["industrial_rank"] = static_cast<int32_t>(player_country->get_industrial_rank());
+	result["military_rank"] = static_cast<int32_t>(player_country->get_military_rank());
+	result["score"] = static_cast<float>(player_country->total_score.get_untracked());
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	if (instance_manager != nullptr) {
+		result["great_power"] = static_cast<size_t>(player_country->get_total_rank()) <=
+			instance_manager->get_country_instance_manager().get_great_powers().size();
+	}
+	GovernmentType const* government_type = player_country->get_government_type_untracked();
+	if (government_type != nullptr) {
+		result["government"] = menu_singleton->tr(convert_to<String>(government_type->get_identifier()));
+		const int32_t flag_index = game_singleton->get_flag_sheet_index(
+			player_country->index, convert_to<String>(government_type->get_flag_type())
+		);
+		if (flag_index >= 0) {
+			result["flag_rect"] = game_singleton->get_flag_sheet_rect(flag_index);
+		}
 	}
 	return result;
 }
