@@ -18,6 +18,12 @@ var _war_buttons: Array[Button]
 var _armies_list: ItemList
 var _army_info: Label
 
+var _generals_list: ItemList
+var _general_info: Label
+var _auto_create_check: CheckButton
+var _auto_assign_check: CheckButton
+var _general_ids: Array[int] = []
+
 var _fronts_list: ItemList
 var _front_info: Label
 var _enemy_option: OptionButton
@@ -63,6 +69,7 @@ func _ready() -> void:
 
 	_build_wars_tab()
 	_build_armies_tab()
+	_build_generals_tab()
 	_build_fronts_tab()
 
 	GameSingleton.gamestate_updated.connect(_refresh)
@@ -158,6 +165,68 @@ func _on_stop_army_pressed() -> void:
 	var army_id: int = _get_selected_id(_armies_list, _army_ids)
 	if army_id > 0:
 		PlayerSingleton.stop_army(army_id)
+
+
+# Generals
+
+func _build_generals_tab() -> void:
+	var tab := _make_tab("Генералы")
+	_generals_list = _make_list(tab)
+	_general_info = _make_info(tab)
+	var options := HBoxContainer.new()
+	tab.add_child(options)
+	_auto_create_check = CheckButton.new()
+	_auto_create_check.text = "Создавать генералов сами"
+	_auto_create_check.tooltip_text = "Раз в месяц на очки лидерства создаётся генерал, пока армий больше, чем генералов"
+	_auto_create_check.toggled.connect(_on_leader_auto_toggled)
+	options.add_child(_auto_create_check)
+	_auto_assign_check = CheckButton.new()
+	_auto_assign_check.text = "Назначать в армии сами"
+	_auto_assign_check.tooltip_text = "Свободные генералы (лучший по престижу первым) встают во главе армий без генерала"
+	_auto_assign_check.toggled.connect(_on_leader_auto_toggled)
+	options.add_child(_auto_assign_check)
+	var buttons := HBoxContainer.new()
+	tab.add_child(buttons)
+	_make_button("Создать генерала (очки лидерства)", _on_create_general_pressed, buttons)
+	_make_button("Снять с армии", _on_unassign_general_pressed, buttons)
+
+
+func _on_leader_auto_toggled(_pressed: bool) -> void:
+	if not _updating:
+		PlayerSingleton.set_leader_auto(_auto_create_check.button_pressed, _auto_assign_check.button_pressed)
+
+
+func _on_create_general_pressed() -> void:
+	PlayerSingleton.create_general()
+
+
+func _on_unassign_general_pressed() -> void:
+	var leader_id: int = _get_selected_id(_generals_list, _general_ids)
+	if leader_id <= 0:
+		return
+	for general: Dictionary in PlayerSingleton.get_generals():
+		if general["leader_id"] == leader_id and general["army_id"] != 0:
+			PlayerSingleton.set_army_leader(general["army_id"], 0)
+
+
+func _refresh_generals() -> void:
+	var settings: Dictionary = PlayerSingleton.get_leader_settings()
+	if settings.is_empty():
+		return
+	_auto_create_check.button_pressed = settings["auto_create"]
+	_auto_assign_check.button_pressed = settings["auto_assign"]
+	_fill_list(_generals_list, _general_ids, PlayerSingleton.get_generals(), &"leader_id", func(general: Dictionary) -> String:
+		var assignment: String = "свободен"
+		if general["army_id"] != 0:
+			assignment = "ведёт %s" % general["army_name"]
+		return "%s, %s, %s, престиж %.2f - %s" % [
+			general.get("leader_name", "?"), general["personality"], general["background"], general["prestige"], assignment,
+		]
+	)
+	_general_info.text = "Очки лидерства: %.0f (+%.1f в месяц), генерал стоит %.0f.%s" % [
+		settings["leadership_points"], settings["monthly_leadership_points"], settings["leader_cost"],
+		"" if settings["can_create"] else " Не хватает очков для нового генерала.",
+	]
 
 
 # Fronts
@@ -322,6 +391,8 @@ func _refresh() -> void:
 			if not _enemy_indices.has(int(enemy["index"])):
 				_enemy_indices.append(int(enemy["index"]))
 				_enemy_option.add_item(enemy["name"])
+
+	_refresh_generals()
 
 	_updating = false
 	_update_details()

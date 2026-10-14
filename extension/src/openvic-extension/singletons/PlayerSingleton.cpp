@@ -116,6 +116,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_generals);
 	OV_BIND_METHOD(PlayerSingleton::get_mergeable_armies, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_leader_settings);
+	OV_BIND_METHOD(PlayerSingleton::set_leader_auto, { "auto_create", "auto_assign" });
+	OV_BIND_METHOD(PlayerSingleton::create_general);
 	OV_BIND_METHOD(PlayerSingleton::split_regiment, { "regiment_id" });
 	OV_BIND_METHOD(PlayerSingleton::merge_armies, { "target_army_id", "source_army_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_leader, { "army_id", "leader_id" });
@@ -1291,6 +1294,8 @@ Array PlayerSingleton::get_map_units() const {
 		int32_t army_count = 0, regiments = 0;
 		fixed_point_t strength = 0, max_strength = 0, organisation = 0, max_organisation = 0;
 		bool in_combat = false, moving = false;
+		// The armies lose men: outside of friendly lands or without supplies
+		bool attrition = false;
 		Array army_ids;
 		Array paths;
 		// Position of the last army of the group, which is also the one drawn on the map
@@ -1329,6 +1334,12 @@ Array PlayerSingleton::get_map_units() const {
 			group->max_organisation += army.get_total_max_organisation();
 			group->in_combat = group->in_combat || army.is_in_combat();
 			group->moving = group->moving || army.is_moving();
+			{
+				CountryInstance const* owner = province.get_owner();
+				const bool friendly = owner == country || (owner != nullptr && country->has_alliance_with(*owner));
+				const bool unsupplied = country->is_at_war() && country->get_army_supply_ratio() < (fixed_point_t(3) / 4);
+				group->attrition = group->attrition || (!country->is_rebel_country() && (!friendly || unsupplied));
+			}
 			group->army_ids.push_back(static_cast<int64_t>(army.unique_id));
 
 			if (army.is_moving()) {
@@ -1361,6 +1372,7 @@ Array PlayerSingleton::get_map_units() const {
 			    group.max_organisation > 0 ? static_cast<float>(group.organisation / group.max_organisation) : 0.0f;
 			entry["in_combat"] = group.in_combat;
 			entry["moving"] = group.moving;
+			entry["attrition"] = group.attrition;
 			entry["army_ids"] = group.army_ids;
 			entry["occupied"] = occupied;
 
@@ -1730,6 +1742,44 @@ Array PlayerSingleton::get_mergeable_armies(int64_t army_id) const {
 		result.push_back(entry);
 	}
 	return result;
+}
+
+Dictionary PlayerSingleton::get_leader_settings() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	const fixed_point_t cost = GameSingleton::get_singleton()->get_definition_manager().get_define_manager()
+		.get_military_defines().get_leader_recruit_cost();
+	result["auto_create"] = player_country->get_auto_create_leaders();
+	result["auto_assign"] = player_country->get_auto_assign_leaders();
+	result["leadership_points"] = static_cast<float>(player_country->get_leadership_point_stockpile());
+	result["monthly_leadership_points"] = static_cast<float>(player_country->get_monthly_leadership_points());
+	result["leader_cost"] = static_cast<float>(cost);
+	result["can_create"] = player_country->get_leadership_point_stockpile() >= cost;
+	return result;
+}
+
+bool PlayerSingleton::set_leader_auto(bool auto_create, bool auto_assign) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	bool changed = false;
+	if (player_country->get_auto_create_leaders() != auto_create) {
+		changed |= instance_manager->queue_game_action<set_auto_create_leaders_argument_t>(player_country->index, auto_create);
+	}
+	if (player_country->get_auto_assign_leaders() != auto_assign) {
+		changed |= instance_manager->queue_game_action<set_auto_assign_leaders_argument_t>(player_country->index, auto_assign);
+	}
+	return changed;
+}
+
+bool PlayerSingleton::create_general() const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<create_leader_argument_t>(player_country->index, unit_branch_t::LAND);
 }
 
 bool PlayerSingleton::split_regiment(int64_t regiment_id) const {

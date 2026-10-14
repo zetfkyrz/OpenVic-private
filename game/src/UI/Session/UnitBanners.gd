@@ -301,6 +301,8 @@ func _describe(unit: Dictionary) -> String:
 		"%s: %d%%" % [tr("Strength"), roundi(float(unit[&"strength"]) * 100.0)],
 		"%s: %d%%" % [tr("Organisation"), roundi(float(unit[&"organisation"]) * 100.0)],
 	]
+	if unit.get(&"attrition", false):
+		lines.append("Армия несёт потери: чужая земля или нет снабжения")
 	if unit[&"in_combat"]:
 		lines.append(tr("In battle"))
 	elif unit[&"moving"]:
@@ -341,10 +343,10 @@ func _update_unit_icon(key: String, unit: Dictionary, slot: int, slot_count: int
 			panel.set_meta(&"connected", true)
 			background.pressed.connect(_on_icon_pressed.bind(key))
 
-	# Armies that are moving or fighting show the attrition icon slot only when needed
+	# The attrition icon is shown for armies that lose men: outside of friendly lands or without supplies
 	var attr: Node = panel.get_node_or_null(^"./unit_panel_attr")
 	if attr is CanvasItem:
-		attr.visible = false
+		attr.visible = unit.get(&"attrition", false)
 
 	_update_selection_visual(key)
 

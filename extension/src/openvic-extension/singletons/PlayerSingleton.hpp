@@ -62,7 +62,7 @@ namespace OpenVic {
 
 		// Land armies on the map, one entry per country and province:
 		// { province_number, position, country_identifier, country_index, is_player, army_count, regiments,
-		//   strength, organisation, in_combat, moving, army_ids, siege_progress (-1 if none), occupied }
+		//   strength, organisation, in_combat, moving, attrition (losing men), army_ids, siege_progress (-1 if none), occupied }
 		godot::Array get_map_units() const;
 
 		// Values used by the tariffs: { import_value, effective_rate, administrative_efficiency, tariff_efficiency }
@@ -160,6 +160,11 @@ namespace OpenVic {
 		godot::Array get_generals() const;
 		// Armies in the same province as the army that can be merged into it: [{ id, name, regiments }]
 		godot::Array get_mergeable_armies(int64_t army_id) const;
+		// { auto_create, auto_assign, leadership_points, monthly_leadership_points, leader_cost, can_create }
+		godot::Dictionary get_leader_settings() const;
+		bool set_leader_auto(bool auto_create, bool auto_assign) const;
+		// Makes a new general for leadership points
+		bool create_general() const;
 		bool split_regiment(int64_t regiment_id) const;
 		bool merge_armies(int64_t target_army_id, int64_t source_army_id) const;
 		// leader_id = 0 takes the general off the army
