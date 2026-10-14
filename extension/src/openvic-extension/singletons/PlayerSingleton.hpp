@@ -65,6 +65,9 @@ namespace OpenVic {
 		//   strength, organisation, in_combat, moving, army_ids, siege_progress (-1 if none), occupied }
 		godot::Array get_map_units() const;
 
+		// Values used by the tariffs: { import_value, effective_rate, administrative_efficiency, tariff_efficiency }
+		godot::Dictionary get_tariff_info() const;
+
 		// Production
 		void expand_selected_province_building(int32_t building_index) const;
 

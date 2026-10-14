@@ -14,7 +14,10 @@ var _interest_val_label: GUILabel
 var _overseas_cost_val_label: GUILabel
 var _ind_sub_val_label: GUILabel
 # Which subsidised factories the state pays the losses of: all / state owned / by the share of ownership
-var _subsidy_mode_option: OptionButton
+var _subsidy_mode_button: Button
+var _subsidy_dialog: Control
+var _subsidy_mode: int = 0
+const _SubsidyDialog: GDScript = preload("res://src/UI/Session/SubsidyModeDialog.gd")
 const _CreditPanel: GDScript = preload("res://src/UI/Session/CreditPanel.gd")
 var _credit_panel: Control
 const _SUBSIDY_MODE_NAMES: PackedStringArray = [
@@ -61,15 +64,15 @@ func _ready() -> void:
 	# Choice of the subsidised factories, below the industrial subsidies label
 	var budget_window: Node = get_node_or_null(^"./country_budget")
 	if budget_window:
-		_subsidy_mode_option = OptionButton.new()
-		for mode_name in _SUBSIDY_MODE_NAMES:
-			_subsidy_mode_option.add_item(mode_name)
-		_subsidy_mode_option.position = Vector2(572, 84)
-		_subsidy_mode_option.size = Vector2(250, 24)
-		_subsidy_mode_option.item_selected.connect(
-			func(index: int) -> void: PlayerSingleton.set_subsidy_mode(index)
+		# Between the text and the value of the industrial subsidies, opens the Victoria 2 style choice
+		_subsidy_mode_button = Button.new()
+		_subsidy_mode_button.text = "▼"
+		_subsidy_mode_button.position = Vector2(850, 52)
+		_subsidy_mode_button.size = Vector2(42, 22)
+		_subsidy_mode_button.pressed.connect(
+			func() -> void: _subsidy_dialog.open(_subsidy_mode)
 		)
-		budget_window.add_child(_subsidy_mode_option)
+		budget_window.add_child(_subsidy_mode_button)
 
 		# Central bank and credit
 		var bank_button := Button.new()
@@ -78,6 +81,15 @@ func _ready() -> void:
 		bank_button.size = Vector2(250, 24)
 		bank_button.pressed.connect(func() -> void: _open_credit_panel(0))
 		budget_window.add_child(bank_button)
+
+	_subsidy_dialog = Control.new()
+	_subsidy_dialog.set_script(_SubsidyDialog)
+	_subsidy_dialog.mode_chosen.connect(
+		func(mode: int) -> void:
+			_subsidy_mode = mode
+			PlayerSingleton.set_subsidy_mode(mode)
+	)
+	add_child(_subsidy_dialog)
 
 	_credit_panel = Control.new()
 	_credit_panel.set_script(_CreditPanel)
@@ -149,12 +161,15 @@ func _update_info() -> void:
 		var subsidies: Dictionary = PlayerSingleton.get_subsidy_info()
 		if _ind_sub_val_label:
 			_ind_sub_val_label.text = "%s¤" % GUINode.float_to_string_dp(subsidies.get("state_paid", 0.0), 1)
-		if _subsidy_mode_option and not subsidies.is_empty():
-			var mode: int = subsidies["mode"]
-			if _subsidy_mode_option.selected != mode:
-				_subsidy_mode_option.select(mode)
-			_subsidy_mode_option.tooltip_text = "%s\n\nГосударство заплатило вчера: %s\nКапиталисты заплатили вчера: %s" % [
-				_SUBSIDY_MODE_TIPS[mode], GUINode.float_to_string_dp(subsidies["state_paid"], 1),
+		if _subsidy_mode_button and not subsidies.is_empty():
+			_subsidy_mode = subsidies["mode"]
+			_subsidy_mode_button.tooltip_text = "%s
+%s
+
+Государство заплатило вчера: %s
+Капиталисты заплатили вчера: %s" % [
+				_SUBSIDY_MODE_NAMES[_subsidy_mode], _SUBSIDY_MODE_TIPS[_subsidy_mode],
+				GUINode.float_to_string_dp(subsidies["state_paid"], 1),
 				GUINode.float_to_string_dp(subsidies["capitalists_paid"], 1),
 			]
 

@@ -85,6 +85,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_mobilise, { "value" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
+	OV_BIND_METHOD(PlayerSingleton::get_tariff_info);
 	OV_BIND_METHOD(PlayerSingleton::get_production_info);
 	OV_BIND_METHOD(PlayerSingleton::build_factory, { "province_index", "building_type_index" });
 	OV_BIND_METHOD(PlayerSingleton::set_factory_subsidised, { "province_index", "building_type_index", "subsidised" });
@@ -1561,4 +1562,16 @@ bool PlayerSingleton::answer_alliance_request(int32_t from_index, bool accept) c
 	return instance_manager->queue_game_action<answer_alliance_request_argument_t>(
 	    player_country->index, country_index_t(static_cast<uint32_t>(from_index)), accept
 	);
+}
+
+Dictionary PlayerSingleton::get_tariff_info() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+
+	result["import_value"] = static_cast<float>(player_country->get_yesterdays_import_value_untracked());
+	result["effective_rate"] = static_cast<float>(player_country->effective_tariff_rate.get_untracked());
+	result["administrative_efficiency"] =
+	    static_cast<float>(player_country->get_administrative_efficiency_from_administrators_untracked());
+	result["tariff_efficiency"] = static_cast<float>(player_country->tariff_efficiency.get_untracked());
+	return result;
 }

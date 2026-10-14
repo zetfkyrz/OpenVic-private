@@ -248,6 +248,8 @@ func _get_or_create(key: String, template: String, anchor: Vector2) -> Dictionar
 		return {}
 
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
+	# A left click on an icon (also on its flag, bars and numbers) must not select the province below it
+	panel.gui_input.connect(_on_icon_gui_input)
 	add_child(panel)
 
 	icon = { &"panel": panel, &"anchor": anchor, &"slot": 0, &"slot_count": 1, &"drop": 0.0, &"army_ids": [] }
@@ -564,3 +566,9 @@ func _sync_selection_markers() -> void:
 			continue
 
 		markers.add_selection_marker(selected_id, _map_view._map_to_world_coords(icon[&"position"]))
+
+
+func _on_icon_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		# Buttons of the icon handle the click first, this only stops it from reaching the map
+		(get_viewport() as Viewport).set_input_as_handled()
