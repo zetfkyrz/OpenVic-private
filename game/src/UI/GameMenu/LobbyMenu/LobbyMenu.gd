@@ -37,51 +37,311 @@ var _flag_rect: TextureRect
 var _info_label: Label
 
 
+const _TEX_PATH: String = "gfx/interface/"
+const _PANEL_SIZE := Vector2(240, 616)
+const _TEXT_COLOUR := Color(0.1, 0.06, 0.03)
+
+var _overlay: Control
+var _countries_tree: Tree
+var _countries: Array = []
+var _sort_key: String = "rank"
+var _play_button: TextureButton
+var _filling: bool = false
+
+
 func _ready() -> void:
+	_build_original_layout()
 	_build_country_preview()
 	_update_selected_country_label()
 
 
-# Flag and key figures of the selected country, under its name (task G2)
+func _process(_delta: float) -> void:
+	if _play_button and start_button:
+		_play_button.disabled = start_button.disabled
+
+
+func _texture(file: String) -> Texture2D:
+	return AssetManager.get_texture(_TEX_PATH + file)
+
+
+# The lobby of the original game: a panel with the start dates and the playable countries on the left, the selected
+# country on the right, the title on top and Back / Play in the bottom corners. The panels keep the size of their
+# sprites, they are not stretched with the window.
+func _build_original_layout() -> void:
+	var old_panels: Array[Node] = [get_node_or_null(^"GameSelectPanel"), get_node_or_null(^"GameStartPanel")]
+	var scroll: Node = get_node_or_null(^"GameSelectPanel/VBoxContainer/GameSelectScroll")
+	var tag_edit: Node = session_tag_line_edit
+	var name_label: Node = _selected_country_label
+
+	_overlay = Control.new()
+	_overlay.top_level = true
+	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_overlay)
+
+	# Left panel
+	var left := TextureRect.new()
+	left.texture = _texture("frontend_lobby_leftbg.dds")
+	left.position = Vector2(0, 0)
+	left.size = _PANEL_SIZE
+	left.mouse_filter = Control.MOUSE_FILTER_STOP
+	_overlay.add_child(left)
+
+	if scroll:
+		scroll.get_parent().remove_child(scroll)
+		left.add_child(scroll)
+		scroll.position = Vector2(10, 12)
+		scroll.size = Vector2(220, 284)
+		scroll.size_flags_vertical = Control.SIZE_FILL
+
+	var sort_defs: Array = [
+		["Страна", "name", 14, 92], ["Пре", "prestige_rank", 128, 32],
+		["Инд", "industrial_rank", 160, 32], ["Арм", "military_rank", 192, 32],
+	]
+	for def: Array in sort_defs:
+		var header := Button.new()
+		header.text = def[0]
+		header.flat = true
+		header.focus_mode = Control.FOCUS_NONE
+		header.position = Vector2(def[2], 313)
+		header.size = Vector2(def[3], 20)
+		header.add_theme_font_size_override(&"font_size", 12)
+		header.add_theme_color_override(&"font_color", Color(0.95, 0.9, 0.8))
+		header.add_theme_color_override(&"font_hover_color", Color.WHITE)
+		header.pressed.connect(_on_sort_pressed.bind(def[1]))
+		left.add_child(header)
+
+	_countries_tree = Tree.new()
+	_countries_tree.columns = 4
+	_countries_tree.hide_root = true
+	_countries_tree.column_titles_visible = false
+	_countries_tree.set_column_expand(0, true)
+	for column: int in range(1, 4):
+		_countries_tree.set_column_expand(column, false)
+		_countries_tree.set_column_custom_minimum_width(column, 32)
+	_countries_tree.position = Vector2(8, 338)
+	_countries_tree.size = Vector2(224, 262)
+	_countries_tree.add_theme_color_override(&"font_color", _TEXT_COLOUR)
+	_countries_tree.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
+	_countries_tree.add_theme_font_size_override(&"font_size", 13)
+	_countries_tree.item_selected.connect(_on_country_row_selected)
+	left.add_child(_countries_tree)
+
+	# Right panel
+	var right := TextureRect.new()
+	right.texture = _texture("frontend_lobby_rightbg.dds")
+	right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	right.position = Vector2(-_PANEL_SIZE.x, 0)
+	right.size = _PANEL_SIZE
+	right.mouse_filter = Control.MOUSE_FILTER_STOP
+	_overlay.add_child(right)
+
+	if name_label:
+		name_label.get_parent().remove_child(name_label)
+		right.add_child(name_label)
+	if tag_edit:
+		tag_edit.get_parent().remove_child(tag_edit)
+		right.add_child(tag_edit)
+		tag_edit.position = Vector2(14, 340)
+		tag_edit.size = Vector2(212, 30)
+
+	# Title
+	var title := TextureRect.new()
+	title.texture = _texture("frontend_lobby_titlebg.dds")
+	title.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	title.position = Vector2(-262, 0)
+	title.size = Vector2(524, 68)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.add_child(title)
+	for def: Array in [["Выбранный сценарий", 6, 26], ["Выберите страну на карте или в списке", 38, 14]]:
+		var label := Label.new()
+		label.text = def[0]
+		label.position = Vector2(0, def[1])
+		label.size = Vector2(524, 30)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override(&"font_size", def[2])
+		label.add_theme_color_override(&"font_color", _TEXT_COLOUR)
+		title.add_child(label)
+
+	# Corners with the buttons
+	var corner_left := TextureRect.new()
+	corner_left.texture = _texture("frontend_lobby_cornerleft.dds")
+	corner_left.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	corner_left.position = Vector2(0, -152)
+	corner_left.size = Vector2(176, 152)
+	corner_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.add_child(corner_left)
+	var corner_right := TextureRect.new()
+	corner_right.texture = _texture("frontend_lobby_cornerright.dds")
+	corner_right.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	corner_right.position = Vector2(-176, -152)
+	corner_right.size = Vector2(176, 152)
+	corner_right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.add_child(corner_right)
+
+	var back := _make_play_style_button("Назад", Control.PRESET_BOTTOM_LEFT, Vector2(17, -80))
+	back.pressed.connect(_on_back_button_pressed)
+	_play_button = _make_play_style_button("Играть", Control.PRESET_BOTTOM_RIGHT, Vector2(-184, -80))
+	_play_button.pressed.connect(_on_start_button_pressed)
+
+	for panel: Node in old_panels:
+		if panel:
+			panel.hide()
+	var spacer: Node = get_node_or_null(^"Spacer")
+	if spacer:
+		spacer.hide()
+	if start_button:
+		start_button.hide()
+
+
+func _make_play_style_button(text: String, preset: Control.LayoutPreset, offset: Vector2) -> TextureButton:
+	var button := TextureButton.new()
+	button.texture_normal = _texture("frontend_play_button.dds")
+	button.ignore_texture_size = true
+	button.stretch_mode = TextureButton.STRETCH_SCALE
+	_overlay.add_child(button)
+	button.set_anchors_preset(preset)
+	button.offset_left = offset.x
+	button.offset_top = offset.y
+	button.offset_right = offset.x + 168.0
+	button.offset_bottom = offset.y + 60.0
+	var label := Label.new()
+	label.text = text
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override(&"font_size", 20)
+	label.add_theme_color_override(&"font_color", _TEXT_COLOUR)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(label)
+	return button
+
+
+func _on_sort_pressed(key: String) -> void:
+	_sort_key = key
+	_fill_countries()
+
+
+func _fill_countries() -> void:
+	if not _countries_tree:
+		return
+	_countries_tree.clear()
+	if _setup_start_date_index < 0:
+		return
+	_countries = PlayerSingleton.get_country_ranking()
+	var field: String = _sort_key
+	if field == "name":
+		_countries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a["name"]) < String(b["name"]))
+	else:
+		_countries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a[field]) < int(b[field]))
+	_filling = true
+	var root: TreeItem = _countries_tree.create_item()
+	var player_name: String = PlayerSingleton.get_player_country_name()
+	for entry: Dictionary in _countries:
+		var item: TreeItem = _countries_tree.create_item(root)
+		item.set_text(0, entry["name"])
+		item.set_text(1, str(entry["prestige_rank"]))
+		item.set_text(2, str(entry["industrial_rank"]))
+		item.set_text(3, str(entry["military_rank"]))
+		for column: int in range(1, 4):
+			item.set_text_alignment(column, HORIZONTAL_ALIGNMENT_CENTER)
+		item.set_metadata(0, String(entry["identifier"]))
+		if bool(entry["great_power"]):
+			item.set_custom_color(0, Color(0.42, 0.1, 0.17))
+		if String(entry["name"]) == player_name:
+			item.select(0)
+			_countries_tree.scroll_to_item(item)
+	_filling = false
+
+
+func _on_country_row_selected() -> void:
+	var item: TreeItem = _countries_tree.get_selected()
+	if _filling or item == null or _setup_start_date_index < 0:
+		return
+	SoundManager.play_effect_compat("click")
+	if PlayerSingleton.set_player_country_by_identifier(String(item.get_metadata(0))):
+		_focus_map_on_player_country()
+		_update_selected_country_label()
+
+
+# Flag and key figures of the selected country, placed on the rows and bars of the sprite of the right panel
+var _rows: Dictionary = {}
+
+
+func _make_row_label(parent: Control, key: String, rect: Rect2, colour: Color, size: int = 13, align: int = HORIZONTAL_ALIGNMENT_LEFT) -> void:
+	var label := Label.new()
+	label.position = rect.position
+	label.size = rect.size
+	label.clip_text = true
+	label.horizontal_alignment = align
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override(&"font_size", size)
+	label.add_theme_color_override(&"font_color", colour)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(label)
+	_rows[key] = label
+
+
 func _build_country_preview() -> void:
 	if not _selected_country_label:
 		return
-	var box: Node = _selected_country_label.get_parent()
+	var panel: Control = _selected_country_label.get_parent()
+	var light := Color(0.96, 0.92, 0.82)
+	var dark := Color(0.1, 0.06, 0.03)
+
 	_flag_rect = TextureRect.new()
-	_flag_rect.custom_minimum_size = Vector2(128, 64)
+	_flag_rect.position = Vector2(14, 20)
+	_flag_rect.size = Vector2(72, 56)
+	_flag_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_flag_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_flag_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_info_label = Label.new()
-	_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(_flag_rect)
-	box.move_child(_flag_rect, _selected_country_label.get_index() + 1)
-	box.add_child(_info_label)
-	box.move_child(_info_label, _flag_rect.get_index() + 1)
+	_flag_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(_flag_rect)
+
+	# Name on the maroon bar
+	_selected_country_label.position = Vector2(92, 18)
+	_selected_country_label.size = Vector2(134, 24)
+	_selected_country_label.clip_text = true
+	_selected_country_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_selected_country_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_selected_country_label.add_theme_font_size_override(&"font_size", 14)
+	_selected_country_label.add_theme_color_override(&"font_color", light)
+
+	_make_row_label(panel, "government", Rect2(94, 43, 130, 15), dark, 12)
+	_make_row_label(panel, "rank", Rect2(94, 59, 130, 15), dark, 12)
+	_make_row_label(panel, "ranks_header", Rect2(24, 88, 200, 15), dark, 12, HORIZONTAL_ALIGNMENT_CENTER)
+	_make_row_label(panel, "prestige", Rect2(24, 106, 200, 16), dark)
+	_make_row_label(panel, "industry", Rect2(24, 124, 200, 16), dark)
+	_make_row_label(panel, "military", Rect2(24, 142, 200, 16), dark)
+	_make_row_label(panel, "population_header", Rect2(24, 170, 200, 15), dark, 12, HORIZONTAL_ALIGNMENT_CENTER)
+	_make_row_label(panel, "population", Rect2(24, 192, 200, 18), dark, 14)
+	_make_row_label(panel, "provinces", Rect2(24, 212, 200, 18), dark, 14)
+	_make_row_label(panel, "lower_header", Rect2(24, 315, 200, 17), light, 12, HORIZONTAL_ALIGNMENT_CENTER)
+	_rows["ranks_header"].text = "Рейтинг"
+	_rows["population_header"].text = "Население"
+	_rows["lower_header"].text = "Название сессии"
 
 
 func _update_country_preview() -> void:
-	if not _info_label:
+	if not _flag_rect:
 		return
 	var info: Dictionary = PlayerSingleton.get_lobby_country_info() if _setup_start_date_index >= 0 else {}
 	if info.is_empty():
 		_flag_rect.texture = null
-		_info_label.text = ""
+		for key: String in ["government", "rank", "prestige", "industry", "military", "population", "provinces"]:
+			_rows[key].text = ""
 		return
 	if info.has("flag_rect"):
 		var atlas := AtlasTexture.new()
 		atlas.atlas = GameSingleton.get_flag_sheet_texture()
 		atlas.region = Rect2(info["flag_rect"])
 		_flag_rect.texture = atlas
-	var lines: PackedStringArray = []
-	lines.append(tr("Population: {0}").format([_format_number(info.get("population", 0))]))
-	lines.append(tr("Provinces: {0}").format([info.get("provinces", 0)]))
-	lines.append(tr("Rank: {0}{1}").format([info.get("rank", 0), " (" + tr("Great Power") + ")" if info.get("great_power", false) else ""]))
-	lines.append(tr("Prestige {0} · Industry {1} · Military {2}").format(
-		[info.get("prestige_rank", 0), info.get("industrial_rank", 0), info.get("military_rank", 0)]
-	))
-	if info.has("government"):
-		lines.append(info["government"])
-	_info_label.text = "\n".join(lines)
+	_rows["government"].text = str(info.get("government", ""))
+	_rows["rank"].text = "Ранг: %d%s" % [info.get("rank", 0), " (ВД)" if info.get("great_power", false) else ""]
+	_rows["prestige"].text = "Престиж: %d-е место" % info.get("prestige_rank", 0)
+	_rows["industry"].text = "Промышленность: %d-е место" % info.get("industrial_rank", 0)
+	_rows["military"].text = "Армия: %d-е место" % info.get("military_rank", 0)
+	_rows["population"].text = "Население: %s" % _format_number(info.get("population", 0))
+	_rows["provinces"].text = "Провинций: %d" % info.get("provinces", 0)
 
 
 func _format_number(value: int) -> String:
@@ -109,6 +369,7 @@ func _setup_start_date(index: int) -> void:
 	_set_political_mapmode()
 	_focus_map_on_player_country()
 	_update_selected_country_label()
+	_fill_countries()
 
 
 func _set_political_mapmode() -> void:
@@ -330,3 +591,4 @@ func _on_map_view_province_clicked(province_number: int) -> void:
 	SoundManager.play_effect_compat("click")
 	PlayerSingleton.set_player_country_by_province_number(province_number)
 	_update_selected_country_label()
+	_fill_countries()

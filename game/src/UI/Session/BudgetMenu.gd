@@ -149,14 +149,16 @@ func _update_info() -> void:
 	_incVal += 1
 
 	if _active:
+		# Real data of the credit system (central bank, debts and interest of the country)
+		var credit: Dictionary = PlayerSingleton.get_credit_overview()
 		if _national_bank_label:
-			_national_bank_label.text = "%s¤" % GUINode.float_to_string_suffixed(_incVal * 2)
+			_national_bank_label.text = "%s¤" % GUINode.float_to_string_suffixed(credit.get("cash", 0.0))
 
 		if _debt_val_label:
-			_debt_val_label.text = "%s¤" % GUINode.float_to_string_dp(_incVal * 4, 1)
+			_debt_val_label.text = "%s¤" % GUINode.float_to_string_dp(credit.get("total_debt", 0.0), 1)
 
 		if _interest_val_label:
-			_interest_val_label.text = "%s¤" % GUINode.float_to_string_dp(_incVal * 5, 2)
+			_interest_val_label.text = "%s¤" % GUINode.float_to_string_dp(credit.get("monthly_interest", 0.0), 2)
 
 		var subsidies: Dictionary = PlayerSingleton.get_subsidy_info()
 		if _ind_sub_val_label:

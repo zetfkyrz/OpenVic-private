@@ -3,7 +3,7 @@ extends "res://src/UI/Session/Vic2Window.gd"
 ## loading in a port and landing from the sea, blockade, and the way to the shipyard. Built like the panel of the army
 ## (ArmyPanel.gd): a Victoria 2 style window that appears when fleets are selected on the map.
 
-const _SIZE: Vector2 = Vector2(600, 600)
+const _SIZE: Vector2 = Vector2(720, 640)
 
 var _fleet_ids: Array[int] = []
 var _index: int = 0
@@ -74,11 +74,12 @@ func _ready() -> void:
 	leader_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(leader_row)
 	_leader_label = Label.new()
-	_leader_label.custom_minimum_size = Vector2(190, 0)
+	_leader_label.custom_minimum_size = Vector2(150, 0)
 	_leader_label.clip_text = true
 	leader_row.add_child(_leader_label)
 	_admiral_option = OptionButton.new()
 	_admiral_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_admiral_option.clip_text = true
 	_admiral_option.clip_text = true
 	leader_row.add_child(_admiral_option)
 	_assign_button = Button.new()
@@ -117,6 +118,7 @@ func _ready() -> void:
 	_load_option = OptionButton.new()
 	_load_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_load_option.clip_text = true
+	_load_option.clip_text = true
 	load_row.add_child(_load_option)
 	_load_button = Button.new()
 	_load_button.text = "Погрузить"
@@ -126,6 +128,7 @@ func _ready() -> void:
 	# Armies on board
 	var carried_caption := Label.new()
 	carried_caption.text = "Армии на борту (выберите армию, чтобы выгрузить или высадить её):"
+	carried_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root.add_child(carried_caption)
 	_carried_tree = Tree.new()
 	_carried_tree.columns = 2
@@ -148,6 +151,7 @@ func _ready() -> void:
 	unload_row.add_child(_unload_button)
 	_landing_option = OptionButton.new()
 	_landing_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_landing_option.clip_text = true
 	_landing_option.clip_text = true
 	unload_row.add_child(_landing_option)
 	_landing_button = Button.new()

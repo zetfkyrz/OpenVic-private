@@ -4,7 +4,7 @@ extends "res://src/UI/Session/Vic2Window.gd"
 ## disband a regiment or the whole army. When several armies are selected a summary is shown and the arrows switch
 ## between the armies. A Victoria 2 style window, it appears when armies are selected on the map (see UnitBanners).
 
-const _SIZE: Vector2 = Vector2(580, 560)
+const _SIZE: Vector2 = Vector2(720, 560)
 const _SELECTED_COLOUR: Color = Color(0.6, 0.18, 0.2, 0.45)
 
 var _army_ids: Array[int] = []
@@ -77,7 +77,7 @@ func _ready() -> void:
 	leader_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(leader_row)
 	_leader_label = Label.new()
-	_leader_label.custom_minimum_size = Vector2(190, 0)
+	_leader_label.custom_minimum_size = Vector2(150, 0)
 	_leader_label.clip_text = true
 	leader_row.add_child(_leader_label)
 	_general_option = OptionButton.new()
@@ -104,7 +104,7 @@ func _ready() -> void:
 	for column: int in titles.size():
 		_tree.set_column_title(column, titles[column])
 	_tree.set_column_expand(0, true)
-	_tree.set_column_custom_minimum_width(0, 120)
+	_tree.set_column_custom_minimum_width(0, 150)
 	_tree.set_column_custom_minimum_width(1, 90)
 	_tree.set_column_custom_minimum_width(2, 70)
 	_tree.set_column_custom_minimum_width(3, 80)
@@ -130,7 +130,8 @@ func _ready() -> void:
 	merge_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(merge_row)
 	var merge_caption := Label.new()
-	merge_caption.text = "Объединить с армией в провинции:"
+	merge_caption.text = "Объединить с армией:"
+	merge_caption.tooltip_text = "Объединить с армией, которая стоит в этой же провинции"
 	merge_row.add_child(merge_caption)
 	_merge_option = OptionButton.new()
 	_merge_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL

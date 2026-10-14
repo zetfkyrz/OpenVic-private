@@ -2856,6 +2856,7 @@ Array PlayerSingleton::get_country_ranking() const {
 		entry["rank"] = static_cast<int32_t>(country.get_total_rank());
 		entry["name"] = Utilities::get_country_name(*menu_singleton, country);
 		entry["country_index"] = static_cast<int32_t>(type_safe::get(country.index));
+		entry["identifier"] = convert_to<String>(country.get_identifier());
 		entry["is_player"] = &country == player_country;
 		entry["prestige"] = static_cast<float>(country.get_prestige_untracked());
 		entry["prestige_rank"] = static_cast<int32_t>(country.get_prestige_rank());

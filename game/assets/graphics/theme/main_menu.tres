@@ -6,7 +6,6 @@
 [ext_resource type="Texture2D" uid="uid://q25s41oavuxw" path="res://assets/graphics/main_menu_border_paper.png" id="4_sl60o"]
 [ext_resource type="Texture2D" uid="uid://c0p34i3d3b0pw" path="res://assets/graphics/main_menu_button.png" id="5_xj7ql"]
 [ext_resource type="StyleBox" uid="uid://blwilunhmyvpq" path="res://assets/graphics/theme/main_menu_button_normal.tres" id="6_dx0aj"]
-[ext_resource type="AudioStream" uid="uid://bsldcs3l8s7ug" path="res://addons/kenney_ui_audio/click3.wav" id="8_etuft"]
 
 [sub_resource type="Resource" id="Resource_hxpog"]
 script = ExtResource("2_7bwl2")
@@ -86,18 +85,13 @@ content_margin_bottom = 14.0
 texture = ExtResource("5_xj7ql")
 modulate_color = Color(0.588235, 0.588235, 0.588235, 1)
 
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_l2rw3"]
-content_margin_left = 20.0
-content_margin_top = 10.0
-content_margin_right = 20.0
-content_margin_bottom = 14.0
-texture = ExtResource("5_xj7ql")
-modulate_color = Color(0.85098, 0.85098, 0.85098, 1)
-
-[sub_resource type="StyleBoxWithSound" id="StyleBoxWithSound_uuspe"]
-style_box = SubResource("StyleBoxTexture_l2rw3")
-audio_bus = &"SFX_BUS"
-audio_stream = ExtResource("8_etuft")
+[sub_resource type="StyleBox" id="StyleBoxWithSound_uuspe"]
+resource_local_to_scene = false
+resource_name = ""
+content_margin_left = -1.0
+content_margin_top = -1.0
+content_margin_right = -1.0
+content_margin_bottom = -1.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_xdtca"]
 
