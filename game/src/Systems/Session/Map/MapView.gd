@@ -32,6 +32,10 @@ const _action_select_add: StringName = &"select_add"
 
 var _drag_anchor: Vector2
 var _drag_active: bool = false
+# A left click waits for the release of the button, to tell it from dragging a selection box
+var _click_pending: bool = false
+var _click_press_position: Vector2 = Vector2.ZERO
+const _CLICK_DRAG_THRESHOLD: float = 6.0
 var _mouse_over_viewport: bool = true
 
 @export var _zoom_target_min: float = 0.075
@@ -307,13 +311,22 @@ func _unhandled_input(event: InputEvent) -> void:
 					)
 
 	elif event.is_action_pressed(_action_click):
+		# The province is selected when the button is released, and only if the mouse was not dragged, so that
+		# dragging a selection box over the armies does not select the province under its start
 		if _mouse_over_viewport:
-			# Check if the mouse is outside of bounds
-			if _map_mesh.is_valid_uv_coord(_mouse_pos_map):
-				province_clicked.emit(GameSingleton.get_province_number_from_uv_coords(_mouse_pos_map))
-				selectionMarkers.clear_selection_markers()
-			else:
-				print("Clicked outside the map!")
+			_click_pending = true
+			_click_press_position = get_window().get_mouse_position()
+	elif event.is_action_released(_action_click):
+		if _click_pending:
+			_click_pending = false
+			var moved: float = get_window().get_mouse_position().distance_to(_click_press_position)
+			if moved < _CLICK_DRAG_THRESHOLD and _mouse_over_viewport:
+				# Check if the mouse is outside of bounds
+				if _map_mesh.is_valid_uv_coord(_mouse_pos_map):
+					province_clicked.emit(GameSingleton.get_province_number_from_uv_coords(_mouse_pos_map))
+					selectionMarkers.clear_selection_markers()
+				else:
+					print("Clicked outside the map!")
 	elif event.is_action_pressed(_action_right_click):
 		if _mouse_over_viewport:
 			if _map_mesh.is_valid_uv_coord(_mouse_pos_map):

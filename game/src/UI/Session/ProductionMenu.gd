@@ -51,7 +51,45 @@ var _build_options: Array = []
 var _build_selected: int = -1
 
 var _states_by_province: Dictionary[int, Dictionary] = {}
-var _ownership_dialog: PanelContainer
+var _ownership_dialog: Control
+
+
+# Small pie chart of the owners of a factory that works as a button
+class _OwnerPie extends Control:
+	signal pressed
+
+	const STATE_COLOUR: Color = Color(0.3, 0.45, 0.75)
+	const INVESTOR_COLOUR: Color = Color(0.85, 0.55, 0.15)
+
+	var state_share: float = 1.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
+	func _draw() -> void:
+		var centre: Vector2 = size / 2.0
+		var radius: float = minf(size.x, size.y) / 2.0 - 1.5
+		_slice(centre, radius, 0.0, state_share, STATE_COLOUR)
+		_slice(centre, radius, state_share, 1.0, INVESTOR_COLOUR)
+		draw_arc(centre, radius, 0.0, TAU, 32, Color(0.05, 0.05, 0.05), 1.5)
+
+	func _slice(centre: Vector2, radius: float, from_share: float, to_share: float, colour: Color) -> void:
+		if to_share - from_share <= 0.002:
+			return
+		var start_angle: float = -PI / 2.0 + from_share * TAU
+		var end_angle: float = -PI / 2.0 + to_share * TAU
+		var points: PackedVector2Array = [centre]
+		var steps: int = maxi(2, int((to_share - from_share) * 32.0))
+		for i: int in steps + 1:
+			var angle: float = lerpf(start_angle, end_angle, float(i) / float(steps))
+			points.append(centre + Vector2(cos(angle), sin(angle)) * radius)
+		draw_colored_polygon(points, colour)
+
+	func _gui_input(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			pressed.emit()
+			accept_event()
 
 
 func _ready() -> void:
@@ -80,7 +118,7 @@ func _ready() -> void:
 	_setup_build_dialog()
 	_setup_mass_buttons()
 
-	_ownership_dialog = PanelContainer.new()
+	_ownership_dialog = Control.new()
 	_ownership_dialog.set_script(_OwnershipDialog)
 	add_child(_ownership_dialog)
 
@@ -290,13 +328,11 @@ func _setup_factory_panel(panel: Panel) -> void:
 				)
 		)
 
-	# Owner of the factory (state or investors), opens the dialog with the shares
-	var owner_button := Button.new()
+	# Owners of the factory: a small pie chart (state / investors), a click opens the window with the shares
+	var owner_button := _OwnerPie.new()
 	owner_button.name = "owner_button"
-	owner_button.flat = true
-	owner_button.position = Vector2(2, 78)
-	owner_button.size = Vector2(66, 18)
-	owner_button.add_theme_font_size_override(&"font_size", 10)
+	owner_button.position = Vector2(76, 58)
+	owner_button.size = Vector2(18, 18)
 	owner_button.pressed.connect(
 		func() -> void:
 			if panel.has_meta(&"factory"):
@@ -338,16 +374,19 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 			tr("Capitalists paid"), GUINode.float_to_string_dp(factory[&"private_cover"], 1),
 		]
 
-	var owner_button: Button = panel.get_node_or_null(^"./owner_button")
+	var owner_button: _OwnerPie = panel.get_node_or_null(^"./owner_button")
 	if owner_button:
-		var state_percent: int = roundi(float(factory[&"state_share"]) * 100.0)
+		var state_share: float = factory[&"state_share"]
+		var state_percent: int = roundi(state_share * 100.0)
 		owner_button.visible = factory[&"level"] > 0
-		owner_button.text = "Гос %d%%" % state_percent if state_percent >= 50 else "Част %d%%" % (100 - state_percent)
-		owner_button.tooltip_text = "Государство %d%%, инвесторы %d%%\nПостроен %s\nКазна завода: %s" % [
-			state_percent, 100 - state_percent,
-			"государством" if factory[&"built_by_state"] else "частными инвесторами",
-			GUINode.float_to_string_dp(factory[&"budget"], 0),
+		owner_button.state_share = state_share
+		owner_button.queue_redraw()
+		owner_button.tooltip_text = "%s\n%s %d%%, %s %d%%\n%s: %s" % [
+			tr("Owners of the factory (click for details)"),
+			tr("State"), state_percent, tr("investors"), 100 - state_percent,
+			tr("Factory funds"), GUINode.float_to_string_dp(factory[&"budget"], 0),
 		]
+
 	if _ownership_dialog and _ownership_dialog.is_showing(province_index, factory[&"building_type_index"]):
 		_ownership_dialog.update_factory(factory)
 

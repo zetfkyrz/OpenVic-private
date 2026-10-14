@@ -127,6 +127,7 @@ const VIDEO_MONITOR_SELECTION := &"video/monitor_selection"
 const VIDEO_REFRESH_RATE := &"video/refresh_rate"
 const VIDEO_QUALITY_PRESET := &"video/quality_preset"
 const VIDEO_DRAW_DISTANCE := &"video/draw_distance"
+const VIDEO_UNIT_ICON_SIZE := &"video/unit_icon_size"
 #
 # Audio Settings
 const AUDIO_MASTER_VOLUME := &"audio/master_volume"
@@ -235,6 +236,16 @@ func _init() -> void:
 		.set_description("Draw distance of unit and building models and unit icons, in percent relative to the default (-50..+50).")
 		.set_validate_fn(_draw_distance_validate)
 		.add_meta(&"display_name", "Draw Distance (%)")
+		.add_meta(&"type", TYPE_INT)
+		.add_meta(&"hint", PROPERTY_HINT_RANGE)
+		.add_meta(&"min", -50)
+		.add_meta(&"max", 50)
+		.add_meta(&"step", 1))
+
+	self.add_setting(Setting.new(VIDEO_UNIT_ICON_SIZE, 0)
+		.set_description("Size of the army icons on the map, in percent relative to the default (-50..+50).")
+		.set_validate_fn(_draw_distance_validate)
+		.add_meta(&"display_name", "Army Icon Size (%)")
 		.add_meta(&"type", TYPE_INT)
 		.add_meta(&"hint", PROPERTY_HINT_RANGE)
 		.add_meta(&"min", -50)

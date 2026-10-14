@@ -1,7 +1,7 @@
-extends PanelContainer
+extends "res://src/UI/Session/Vic2Window.gd"
 ## Central bank and credit: rates of the loans the country gives, tables of the loans it took and gave, the offers of the
 ## other countries, lending to groups of countries and loans to the capitalists of the states.
-## Built from plain Godot controls, opened from the budget screen.
+## A Victoria 2 style window (frame, close button, dragging), opened from the budget screen.
 
 const _TERM_NAMES: PackedStringArray = ["Краткосрочный (5 лет)", "Среднесрочный (10 лет)", "Долгосрочный (20 лет)"]
 const _TERM_TIPS: PackedStringArray = [
@@ -63,22 +63,14 @@ var _states: Array = []
 
 
 func _ready() -> void:
-	visible = false
-	custom_minimum_size = Vector2(920, 560)
-	set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	setup(Vector2(980, 600), "Центробанк и кредиты")
 
 	var root := VBoxContainer.new()
-	add_child(root)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.add_child(root)
 
-	var header := HBoxContainer.new()
-	root.add_child(header)
 	_summary = Label.new()
-	_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(_summary)
-	var close := Button.new()
-	close.text = "X"
-	close.pressed.connect(hide)
-	header.add_child(close)
+	root.add_child(_summary)
 
 	_tabs = TabContainer.new()
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -96,7 +88,7 @@ func _ready() -> void:
 
 func open(tab: int = 0) -> void:
 	_tabs.current_tab = clampi(tab, 0, _tabs.get_tab_count() - 1)
-	show()
+	open_window()
 	_refresh(true)
 
 

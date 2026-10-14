@@ -146,7 +146,8 @@ func _process(_delta: float) -> void:
 	var zoomed_out: bool = camera.position.y > _get_hide_height()
 
 	# Icons shrink a bit when zooming out
-	var icon_scale: float = _SIZE_FACTOR * clampf(
+	var size_setting: float = 1.0 + float(GameSettings.get_setting(GameSettings.VIDEO_UNIT_ICON_SIZE).value()) / 100.0
+	var icon_scale: float = _SIZE_FACTOR * size_setting * clampf(
 		_map_view._zoom_parchment_threshold * 1.2 / maxf(camera.position.y, 0.001), _MIN_SCALE, _MAX_SCALE
 	)
 

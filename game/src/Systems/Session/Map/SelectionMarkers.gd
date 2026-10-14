@@ -117,9 +117,10 @@ func update_selection_markers(
 
 func clear_selection_markers() -> void:
 	#no units should display
-	if multimesh.buffer.size() > INSTANCE_SOFT_CAP * TR_CUSTOM_SIZE:
+	if multimesh.instance_count > INSTANCE_SOFT_CAP:
 		#we exceeded the soft cap, reset instances to the minimum
-		# now that we are clearing
+		# now that we are clearing. The ids must be forgotten too, their indices do not exist after the reset.
+		id_to_index.clear()
 		setup()
 		return
 	else:

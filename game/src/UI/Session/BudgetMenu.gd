@@ -16,7 +16,7 @@ var _ind_sub_val_label: GUILabel
 # Which subsidised factories the state pays the losses of: all / state owned / by the share of ownership
 var _subsidy_mode_option: OptionButton
 const _CreditPanel: GDScript = preload("res://src/UI/Session/CreditPanel.gd")
-var _credit_panel: PanelContainer
+var _credit_panel: Control
 const _SUBSIDY_MODE_NAMES: PackedStringArray = [
 	"Субсидировать все предприятия", "Только государственные", "По доле владения",
 ]
@@ -79,7 +79,7 @@ func _ready() -> void:
 		bank_button.pressed.connect(func() -> void: _open_credit_panel(0))
 		budget_window.add_child(bank_button)
 
-	_credit_panel = PanelContainer.new()
+	_credit_panel = Control.new()
 	_credit_panel.set_script(_CreditPanel)
 	add_child(_credit_panel)
 

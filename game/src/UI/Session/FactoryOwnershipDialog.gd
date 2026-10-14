@@ -1,14 +1,13 @@
-extends PanelContainer
+extends "res://src/UI/Session/Vic2Window.gd"
 ## Dialog with the owners of a factory: a pie chart of the shares of the state and of the investors (capitalists),
 ## the finances of the factory and buttons to buy shares from the capitalists or sell shares to them.
-## Built from plain Godot controls, opened from the ownership button of a factory in ProductionMenu.
+## A Victoria 2 style window (frame, close button, dragging), opened from the ownership button of a factory.
 
 const _PERCENTS: PackedInt32Array = [10, 25, 100]
 
 var _province_index: int = -1
 var _building_type_index: int = -1
 
-var _title: Label
 var _pie: _Pie
 var _info: Label
 var _buy_buttons: Array[Button] = []
@@ -16,13 +15,13 @@ var _sell_buttons: Array[Button] = []
 
 
 class _Pie extends Control:
-	const STATE_COLOUR: Color = Color(0.25, 0.55, 0.95)
-	const INVESTOR_COLOUR: Color = Color(0.95, 0.65, 0.2)
+	const STATE_COLOUR: Color = Color(0.3, 0.45, 0.75)
+	const INVESTOR_COLOUR: Color = Color(0.85, 0.55, 0.15)
 
 	var state_share: float = 1.0
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(150, 150)
+		custom_minimum_size = Vector2(160, 160)
 		mouse_filter = Control.MOUSE_FILTER_STOP
 
 	func _draw() -> void:
@@ -56,46 +55,42 @@ class _Pie extends Control:
 
 
 func _ready() -> void:
-	visible = false
-	custom_minimum_size = Vector2(360, 0)
-	set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	setup(Vector2(520, 430), "")
 
 	var root := VBoxContainer.new()
-	add_child(root)
-
-	var header := HBoxContainer.new()
-	root.add_child(header)
-	_title = Label.new()
-	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(_title)
-	var close := Button.new()
-	close.text = "X"
-	close.pressed.connect(hide)
-	header.add_child(close)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override(&"separation", 8)
+	content.add_child(root)
 
 	var body := HBoxContainer.new()
+	body.add_theme_constant_override(&"separation", 14)
 	root.add_child(body)
 	_pie = _Pie.new()
 	body.add_child(_pie)
 	_info = Label.new()
 	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_info.custom_minimum_size = Vector2(190, 0)
+	_info.custom_minimum_size = Vector2(300, 0)
+	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(_info)
 
 	var buy_row := HBoxContainer.new()
+	buy_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(buy_row)
 	for percent: int in _PERCENTS:
 		var button := Button.new()
 		button.text = "Выкупить %d%%" % percent if percent < 100 else "Выкупить всё"
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(_on_trade_pressed.bind(percent, true))
 		buy_row.add_child(button)
 		_buy_buttons.append(button)
 
 	var sell_row := HBoxContainer.new()
+	sell_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(sell_row)
 	for percent: int in _PERCENTS:
 		var button := Button.new()
 		button.text = "Продать %d%%" % percent if percent < 100 else "Продать всё"
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(_on_trade_pressed.bind(percent, false))
 		sell_row.add_child(button)
 		_sell_buttons.append(button)
@@ -106,7 +101,7 @@ func open(province_index: int, factory: Dictionary) -> void:
 	_province_index = province_index
 	_building_type_index = factory[&"building_type_index"]
 	update_factory(factory)
-	show()
+	open_window()
 
 
 func is_showing(province_index: int, building_type_index: int) -> bool:
@@ -122,7 +117,7 @@ func update_factory(factory: Dictionary) -> void:
 	_pie.state_share = state_share
 	_pie.queue_redraw()
 
-	_title.text = "%s: владельцы" % factory[&"name"]
+	set_title("%s: владельцы" % factory[&"name"])
 	var value: float = factory[&"value"]
 	_info.text = "\n".join([
 		"Государство: %d%%" % roundi(state_share * 100.0),
