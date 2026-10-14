@@ -149,6 +149,36 @@ namespace OpenVic {
 		bool assign_free_armies(int32_t front_id) const;
 		bool set_auto_plan(bool enabled) const;
 
+		// Selected army panel (A1):
+		// { id, name, province_number, province_identifier, province_name, regiments, strength, max_strength,
+		//   organisation (0..1), dig_in, dig_in_cap, moving, destination_number, destination_name, eta_days, in_combat,
+		//   supply (0..1), speed, front_id, leader_id (0 if none), leader: Dictionary of MenuSingleton.make_leader_dict,
+		//   units: [{ id, name, type_identifier, type_name, strength, max_strength, organisation, max_organisation,
+		//             pop_type, pop_culture }] }
+		godot::Dictionary get_army_details(int64_t army_id) const;
+		// Generals of the country: [{ leader_id, name, picture, tooltip, personality, background, prestige, army_id, army_name }]
+		godot::Array get_generals() const;
+		// Armies in the same province as the army that can be merged into it: [{ id, name, regiments }]
+		godot::Array get_mergeable_armies(int64_t army_id) const;
+		bool split_regiment(int64_t regiment_id) const;
+		bool merge_armies(int64_t target_army_id, int64_t source_army_id) const;
+		// leader_id = 0 takes the general off the army
+		bool set_army_leader(int64_t army_id, int64_t leader_id) const;
+		bool disband_regiment(int64_t regiment_id) const;
+		bool disband_army(int64_t army_id) const;
+
+		// Recruitment (A4/A7):
+		// { province_number, province_name, owned, regiment_types: [{ index, identifier, name, days, unlocked,
+		//     cost: [{ good_name, amount, have }] }],
+		//   pops: [{ id, type_name, culture_name, size, regiments, max_regiments, culture_ok, recruitable }] }
+		godot::Dictionary get_recruitment_info(int32_t province_number) const;
+		// Empty if the pop can recruit the regiment, otherwise the reason (Russian text for the player)
+		godot::String get_recruitment_block_reason(int32_t regiment_type_index, int32_t province_number, int32_t pop_id) const;
+		bool start_recruitment(int32_t regiment_type_index, int32_t province_number, int32_t pop_id) const;
+		// Recruitment orders of the player: [{ id, type_name, province_number, province_name, days_left, days_total }]
+		godot::Array get_recruitment_queue() const;
+		bool cancel_recruitment(int64_t order_id) const;
+
 		// Credit and the central bank
 		// { cash, central_bank: { internal_rate, external_rate }, total_debt, monthly_interest,
 		//   external_taken: [{ id, lender_index, lender_name, principal, remaining, rate, due, interest_paid }],

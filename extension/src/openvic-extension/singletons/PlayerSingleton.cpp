@@ -113,6 +113,19 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_front_army, { "front_id", "army_id", "assigned" });
 	OV_BIND_METHOD(PlayerSingleton::assign_free_armies, { "front_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_auto_plan, { "enabled" });
+	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_generals);
+	OV_BIND_METHOD(PlayerSingleton::get_mergeable_armies, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::split_regiment, { "regiment_id" });
+	OV_BIND_METHOD(PlayerSingleton::merge_armies, { "target_army_id", "source_army_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_leader, { "army_id", "leader_id" });
+	OV_BIND_METHOD(PlayerSingleton::disband_regiment, { "regiment_id" });
+	OV_BIND_METHOD(PlayerSingleton::disband_army, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_recruitment_info, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::get_recruitment_block_reason, { "regiment_type_index", "province_number", "pop_id" });
+	OV_BIND_METHOD(PlayerSingleton::start_recruitment, { "regiment_type_index", "province_number", "pop_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_recruitment_queue);
+	OV_BIND_METHOD(PlayerSingleton::cancel_recruitment, { "order_id" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_credit_overview);
 	OV_BIND_METHOD(PlayerSingleton::take_external_loan, { "lender_index", "amount", "term" });
@@ -1574,4 +1587,329 @@ Dictionary PlayerSingleton::get_tariff_info() const {
 	    static_cast<float>(player_country->get_administrative_efficiency_from_administrators_untracked());
 	result["tariff_efficiency"] = static_cast<float>(player_country->tariff_efficiency.get_untracked());
 	return result;
+}
+
+// Selected army panel and recruitment
+namespace {
+	ArmyInstance* get_player_army(InstanceManager& instance_manager, CountryInstance const* player, const int64_t army_id) {
+		UnitInstanceGroup* const group = instance_manager.get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+			static_cast<unique_id_t>(army_id)
+		);
+		if (group == nullptr || group->branch != unit_branch_t::LAND || &group->get_country() != player) {
+			return nullptr;
+		}
+		return static_cast<ArmyInstance*>(group);
+	}
+}
+
+Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	// Any army can be looked at, but only the armies of the player can be ordered
+	UnitInstanceGroup* const group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+		static_cast<unique_id_t>(army_id)
+	);
+	if (group == nullptr || group->branch != unit_branch_t::LAND) {
+		return result;
+	}
+	ArmyInstance const& army = static_cast<ArmyInstance const&>(*group);
+	CountryInstance const& country = army.get_country();
+
+	result["id"] = static_cast<int64_t>(army.unique_id);
+	result["name"] = convert_to<String>(army.get_name());
+	result["country_index"] = static_cast<int32_t>(type_safe::get(country.index));
+	result["country_name"] = Utilities::get_country_name(*menu_singleton, country);
+	result["is_player"] = &country == player_country;
+	result["province_number"] = static_cast<int32_t>(army.get_location().province_definition.get_province_number());
+	result["province_identifier"] = convert_to<String>(army.get_location().get_identifier());
+	result["province_name"] = menu_singleton->tr(convert_to<String>(army.get_location().get_identifier()));
+	result["regiments"] = static_cast<int32_t>(army.get_unit_count());
+	result["strength"] = static_cast<float>(army.get_total_strength());
+	result["max_strength"] = static_cast<float>(army.get_total_max_strength());
+	result["organisation"] = static_cast<float>(army.get_organisation_proportion());
+	result["dig_in"] = static_cast<int32_t>(army.get_dig_in_level());
+	result["dig_in_cap"] = static_cast<int32_t>(country.get_dig_in_cap());
+	result["moving"] = army.is_moving();
+	result["in_combat"] = army.is_in_combat();
+	result["supply"] = static_cast<float>(country.get_army_supply_ratio());
+	result["speed"] = static_cast<float>(army.get_movement_speed());
+	result["eta_days"] = army.get_movement_days_left();
+
+	ProvinceInstance const* destination = army.get_movement_destination_province();
+	result["destination_number"] =
+		destination != nullptr ? static_cast<int32_t>(destination->province_definition.get_province_number()) : 0;
+	result["destination_name"] =
+		destination != nullptr ? menu_singleton->tr(convert_to<String>(destination->get_identifier())) : String {};
+
+	int32_t front_id = 0;
+	for (Front const& front : instance_manager->get_war_manager().get_fronts()) {
+		if (front.country == &country) {
+			for (const unique_id_t front_army : front.army_ids) {
+				if (front_army == army.unique_id) {
+					front_id = static_cast<int32_t>(front.id);
+				}
+			}
+		}
+	}
+	result["front_id"] = front_id;
+
+	LeaderInstance const* leader = army.get_leader();
+	result["leader_id"] = leader != nullptr ? static_cast<int64_t>(leader->unique_id) : 0;
+	if (leader != nullptr) {
+		result["leader"] = menu_singleton->make_leader_dict(*leader);
+	}
+
+	Array units;
+	for (UnitInstance const& unit : army.get_units()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int64_t>(unit.unique_id);
+		entry["name"] = convert_to<String>(unit.get_name());
+		entry["type_identifier"] = convert_to<String>(unit.unit_type.get_identifier());
+		entry["type_name"] = menu_singleton->tr(convert_to<String>(unit.unit_type.get_identifier()));
+		entry["strength"] = static_cast<float>(unit.get_strength());
+		entry["max_strength"] = static_cast<float>(unit.get_max_strength());
+		entry["organisation"] = static_cast<float>(unit.get_organisation());
+		entry["max_organisation"] = static_cast<float>(unit.get_max_organisation());
+		Pop const* pop = static_cast<RegimentInstance const&>(unit).get_pop();
+		entry["pop_type"] = pop != nullptr ? menu_singleton->tr(convert_to<String>(pop->get_type().get_identifier())) : String {};
+		entry["pop_culture"] =
+			pop != nullptr ? menu_singleton->tr(convert_to<String>(pop->culture.get_identifier())) : String {};
+		units.push_back(entry);
+	}
+	result["units"] = units;
+
+	return result;
+}
+
+Array PlayerSingleton::get_generals() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	for (LeaderInstance const& leader : player_country->get_leaders<unit_branch_t::LAND>()) {
+		Dictionary entry = menu_singleton->make_leader_dict(leader);
+		entry = entry.duplicate();
+		entry["leader_id"] = static_cast<int64_t>(leader.unique_id);
+		entry["prestige"] = static_cast<float>(leader.get_prestige());
+		entry["personality"] = leader.get_personality() != nullptr
+			? menu_singleton->tr(convert_to<String>(leader.get_personality()->get_identifier())) : String {};
+		entry["background"] = leader.get_background() != nullptr
+			? menu_singleton->tr(convert_to<String>(leader.get_background()->get_identifier())) : String {};
+		UnitInstanceGroup const* group = leader.get_unit_instance_group();
+		entry["army_id"] = group != nullptr ? static_cast<int64_t>(group->unique_id) : 0;
+		entry["army_name"] = group != nullptr ? convert_to<String>(group->get_name()) : String {};
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Array PlayerSingleton::get_mergeable_armies(int64_t army_id) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	ArmyInstance* const army = get_player_army(*instance_manager, player_country, army_id);
+	if (army == nullptr) {
+		return result;
+	}
+	for (ArmyInstance const& other : army->get_location().get_armies()) {
+		if (&other == army || &other.get_country() != player_country || other.is_moving() || other.is_in_combat()) {
+			continue;
+		}
+		Dictionary entry;
+		entry["id"] = static_cast<int64_t>(other.unique_id);
+		entry["name"] = convert_to<String>(other.get_name());
+		entry["regiments"] = static_cast<int32_t>(other.get_unit_count());
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::split_regiment(int64_t regiment_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstance* const unit =
+		instance_manager->get_unit_instance_manager().get_unit_instance_by_unique_id(static_cast<unique_id_t>(regiment_id));
+	ERR_FAIL_NULL_V(unit, false);
+	ArmyInstance* const army = instance_manager->get_unit_instance_manager().get_army_of_regiment(
+		static_cast<RegimentInstance&>(*unit)
+	);
+	ERR_FAIL_COND_V(army == nullptr || &army->get_country() != player_country, false);
+	return instance_manager->queue_game_action<split_regiment_argument_t>(static_cast<unique_id_t>(regiment_id));
+}
+
+bool PlayerSingleton::merge_armies(int64_t target_army_id, int64_t source_army_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, target_army_id), false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, source_army_id), false);
+	return instance_manager->queue_game_action<merge_armies_argument_t>(
+		static_cast<unique_id_t>(target_army_id), static_cast<unique_id_t>(source_army_id)
+	);
+}
+
+bool PlayerSingleton::set_army_leader(int64_t army_id, int64_t leader_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, army_id), false);
+	return instance_manager->queue_game_action<set_army_leader_argument_t>(
+		static_cast<unique_id_t>(army_id), static_cast<unique_id_t>(leader_id)
+	);
+}
+
+bool PlayerSingleton::disband_regiment(int64_t regiment_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstance* const unit =
+		instance_manager->get_unit_instance_manager().get_unit_instance_by_unique_id(static_cast<unique_id_t>(regiment_id));
+	ERR_FAIL_NULL_V(unit, false);
+	ArmyInstance* const army = instance_manager->get_unit_instance_manager().get_army_of_regiment(
+		static_cast<RegimentInstance&>(*unit)
+	);
+	ERR_FAIL_COND_V(army == nullptr || &army->get_country() != player_country, false);
+	return instance_manager->queue_game_action<disband_regiment_argument_t>(static_cast<unique_id_t>(regiment_id));
+}
+
+bool PlayerSingleton::disband_army(int64_t army_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_NULL_V(get_player_army(*instance_manager, player_country, army_id), false);
+	return instance_manager->queue_game_action<disband_army_argument_t>(static_cast<unique_id_t>(army_id));
+}
+
+Dictionary PlayerSingleton::get_recruitment_info(int32_t province_number) const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, result);
+
+	result["province_number"] = province_number;
+	result["province_name"] = menu_singleton->tr(convert_to<String>(province->get_identifier()));
+	result["owned"] = province->get_owner() == player_country && province->get_controller() == player_country;
+
+	Array regiment_types;
+	for (RegimentType const& regiment_type :
+		 game_singleton->get_definition_manager().get_military_manager().get_unit_type_manager().get_regiment_types()) {
+		Dictionary entry;
+		entry["index"] = static_cast<int32_t>(type_safe::get(regiment_type.index));
+		entry["identifier"] = convert_to<String>(regiment_type.get_identifier());
+		entry["name"] = menu_singleton->tr(convert_to<String>(regiment_type.get_identifier()));
+		entry["days"] = UnitInstanceManager::get_recruitment_days(*player_country, regiment_type);
+		entry["unlocked"] = player_country->is_unit_type_unlocked(regiment_type);
+
+		Array cost;
+		for (auto const& [good, amount] : regiment_type.get_build_cost()) {
+			Dictionary cost_entry;
+			cost_entry["good_name"] = menu_singleton->tr(convert_to<String>(good->get_identifier()));
+			cost_entry["amount"] = static_cast<float>(amount);
+			cost_entry["have"] = static_cast<float>(player_country->get_good_data(*good).stockpile_amount);
+			cost.push_back(cost_entry);
+		}
+		entry["cost"] = cost;
+		regiment_types.push_back(entry);
+	}
+	result["regiment_types"] = regiment_types;
+
+	Array pops;
+	for (Pop const& pop : province->get_pops()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(type_safe::get(pop.id_in_province));
+		entry["type_name"] = menu_singleton->tr(convert_to<String>(pop.get_type().get_identifier()));
+		entry["culture_name"] = menu_singleton->tr(convert_to<String>(pop.culture.get_identifier()));
+		entry["size"] = static_cast<int32_t>(type_safe::get(pop.get_size()));
+		entry["regiments"] = static_cast<int32_t>(pop.get_regiment_count());
+		entry["max_regiments"] = static_cast<int32_t>(pop.get_max_supported_regiments());
+		entry["recruitable"] = pop.get_type().can_be_recruited;
+		entry["culture_ok"] = Pop::is_culture_status_allowed(
+			player_country->get_allowed_regiment_cultures(), pop.get_culture_status()
+		);
+		pops.push_back(entry);
+	}
+	result["pops"] = pops;
+
+	return result;
+}
+
+String PlayerSingleton::get_recruitment_block_reason(int32_t regiment_type_index, int32_t province_number, int32_t pop_id) const {
+	ERR_FAIL_NULL_V(player_country, String {});
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, String {});
+
+	RegimentType const* regiment_type = game_singleton->get_definition_manager().get_military_manager()
+		.get_unit_type_manager().get_regiment_type_by_index(regiment_type_index_t(regiment_type_index));
+	ERR_FAIL_NULL_V(regiment_type, String {});
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, String {});
+	Pop const* pop = province->find_pop_by_id(pop_id_in_province_t(static_cast<size_t>(pop_id)));
+	ERR_FAIL_NULL_V(pop, String {});
+
+	return String::utf8(
+		UnitInstanceManager::get_recruitment_block_reason(*player_country, *regiment_type, *province, *pop).data()
+	);
+}
+
+bool PlayerSingleton::start_recruitment(int32_t regiment_type_index, int32_t province_number, int32_t pop_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	ERR_FAIL_COND_V(province->get_owner() != player_country, false);
+
+	return instance_manager->queue_game_action<start_land_unit_recruitment_argument_t>(
+		regiment_type_index_t(regiment_type_index), province->index, pop_id_in_province_t(static_cast<size_t>(pop_id))
+	);
+}
+
+Array PlayerSingleton::get_recruitment_queue() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	for (RecruitmentOrder const& order : instance_manager->get_unit_instance_manager().get_recruitment_orders()) {
+		if (order.country != player_country) {
+			continue;
+		}
+		Dictionary entry;
+		entry["id"] = static_cast<int64_t>(order.id);
+		entry["type_name"] = menu_singleton->tr(convert_to<String>(order.regiment_type->get_identifier()));
+		entry["province_number"] = static_cast<int32_t>(order.province->province_definition.get_province_number());
+		entry["province_name"] = menu_singleton->tr(convert_to<String>(order.province->get_identifier()));
+		entry["days_left"] = order.days_left;
+		entry["days_total"] = order.days_total;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::cancel_recruitment(int64_t order_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<cancel_recruitment_argument_t>(
+		player_country->index, static_cast<unique_id_t>(order_id)
+	);
 }

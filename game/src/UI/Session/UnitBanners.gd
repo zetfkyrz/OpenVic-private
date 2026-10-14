@@ -29,7 +29,12 @@ const _SIZE_FACTOR: float = 0.8
 const _SELECTED_MODULATE: Color = Color(1.5, 1.35, 0.6)
 const _ENEMY_FRAME: int = 3
 
+## The armies that are selected changed (ids of the armies of the player)
+signal selection_changed(army_ids: Array[int])
+
 var _map_view: MapView
+# The selection that was last announced with the signal
+var _announced_selection: Array[int] = []
 # key -> { panel: Panel, anchor: Vector2, position: Vector2, slot: int, slot_count: int, drop: float, ids: Array, ... }
 var _icons: Dictionary[String, Dictionary] = {}
 # Selected armies of the player by army id. Armies (not icons) are selected, because the icon of an army changes when it
@@ -116,6 +121,17 @@ func _update_all_selection_visuals() -> void:
 	for key: String in _icons:
 		_update_selection_visual(key)
 	_sync_selection_markers()
+	_announce_selection()
+
+
+# Tells the panel of the army about the selection when it changed
+func _announce_selection() -> void:
+	var ids: Array[int] = _get_selected_army_ids()
+	ids.sort()
+	if ids == _announced_selection:
+		return
+	_announced_selection = ids
+	selection_changed.emit(ids)
 
 
 # Orders every selected army to go to the province, with queued = true (Shift) the province is added to the end of the

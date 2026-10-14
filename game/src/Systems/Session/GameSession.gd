@@ -2,12 +2,17 @@ extends Node
 
 const _WarPanel: GDScript = preload("res://src/UI/Session/WarPanel.gd")
 const _UnitBanners: GDScript = preload("res://src/UI/Session/UnitBanners.gd")
+const _ArmyPanel: GDScript = preload("res://src/UI/Session/ArmyPanel.gd")
+const _RecruitmentWindow: GDScript = preload("res://src/UI/Session/RecruitmentWindow.gd")
+const _RECRUITMENT_KEY: Key = KEY_F7
 
 @export var _map_view: MapView
 @export var _model_manager: ModelManager
 @export var _game_session_menu: Control
 
 var _unit_banners: Control
+var _army_panel: Control
+var _recruitment_window: Control
 
 
 func _ready() -> void:
@@ -27,6 +32,16 @@ func _ready() -> void:
 	ui.add_child(_unit_banners)
 	ui.move_child(_unit_banners, 0)
 
+	# Panel of the selected armies and the window of the recruitment of regiments (F7)
+	_recruitment_window = Control.new()
+	_recruitment_window.set_script(_RecruitmentWindow)
+	ui.add_child(_recruitment_window)
+	_army_panel = Control.new()
+	_army_panel.set_script(_ArmyPanel)
+	ui.add_child(_army_panel)
+	_army_panel.set_recruitment_window(_recruitment_window)
+	_unit_banners.selection_changed.connect(_army_panel.show_armies)
+
 	_model_manager.generate_units()
 	_model_manager.generate_buildings()
 	MusicManager.generate_playlist()
@@ -44,6 +59,15 @@ func _notification(what: int) -> void:
 
 func _process(_delta: float) -> void:
 	GameSingleton.update_clock()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == _RECRUITMENT_KEY:
+		if _recruitment_window.visible:
+			_recruitment_window.close()
+		else:
+			_recruitment_window.open_for_province(0)
+		get_viewport().set_input_as_handled()
 
 # REQUIREMENTS:
 # * SS-42
