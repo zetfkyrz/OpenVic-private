@@ -126,6 +126,7 @@ const VIDEO_SCREEN_MODE := &"video/screen_mode"
 const VIDEO_MONITOR_SELECTION := &"video/monitor_selection"
 const VIDEO_REFRESH_RATE := &"video/refresh_rate"
 const VIDEO_QUALITY_PRESET := &"video/quality_preset"
+const VIDEO_DRAW_DISTANCE := &"video/draw_distance"
 #
 # Audio Settings
 const AUDIO_MASTER_VOLUME := &"audio/master_volume"
@@ -229,6 +230,16 @@ func _init() -> void:
 		.add_meta(&"hint", PROPERTY_HINT_ENUM)
 		.add_meta(&"values", GraphicsDetail.values())
 		.add_meta(&"display_values", GRAPHICS_DETAIL_DISPLAY_NAMES))
+
+	self.add_setting(Setting.new(VIDEO_DRAW_DISTANCE, 0)
+		.set_description("Draw distance of unit and building models and unit icons, in percent relative to the default (-50..+50).")
+		.set_validate_fn(_draw_distance_validate)
+		.add_meta(&"display_name", "Draw Distance (%)")
+		.add_meta(&"type", TYPE_INT)
+		.add_meta(&"hint", PROPERTY_HINT_RANGE)
+		.add_meta(&"min", -50)
+		.add_meta(&"max", 50)
+		.add_meta(&"step", 1))
 
 	# Audio Settings
 	self.add_setting(Setting.new(AUDIO_MASTER_VOLUME, 100)
@@ -397,6 +408,10 @@ func _refresh_rate_apply(stg: Setting) -> void:
 func _volume_apply(stg: Setting, bus_index: int) -> void:
 	const RATIO_FOR_LINEAR: float = 100
 	AudioServer.set_bus_volume_db(bus_index, linear_to_db(stg.value() / RATIO_FOR_LINEAR))
+
+
+func _draw_distance_validate(stg: Setting, val: Variant) -> bool:
+	return val >= stg.get_meta(&"min", -50) and val <= stg.get_meta(&"max", 50)
 
 
 func _volume_validate(stg: Setting, val: Variant) -> bool:

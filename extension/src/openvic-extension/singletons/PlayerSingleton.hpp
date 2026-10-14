@@ -83,6 +83,18 @@ namespace OpenVic {
 		// Array of { province_index, name, free_slots, factories: [...], buildable: [...] } for the states of the player
 		godot::Array get_production_info() const;
 		bool build_factory(int32_t province_index, int32_t building_type_index) const;
+		bool set_factory_subsidised(int32_t province_index, int32_t building_type_index, bool subsidised) const;
+		// Actions for all factories of the player country
+		bool set_all_factories_open(bool open) const;
+		bool set_all_factories_subsidised(bool subsidised) const;
+		bool expand_all_factories() const;
+		// 0 = the state pays all losses of subsidised factories, 1 = state owned factories only, 2 = by ownership share
+		bool set_subsidy_mode(int32_t mode) const;
+		// { mode, state_paid, capitalists_paid } the subsidies of yesterday
+		godot::Dictionary get_subsidy_info() const;
+		// The state buys / sells a part (in percent) of a factory from / to the capitalists
+		bool buy_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
+		bool sell_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
 		bool set_factory_open(int32_t province_index, int32_t building_type_index, bool open) const;
 
 		// Technology
@@ -118,6 +130,8 @@ namespace OpenVic {
 		//   auto_plan: bool, selected_province_number }
 		godot::Dictionary get_war_overview() const;
 		bool move_army(int64_t army_id, int32_t province_number) const;
+		// Adds the province to the end of the route of the army (Shift + right click)
+		bool queue_army_move(int64_t army_id, int32_t province_number) const;
 		bool stop_army(int64_t army_id) const;
 		// peace_type: 0 = white peace, 1 = take the states occupied by us, 2 = give the states occupied by the enemy
 		bool propose_peace(int32_t war_id, int32_t peace_type) const;
@@ -131,6 +145,26 @@ namespace OpenVic {
 		bool set_front_army(int32_t front_id, int64_t army_id, bool assigned) const;
 		bool assign_free_armies(int32_t front_id) const;
 		bool set_auto_plan(bool enabled) const;
+
+		// Credit and the central bank
+		// { cash, central_bank: { internal_rate, external_rate }, total_debt, monthly_interest,
+		//   external_taken: [{ id, lender_index, lender_name, principal, remaining, rate, due, interest_paid }],
+		//   external_given: [{ id, borrower_index, borrower_name, principal, remaining, rate, due, interest_paid }],
+		//   internal_given: [{ id, province_index, province_identifier, principal, remaining, unspent, rate, term, grace_end, due,
+		//                      policy }],
+		//   offers: [{ lender_index, lender_name, max_amount, rate }],
+		//   states: [{ province_index, province_identifier, capitalist_money, capitalists }],
+		//   selected_targets: [country_index], alliance_requests: [{ from_index, from_name, date }] }
+		godot::Dictionary get_credit_overview() const;
+		bool take_external_loan(int32_t lender_index, float amount, int32_t term) const;
+		// group: 0 = all countries, 1 = allies, 2 = friends (relations above 100), 3 = the selected countries
+		bool give_external_loans(int32_t group, float amount_each, float rate, int32_t term) const;
+		bool stage_loan_target(int32_t country_index, bool selected) const;
+		// term: 0 = 5 years, 1 = 10 years, 2 = 20 years; policy: 0 = forgive, 1 = soft collection, 2 = hard collection
+		bool give_internal_loan(int32_t province_index, float amount, float rate, int32_t term, int32_t policy) const;
+		bool repay_loan(int32_t loan_id, float amount) const;
+		bool set_central_bank_rates(float internal_rate, float external_rate) const;
+		bool answer_alliance_request(int32_t from_index, bool accept) const;
 
 		// Military
 		// Argument true for general, false for admiral

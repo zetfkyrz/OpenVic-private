@@ -16,6 +16,20 @@ var _unit_signatures: Dictionary[int, int] = {}
 const _MOVE_TWEEN_TIME: float = 0.6
 
 
+func _process(_delta: float) -> void:
+	if not _map_view:
+		return
+
+	# The draw distance setting (-50..+50 %) scales the distance at which models are drawn
+	var factor: float = 1.0 + float(GameSettings.get_setting(GameSettings.VIDEO_DRAW_DISTANCE).value()) / 100.0
+	var model_range: float = _map_view.get_detailed_threshold() * factor
+	var height: float = _map_view.get_camera_height()
+
+	var models_visible: bool = height <= model_range
+	if visible != models_visible:
+		visible = models_visible
+
+
 func generate_units() -> void:
 	XACLoader.setup_flag_shader()
 

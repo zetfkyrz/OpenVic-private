@@ -18,6 +18,7 @@ namespace OpenVic {
 	struct CountryInstance;
 	class GUINode;
 	struct GUILabel;
+	class GUIPieChart;
 
 	struct BudgetMenu {
 	private:
@@ -40,6 +41,10 @@ namespace OpenVic {
 		SocialBudget social_budget;
 		TariffBudget tariff_budget;
 		memory::vector<StrataTaxBudget> tax_budgets;
+		// Pie charts of the classes (chart_0 to chart_2), one per strata, with a slice for each pop type of the strata
+		memory::vector<GUIPieChart*> strata_charts;
+
+		void update_strata_charts(CountryInstance const& country);
 
 		void update_projected_balance();
 		void update_projected_expenses();

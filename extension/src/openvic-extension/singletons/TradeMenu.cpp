@@ -90,7 +90,14 @@ Dictionary MenuSingleton::get_trade_menu_good_categories_info() const {
 
 				int32_t trade_settings = TRADE_SETTING_NONE;
 
-				if (good_data.is_selling) {
+				if (good_data.is_automated) {
+					// Automated goods are kept at the level of the government needs: the excess is sold, a lack is bought
+					if (good_data.stockpile_amount > good_data.government_needs) {
+						trade_settings = TRADE_SETTING_SELLING;
+					} else if (good_data.stockpile_amount < good_data.government_needs) {
+						trade_settings = TRADE_SETTING_BUYING;
+					}
+				} else if (good_data.is_selling) {
 					if (good_data.stockpile_amount > good_data.stockpile_cutoff) {
 						trade_settings = TRADE_SETTING_SELLING;
 					}

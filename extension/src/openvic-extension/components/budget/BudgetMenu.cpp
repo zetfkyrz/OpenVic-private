@@ -4,10 +4,18 @@
 
 #include <godot_cpp/core/error_macros.hpp>
 
+#include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/color.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
+
 #include <openvic-simulation/country/CountryInstance.hpp>
+#include <openvic-simulation/population/PopType.hpp>
 
 #include "openvic-extension/classes/GUILabel.hpp"
 #include "openvic-extension/classes/GUINode.hpp"
+#include "openvic-extension/classes/GUIPieChart.hpp"
+#include "openvic-extension/core/Convert.hpp"
+#include "openvic-extension/singletons/GameSingleton.hpp"
 #include "openvic-extension/singletons/PlayerSingleton.hpp"
 #include "openvic-extension/utility/Utilities.hpp"
 
@@ -50,6 +58,13 @@ BudgetMenu::BudgetMenu(
 
 	GUILabel::set_text_and_tooltip(parent, "./country_budget/gold_desc", "GOLD", "precious_metal_desc");
 	GUILabel::set_text_and_tooltip(parent, "./country_budget/ind_sub_desc", "BUDGET_INDUSTRIAL_SUBSIDIES", "IND_SUP_DESC");
+
+	strata_charts.resize(strata_keys.size(), nullptr);
+	for (Strata const& strata : strata_keys) {
+		strata_charts[static_cast<size_t>(type_safe::get(strata.index))] = parent.get_gui_pie_chart_from_nodepath(
+		    Utilities::format("./country_budget/chart_%d", static_cast<uint64_t>(type_safe::get(strata.index)))
+		);
+	}
 
 	projected_income_args.resize(5 + strata_keys.size());
 	projected_expenses_args.resize(8);
@@ -182,6 +197,61 @@ void BudgetMenu::update_all_projections() {
 		strata_tax_budget.F; \
 	}
 
+void BudgetMenu::update_strata_charts(CountryInstance const& country) {
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	ERR_FAIL_NULL(game_singleton);
+
+	// Slice of every pop type in the strata of its chart: the taxable income it provides, or its size while no income
+	// has been calculated yet. The colour is the colour of the pop type and the tooltip names it.
+	for (size_t chart_index = 0; chart_index < strata_charts.size(); ++chart_index) {
+		GUIPieChart* const chart = strata_charts[chart_index];
+		if (chart == nullptr) {
+			continue;
+		}
+
+		for (const bool use_income : { true, false }) {
+			godot::Array slices;
+			float total = 0.0f;
+
+			for (PopType const& pop_type : game_singleton->get_pop_types()) {
+				if (static_cast<size_t>(type_safe::get(pop_type.strata.index)) != chart_index) {
+					continue;
+				}
+
+				const float weight = use_income
+				                       ? static_cast<float>(country.get_taxable_income_by_pop_type().at_index(pop_type.index))
+				                       : static_cast<float>(type_safe::get(country.get_population_by_type()[pop_type.index]));
+				if (weight <= 0.0f) {
+					continue;
+				}
+				total += weight;
+
+				godot::Dictionary slice;
+				slice["identifier"] = convert_to<godot::String>(pop_type.get_identifier());
+				slice["colour"] = convert_to<godot::Color>(pop_type.get_colour());
+				slice["weight"] = weight;
+				// The tooltip is completed below, when the total is known
+				slice["tooltip"] = chart->tr(convert_to<godot::String>(pop_type.get_identifier()));
+				slices.push_back(slice);
+			}
+
+			if (total <= 0.0f) {
+				continue;
+			}
+
+			for (int64_t i = 0; i < slices.size(); ++i) {
+				godot::Dictionary slice = slices[i];
+				slice["tooltip"] = godot::String("%s: %d%%").replace("%s", slice["tooltip"]).replace(
+				    "%d", godot::String::num_int64(static_cast<int64_t>(100.0f * static_cast<float>(slice["weight"]) / total))
+				);
+			}
+
+			chart->set_slices_array(slices);
+			break;
+		}
+	}
+}
+
 void BudgetMenu::update() {
 	CountryInstance* const country_ptr = PlayerSingleton::get_singleton()->get_player_country();
 	ERR_FAIL_NULL(country_ptr);
@@ -205,6 +275,8 @@ void BudgetMenu::update() {
 	    gold_income_label.tr("BUDGET_GOLD_INCOME_DESC")
 	    // TODO add separator & list all province names + income if gold_income > 0
 	);
+	update_strata_charts(country);
+
 	const fixed_point_t cash_stockpile = country.get_cash_stockpile();
 	cash_stockpile_label.set_text(
 	    Utilities::format_with_currency(Utilities::float_to_string_suffixed(static_cast<float>(cash_stockpile)))

@@ -6,7 +6,13 @@ const _gui_file: String = "country_production"
 # Elements of the original window that are used, the rest belong to features that do not exist yet
 const _KEPT_ELEMENTS: PackedStringArray = [
 	"main_bg", "prod_bg", "headline_production", "close_button", "tab_factories", "tab_factories_text",
-	"state_listbox",
+	"state_listbox", "factory_buttons",
+]
+
+const _OwnershipDialog: GDScript = preload("res://src/UI/Session/FactoryOwnershipDialog.gd")
+# Elements of the "factory_buttons" window that belong to features that do not exist yet
+const _HIDDEN_BUTTONS: PackedStringArray = [
+	"select_all", "deselect_all", "show_empty_states", "sort_by_name", "sort_by_factories", "sort_by_infra", "filter_bounds",
 ]
 
 # Size of the "factory_info" window of the original interface
@@ -45,6 +51,7 @@ var _build_options: Array = []
 var _build_selected: int = -1
 
 var _states_by_province: Dictionary[int, Dictionary] = {}
+var _ownership_dialog: PanelContainer
 
 
 func _ready() -> void:
@@ -71,6 +78,11 @@ func _ready() -> void:
 	_state_listbox = GUINode.get_gui_listbox_from_node(_main_window.get_node_or_null(^"./state_listbox"))
 
 	_setup_build_dialog()
+	_setup_mass_buttons()
+
+	_ownership_dialog = PanelContainer.new()
+	_ownership_dialog.set_script(_OwnershipDialog)
+	add_child(_ownership_dialog)
 
 	_update_info()
 
@@ -199,12 +211,53 @@ func _update_state_entry(entry: Panel, state: Dictionary) -> void:
 		_update_factory_panel(bounds.get_child(i), state[&"province_index"], factories[i])
 
 
+# ---- Buttons for all factories ----
+
+
+func _setup_mass_buttons() -> void:
+	var buttons: Node = _main_window.get_node_or_null(^"./factory_buttons")
+	if not buttons:
+		return
+
+	for hidden_name: String in _HIDDEN_BUTTONS:
+		var node: Node = buttons.get_node_or_null(NodePath("./" + hidden_name))
+		if node is CanvasItem:
+			node.hide()
+
+	var actions: Dictionary[String, Callable] = {
+		"prod_subsidize_all": func() -> void: PlayerSingleton.set_all_factories_subsidised(true),
+		"prod_unsubsidize_all": func() -> void: PlayerSingleton.set_all_factories_subsidised(false),
+		"prod_open_all_factories": func() -> void: PlayerSingleton.set_all_factories_open(true),
+		"prod_close_all_factories": func() -> void: PlayerSingleton.set_all_factories_open(false),
+	}
+	var tips: Dictionary[String, String] = {
+		"prod_subsidize_all": "Субсидировать все заводы",
+		"prod_unsubsidize_all": "Снять субсидии со всех заводов",
+		"prod_open_all_factories": "Открыть все заводы",
+		"prod_close_all_factories": "Закрыть все заводы",
+	}
+	for button_name: String in actions:
+		var button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(buttons, NodePath("./" + button_name))
+		if button:
+			button.pressed.connect(actions[button_name])
+			button.tooltip_string = tips[button_name]
+
+	# The original window has no button for expanding all factories
+	var expand_all := Button.new()
+	expand_all.text = "+ все"
+	expand_all.tooltip_text = "Расширить все заводы страны на один уровень (дешёвые первыми, пока хватает денег)"
+	expand_all.position = Vector2(946, 116)
+	expand_all.size = Vector2(44, 22)
+	expand_all.pressed.connect(func() -> void: PlayerSingleton.expand_all_factories())
+	buttons.add_child(expand_all)
+
+
 # ---- Factories ----
 
 
 func _setup_factory_panel(panel: Panel) -> void:
 	# Features that do not exist yet
-	for hidden_name: NodePath in [^"./subsidise", ^"./priority", ^"./prod_cancel_progress", ^"./delete_factory"]:
+	for hidden_name: NodePath in [^"./priority", ^"./prod_cancel_progress", ^"./delete_factory"]:
 		var node: Node = panel.get_node_or_null(hidden_name)
 		if node is CanvasItem:
 			node.hide()
@@ -223,6 +276,33 @@ func _setup_factory_panel(panel: Panel) -> void:
 		var toggle_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, button_name)
 		if toggle_button:
 			toggle_button.pressed.connect(toggle_open)
+
+	var subsidise_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./subsidise")
+	if subsidise_button:
+		subsidise_button.pressed.connect(
+			func() -> void:
+				if not panel.has_meta(&"building_type_index"):
+					return
+				PlayerSingleton.set_factory_subsidised(
+					panel.get_meta(&"province_index"),
+					panel.get_meta(&"building_type_index"),
+					not panel.get_meta(&"subsidised", false)
+				)
+		)
+
+	# Owner of the factory (state or investors), opens the dialog with the shares
+	var owner_button := Button.new()
+	owner_button.name = "owner_button"
+	owner_button.flat = true
+	owner_button.position = Vector2(2, 78)
+	owner_button.size = Vector2(66, 18)
+	owner_button.add_theme_font_size_override(&"font_size", 10)
+	owner_button.pressed.connect(
+		func() -> void:
+			if panel.has_meta(&"factory"):
+				_ownership_dialog.open(panel.get_meta(&"province_index"), panel.get_meta(&"factory"))
+	)
+	panel.add_child(owner_button)
 
 	var upgrade_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./upgrade")
 	if upgrade_button:
@@ -244,6 +324,32 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 	panel.set_meta(&"province_index", province_index)
 	panel.set_meta(&"building_type_index", factory[&"building_type_index"])
 	panel.set_meta(&"open", factory[&"open"])
+	panel.set_meta(&"subsidised", factory[&"subsidised"])
+	panel.set_meta(&"factory", factory)
+
+	# Subsidy: a subsidised factory is highlighted, the tooltip shows what the state and the capitalists paid yesterday
+	var subsidise_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./subsidise")
+	if subsidise_button:
+		subsidise_button.visible = factory[&"level"] > 0
+		subsidise_button.modulate = Color(1.4, 1.3, 0.5) if factory[&"subsidised"] else Color.WHITE
+		subsidise_button.tooltip_string = "%s\n%s: %s, %s: %s" % [
+			tr("Subsidise") if not factory[&"subsidised"] else tr("Remove the subsidy"),
+			tr("State paid"), GUINode.float_to_string_dp(factory[&"subsidy"], 1),
+			tr("Capitalists paid"), GUINode.float_to_string_dp(factory[&"private_cover"], 1),
+		]
+
+	var owner_button: Button = panel.get_node_or_null(^"./owner_button")
+	if owner_button:
+		var state_percent: int = roundi(float(factory[&"state_share"]) * 100.0)
+		owner_button.visible = factory[&"level"] > 0
+		owner_button.text = "Гос %d%%" % state_percent if state_percent >= 50 else "Част %d%%" % (100 - state_percent)
+		owner_button.tooltip_text = "Государство %d%%, инвесторы %d%%\nПостроен %s\nКазна завода: %s" % [
+			state_percent, 100 - state_percent,
+			"государством" if factory[&"built_by_state"] else "частными инвесторами",
+			GUINode.float_to_string_dp(factory[&"budget"], 0),
+		]
+	if _ownership_dialog and _ownership_dialog.is_showing(province_index, factory[&"building_type_index"]):
+		_ownership_dialog.update_factory(factory)
 
 	var level: int = factory[&"level"]
 	var constructing: bool = factory[&"constructing"]
