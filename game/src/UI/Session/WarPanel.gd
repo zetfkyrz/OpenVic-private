@@ -24,6 +24,8 @@ var _auto_create_check: CheckButton
 var _auto_assign_check: CheckButton
 var _general_ids: Array[int] = []
 
+var _blockade_info: Label
+
 var _fronts_list: ItemList
 var _front_info: Label
 var _enemy_option: OptionButton
@@ -70,6 +72,7 @@ func _ready() -> void:
 	_build_wars_tab()
 	_build_armies_tab()
 	_build_generals_tab()
+	_build_blockade_tab()
 	_build_fronts_tab()
 
 	GameSingleton.gamestate_updated.connect(_refresh)
@@ -204,7 +207,7 @@ func _on_unassign_general_pressed() -> void:
 	var leader_id: int = _get_selected_id(_generals_list, _general_ids)
 	if leader_id <= 0:
 		return
-	for general: Dictionary in PlayerSingleton.get_generals():
+	for general: Dictionary in PlayerSingleton.get_generals() + PlayerSingleton.get_admirals():
 		if general["leader_id"] == leader_id and general["army_id"] != 0:
 			PlayerSingleton.set_army_leader(general["army_id"], 0)
 
@@ -215,18 +218,57 @@ func _refresh_generals() -> void:
 		return
 	_auto_create_check.button_pressed = settings["auto_create"]
 	_auto_assign_check.button_pressed = settings["auto_assign"]
-	_fill_list(_generals_list, _general_ids, PlayerSingleton.get_generals(), &"leader_id", func(general: Dictionary) -> String:
+	var leaders: Array = PlayerSingleton.get_generals()
+	for admiral: Dictionary in PlayerSingleton.get_admirals():
+		admiral["is_admiral"] = true
+		leaders.append(admiral)
+	_fill_list(_generals_list, _general_ids, leaders, &"leader_id", func(general: Dictionary) -> String:
 		var assignment: String = "свободен"
 		if general["army_id"] != 0:
 			assignment = "ведёт %s" % general["army_name"]
-		return "%s, %s, %s, престиж %.2f - %s" % [
-			general.get("leader_name", "?"), general["personality"], general["background"], general["prestige"], assignment,
+		return "%s%s, %s, %s, престиж %.2f - %s" % [
+			"[адмирал] " if general.get("is_admiral", false) else "", general.get("leader_name", "?"),
+			general["personality"], general["background"], general["prestige"], assignment,
 		]
 	)
 	_general_info.text = "Очки лидерства: %.0f (+%.1f в месяц), генерал стоит %.0f.%s" % [
 		settings["leadership_points"], settings["monthly_leadership_points"], settings["leader_cost"],
 		"" if settings["can_create"] else " Не хватает очков для нового генерала.",
 	]
+
+
+# Blockade
+
+func _build_blockade_tab() -> void:
+	var tab := _make_tab("Блокада")
+	_blockade_info = Label.new()
+	_blockade_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_blockade_info.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tab.add_child(_blockade_info)
+
+
+func _refresh_blockade() -> void:
+	var info: Dictionary = PlayerSingleton.get_blockade_info()
+	if info.is_empty():
+		return
+	var lines: PackedStringArray = []
+	lines.append("Доля ваших портов под блокадой: %d%%. Блокада режет снабжение армий (вдвое слабее, чем доля портов)." % \
+		roundi(float(info["share"]) * 100.0))
+	lines.append("")
+	lines.append("Ваши блокированные порты:")
+	for port: Dictionary in info["our_blockaded_ports"]:
+		lines.append("  " + str(port["name"]))
+	if info["our_blockaded_ports"].is_empty():
+		lines.append("  нет")
+	lines.append("")
+	lines.append("Порты врага, которые блокируют ваши флоты:")
+	for port: Dictionary in info["enemy_blockaded_ports"]:
+		lines.append("  %s (%s)" % [port["name"], port["owner"]])
+	if info["enemy_blockaded_ports"].is_empty():
+		lines.append("  нет")
+	lines.append("")
+	lines.append("Блокада: флот воюющей страны стоит в море у порта и там нет флота владельца порта или его союзников.")
+	_blockade_info.text = "\n".join(lines)
 
 
 # Fronts
@@ -393,6 +435,7 @@ func _refresh() -> void:
 				_enemy_option.add_item(enemy["name"])
 
 	_refresh_generals()
+	_refresh_blockade()
 
 	_updating = false
 	_update_details()

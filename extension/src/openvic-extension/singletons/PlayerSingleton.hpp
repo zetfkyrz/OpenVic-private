@@ -158,6 +158,8 @@ namespace OpenVic {
 		godot::Dictionary get_army_details(int64_t army_id) const;
 		// Generals of the country: [{ leader_id, name, picture, tooltip, personality, background, prestige, army_id, army_name }]
 		godot::Array get_generals() const;
+		// The same for admirals (leaders of fleets)
+		godot::Array get_admirals() const;
 		// Armies in the same province as the army that can be merged into it: [{ id, name, regiments }]
 		godot::Array get_mergeable_armies(int64_t army_id) const;
 		// { auto_create, auto_assign, leadership_points, monthly_leadership_points, leader_cost, can_create }
@@ -171,6 +173,19 @@ namespace OpenVic {
 		bool set_army_leader(int64_t army_id, int64_t leader_id) const;
 		bool disband_regiment(int64_t regiment_id) const;
 		bool disband_army(int64_t army_id) const;
+
+		// Fleets (A8-A10): details of a fleet are returned by get_army_details with is_navy = true:
+		// + docked, capacity, carried_regiments, carried: [{ id, name, regiments }], loadable: [{ id, name, regiments }] (armies in
+		//   the port), landing_targets: [{ number, name, hostile }], blockading, units: [{ ..., hull, gun_power, is_transport }]
+		bool load_army(int64_t army_id, int64_t navy_id) const;
+		bool unload_army(int64_t army_id) const;
+		bool land_army(int64_t army_id, int32_t province_number) const;
+		// Ship types with the reason that one cannot be built in the port of the province (empty if it can):
+		// [{ index, identifier, name, days, unlocked, transport, hull, gun_power, min_port_level, reason, cost: [...] }]
+		godot::Array get_ship_types(int32_t province_number) const;
+		bool start_ship_building(int32_t ship_type_index, int32_t province_number) const;
+		// { share, our_blockaded_ports: [{ number, name, owner }], enemy_blockaded_ports: [...] }
+		godot::Dictionary get_blockade_info() const;
 
 		// Recruitment (A4/A7):
 		// { province_number, province_name, owned, regiment_types: [{ index, identifier, name, days, unlocked,

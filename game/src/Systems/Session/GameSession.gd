@@ -3,6 +3,7 @@ extends Node
 const _WarPanel: GDScript = preload("res://src/UI/Session/WarPanel.gd")
 const _UnitBanners: GDScript = preload("res://src/UI/Session/UnitBanners.gd")
 const _ArmyPanel: GDScript = preload("res://src/UI/Session/ArmyPanel.gd")
+const _FleetPanel: GDScript = preload("res://src/UI/Session/FleetPanel.gd")
 const _RecruitmentWindow: GDScript = preload("res://src/UI/Session/RecruitmentWindow.gd")
 const _RECRUITMENT_KEY: Key = KEY_F7
 
@@ -12,6 +13,7 @@ const _RECRUITMENT_KEY: Key = KEY_F7
 
 var _unit_banners: Control
 var _army_panel: Control
+var _fleet_panel: Control
 var _recruitment_window: Control
 
 
@@ -40,7 +42,11 @@ func _ready() -> void:
 	_army_panel.set_script(_ArmyPanel)
 	ui.add_child(_army_panel)
 	_army_panel.set_recruitment_window(_recruitment_window)
-	_unit_banners.selection_changed.connect(_army_panel.show_armies)
+	_fleet_panel = Control.new()
+	_fleet_panel.set_script(_FleetPanel)
+	ui.add_child(_fleet_panel)
+	_fleet_panel.set_recruitment_window(_recruitment_window)
+	_unit_banners.selection_changed.connect(_on_units_selected)
 
 	_model_manager.generate_units()
 	_model_manager.generate_buildings()
@@ -59,6 +65,22 @@ func _notification(what: int) -> void:
 
 func _process(_delta: float) -> void:
 	GameSingleton.update_clock()
+
+
+# Armies go to the panel of the army, fleets to the panel of the fleet
+func _on_units_selected(group_ids: Array[int]) -> void:
+	var army_ids: Array[int] = []
+	var fleet_ids: Array[int] = []
+	for group_id: int in group_ids:
+		var details: Dictionary = PlayerSingleton.get_army_details(group_id)
+		if details.is_empty():
+			continue
+		if details.get(&"is_navy", false):
+			fleet_ids.append(group_id)
+		else:
+			army_ids.append(group_id)
+	_army_panel.show_armies(army_ids)
+	_fleet_panel.show_fleets(fleet_ids)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

@@ -9,9 +9,13 @@ const _SIZE: Vector2 = Vector2(640, 600)
 var _province_number: int = 0
 var _info: Dictionary = {}
 var _selected_pop_id: int = -1
+var _ships_mode: bool = false
+var _ship_types: Array = []
 
 var _province_label: Label
+var _mode_option: OptionButton
 var _type_option: OptionButton
+var _pops_caption: Label
 var _cost_label: Label
 var _pops_tree: Tree
 var _reason_label: Label
@@ -45,8 +49,13 @@ func _ready() -> void:
 	var type_row := HBoxContainer.new()
 	type_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(type_row)
+	_mode_option = OptionButton.new()
+	_mode_option.add_item("Полки")
+	_mode_option.add_item("Корабли")
+	_mode_option.item_selected.connect(_on_mode_selected)
+	type_row.add_child(_mode_option)
 	var type_caption := Label.new()
-	type_caption.text = "Тип полка:"
+	type_caption.text = "Тип:"
 	type_row.add_child(type_caption)
 	_type_option = OptionButton.new()
 	_type_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -57,9 +66,9 @@ func _ready() -> void:
 	_cost_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root.add_child(_cost_label)
 
-	var pops_caption := Label.new()
-	pops_caption.text = "Население провинции:"
-	root.add_child(pops_caption)
+	_pops_caption = Label.new()
+	_pops_caption.text = "Население провинции:"
+	root.add_child(_pops_caption)
 
 	_pops_tree = Tree.new()
 	_pops_tree.columns = 5
@@ -110,13 +119,23 @@ func _ready() -> void:
 	GameSingleton.gamestate_updated.connect(_refresh)
 
 
-## Opens the window for the province, 0 or a negative number means the province selected on the map
-func open_for_province(province_number: int) -> void:
+## Opens the window for the province, 0 or a negative number means the province selected on the map.
+## With ships = true the window builds ships in the port of the province instead of recruiting regiments.
+func open_for_province(province_number: int, ships: bool = false) -> void:
 	_province_number = province_number if province_number > 0 else PlayerSingleton.get_selected_province_number()
 	_selected_pop_id = -1
 	_type_signature = ""
+	_ships_mode = ships
+	_mode_option.select(1 if ships else 0)
 	_refresh()
 	open_window()
+
+
+func _on_mode_selected(index: int) -> void:
+	_ships_mode = index == 1
+	_selected_pop_id = -1
+	_type_signature = ""
+	_refresh()
 
 
 func _refresh() -> void:
@@ -137,14 +156,23 @@ func _refresh() -> void:
 		return
 
 	_province_label.text = "Провинция: %s" % _info[&"province_name"]
+	_ship_types = PlayerSingleton.get_ship_types(_province_number) if _ships_mode else []
+	_pops_caption.visible = not _ships_mode
+	_pops_tree.visible = not _ships_mode
+	_recruit_button.text = "Построить корабль" if _ships_mode else "Набрать полк"
 	_update_types()
-	_update_pops()
+	if not _ships_mode:
+		_update_pops()
 	_update_cost_and_reason()
 
 
+func _get_types() -> Array:
+	return _ship_types if _ships_mode else _info.get(&"regiment_types", [])
+
+
 func _update_types() -> void:
-	var types: Array = _info[&"regiment_types"]
-	var signature: String = ""
+	var types: Array = _get_types()
+	var signature: String = "ships;" if _ships_mode else "regiments;"
 	for entry: Dictionary in types:
 		signature += "%d:%s;" % [entry[&"index"], entry[&"unlocked"]]
 	if signature == _type_signature:
@@ -178,7 +206,7 @@ func _get_selected_type_index() -> int:
 
 func _get_selected_type() -> Dictionary:
 	var index: int = _get_selected_type_index()
-	for entry: Dictionary in _info.get(&"regiment_types", []):
+	for entry: Dictionary in _get_types():
 		if entry[&"index"] == index:
 			return entry
 	return {}
@@ -226,6 +254,12 @@ func _update_cost_and_reason() -> void:
 		parts.append("%s: %.1f (на складе %.1f)" % [cost[&"good_name"], cost[&"amount"], cost[&"have"]])
 	_cost_label.text = "Стоимость из национального склада: " + (", ".join(parts) if not parts.is_empty() else "нет") \
 		+ ". Срок: %d дн." % type_entry[&"days"]
+
+	if _ships_mode:
+		# The reason is worked out by the simulation (port, level of the naval base, goods, ...)
+		_reason_label.text = type_entry[&"reason"]
+		_recruit_button.disabled = type_entry[&"reason"] != ""
+		return
 
 	if not _info[&"owned"]:
 		_reason_label.text = "Набор возможен только в своей провинции, не занятой врагом."
@@ -284,6 +318,9 @@ func _on_pop_deselected() -> void:
 
 
 func _on_recruit_pressed() -> void:
+	if _ships_mode:
+		PlayerSingleton.start_ship_building(_get_selected_type_index(), _province_number)
+		return
 	if _selected_pop_id < 0:
 		return
 	PlayerSingleton.start_recruitment(_get_selected_type_index(), _province_number, _selected_pop_id)
