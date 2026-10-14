@@ -78,9 +78,10 @@ func _update_unit_node(node: Node3D, unit: Dictionary) -> void:
 	var moving: bool = unit.get(&"moving", false)
 
 	if not node.position.is_equal_approx(target):
-		var previous_tween: Tween = node.get_meta(&"tween", null)
-		if previous_tween and previous_tween.is_valid():
-			previous_tween.kill()
+		if node.has_meta(&"tween"):
+			var previous_tween: Tween = node.get_meta(&"tween")
+			if previous_tween and previous_tween.is_valid():
+				previous_tween.kill()
 		var tween: Tween = create_tween()
 		tween.tween_property(node, "position", target, _MOVE_TWEEN_TIME)
 		node.set_meta(&"tween", tween)
