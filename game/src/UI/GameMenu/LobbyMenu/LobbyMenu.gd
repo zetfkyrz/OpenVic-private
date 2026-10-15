@@ -47,6 +47,7 @@ var _countries: Array = []
 var _sort_key: String = "rank"
 var _play_button: TextureButton
 var _filling: bool = false
+var _saves_tree: Tree
 
 
 func _ready() -> void:
@@ -91,8 +92,31 @@ func _build_original_layout() -> void:
 		scroll.get_parent().remove_child(scroll)
 		left.add_child(scroll)
 		scroll.position = Vector2(10, 12)
-		scroll.size = Vector2(220, 284)
+		scroll.size = Vector2(220, 150)
 		scroll.size_flags_vertical = Control.SIZE_FILL
+		# The old stub list of saves is replaced by the real save games (user://saves) below
+		game_select_save_tab.hide()
+		game_select_save_list.hide()
+
+	var saves_label := Label.new()
+	saves_label.text = "Сохранённые игры (двойной клик)"
+	saves_label.position = Vector2(14, 168)
+	saves_label.size = Vector2(212, 16)
+	saves_label.add_theme_font_size_override(&"font_size", 12)
+	saves_label.add_theme_color_override(&"font_color", _TEXT_COLOUR)
+	left.add_child(saves_label)
+	_saves_tree = Tree.new()
+	_saves_tree.columns = 2
+	_saves_tree.hide_root = true
+	_saves_tree.position = Vector2(10, 186)
+	_saves_tree.size = Vector2(220, 112)
+	_saves_tree.set_column_expand(1, false)
+	_saves_tree.set_column_custom_minimum_width(1, 70)
+	_saves_tree.add_theme_color_override(&"font_color", _TEXT_COLOUR)
+	_saves_tree.add_theme_font_size_override(&"font_size", 12)
+	_saves_tree.item_activated.connect(_on_save_activated)
+	left.add_child(_saves_tree)
+	_refresh_saves()
 
 	var sort_defs: Array = [
 		["Страна", "name", 14, 92], ["Пре", "prestige_rank", 128, 32],
@@ -215,6 +239,46 @@ func _make_play_style_button(text: String, preset: Control.LayoutPreset, offset:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(label)
 	return button
+
+
+func _refresh_saves() -> void:
+	if not _saves_tree:
+		return
+	_saves_tree.clear()
+	var root: TreeItem = _saves_tree.create_item()
+	var entries: Array = []
+	for file_name: String in DirAccess.get_files_at("user://saves"):
+		if file_name.get_extension() != "ovsave":
+			continue
+		var path: String = "user://saves/" + file_name
+		var header: Dictionary = GameSingleton.read_save_header(path)
+		if header.is_empty():
+			continue
+		entries.append({&"path": path, &"header": header, &"time": int(header.get("saved", "0"))})
+	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a[&"time"] > b[&"time"])
+	for entry: Dictionary in entries:
+		var item: TreeItem = _saves_tree.create_item(root)
+		var header: Dictionary = entry[&"header"]
+		item.set_text(0, "%s (%s)" % [(entry[&"path"] as String).get_file().get_basename(), header.get("country", "")])
+		item.set_text(1, header.get("date", ""))
+		item.set_tooltip_text(0, Time.get_datetime_string_from_unix_time(entry[&"time"], true))
+		item.set_metadata(0, entry[&"path"])
+
+
+# Loads a save game: the game is set up again from the bookmark and the country of the save, then the session scene
+# replays the saved actions (see GameSession)
+func _on_save_activated() -> void:
+	var item: TreeItem = _saves_tree.get_selected()
+	if item == null:
+		return
+	var header: Dictionary = GameSingleton.prepare_load_game(item.get_metadata(0))
+	if not header.has("valid"):
+		push_error("Failed to read the save game")
+		return
+	if GameSingleton.setup_game(int(header["bookmark"])) != OK 			or not PlayerSingleton.set_player_country_by_identifier(header["country"]):
+		push_error("Failed to set up the game from the save")
+		return
+	get_tree().change_scene_to_file("res://src/Systems/Session/GameSession.tscn")
 
 
 func _on_sort_pressed(key: String) -> void:
@@ -573,6 +637,7 @@ func _on_visibility_changed() -> void:
 	if visible:
 		_build_date_list()
 		_build_save_list()
+		_refresh_saves()
 	else:
 		_queue_clear_lists()
 
