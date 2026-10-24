@@ -12,7 +12,7 @@ uniform vec2 map_pixels;
 uniform float terrain_blur = 12.0;
 uniform float height_detail = 0.35;
 // Radius in map pixels over which the closeness to the coast is measured
-uniform float shore_distance = 40.0;
+uniform float shore_distance = 32.0;
 
 const int HEIGHT_TAPS = 32;
 const int COAST_TAPS = 24;
