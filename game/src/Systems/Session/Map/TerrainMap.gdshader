@@ -42,10 +42,12 @@ uniform int border_taps = 8;
 // Widths of the lines scale with the zoom so that they keep a similar width on the screen
 uniform float border_scale = 1.0;
 uniform vec4 border_colour = vec4(0.015, 0.015, 0.025, 1.0);
-uniform float border_opacity = 0.55;
-uniform float border_width = 1.5;
-uniform float glow_width = 6.0;
-uniform float glow_opacity = 0.2;
+uniform float border_opacity = 0.8;
+uniform float border_width = 1.1;
+uniform float glow_width = 8.0;
+uniform float glow_opacity = 0.45;
+uniform float tint_width = 26.0;
+uniform float tint_opacity = 0.65;
 uniform vec4 coast_colour = vec4(0.03, 0.04, 0.06, 1.0);
 uniform float coast_opacity = 0.55;
 uniform float coast_width = 1.1;
@@ -214,22 +216,32 @@ float border_fraction(vec2 uv, vec2 pixel_uv, float radius, int taps, vec4 centr
 	return different / float(taps);
 }
 
-// Dark smooth outlines of the countries (HOI4 style): a crisp line on the border, a soft glow inside next to it
-// and a thin line along the coast
+// Outlines of the countries in the style of HOI4: a crisp dark line on the border, a darker band of the country colour
+// next to it and a wide glow in the colour of the country that fades towards the inside. All of them are smooth, and a
+// thin line runs along the coast.
 vec3 apply_borders(vec3 colour, vec2 uv, vec2 pixel_uv) {
 	vec4 centre = flat_province_colour(uv);
 
 	float scale = border_scale * mix(1.0, 1.35, parchment_mix);
+	float fade = 1.0 - 0.4 * parchment_mix;
+
+	// Wide glow in the colour of the country
+	if (quality >= 1 && tint_opacity > 0.0 && centre.a > 0.5) {
+		float ft = border_fraction(uv, pixel_uv, tint_width * scale, quality >= 2 ? 12 : 8, centre, false);
+		vec3 tint = clamp(centre.rgb * 1.5 + 0.12, 0.0, 1.0);
+		colour = mix(colour, tint, smoothstep(0.0, 0.45, ft) * tint_opacity * fade);
+	}
+
+	// Darker band next to the line
+	if (quality >= 1 && glow_opacity > 0.0) {
+		float g = border_fraction(uv, pixel_uv, glow_width * scale, quality >= 2 ? 10 : 6, centre, false);
+		colour = mix(colour, mix(colour, border_colour.rgb, 0.8), smoothstep(0.0, 0.5, g) * glow_opacity * fade);
+	}
+
+	// Crisp line
 	float f = border_fraction(uv, pixel_uv, border_width * scale, border_taps, centre, false);
 	float line = smoothstep(0.03, 0.42, f);
-	float amount = line * border_opacity * mix(1.0, 0.7, parchment_mix);
-
-	if (quality >= 1 && glow_opacity > 0.0) {
-		int glow_taps = quality >= 2 ? 12 : 8;
-		float g = border_fraction(uv, pixel_uv, glow_width * scale, glow_taps, centre, false);
-		amount = max(amount, smoothstep(0.0, 0.5, g) * glow_opacity * (1.0 - 0.4 * parchment_mix));
-	}
-	colour = mix(colour, border_colour.rgb, clamp(amount, 0.0, 1.0));
+	colour = mix(colour, border_colour.rgb, clamp(line * border_opacity * mix(1.0, 0.7, parchment_mix), 0.0, 1.0));
 
 	if (quality >= 2 && coast_opacity > 0.0) {
 		float c = border_fraction(uv, pixel_uv, coast_width * scale, 8, centre, true);

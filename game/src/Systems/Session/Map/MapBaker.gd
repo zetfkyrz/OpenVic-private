@@ -21,12 +21,15 @@ var _quality: int = -1
 var _viewports: Array[SubViewport] = []
 var _bake_serial: int = 0
 var _watch_timer: Timer
+# Length of the shadows the textures were baked with (rebaked when the setting changes)
+var _baked_shadow_length: float = -1.0
 
 
 func setup(material: ShaderMaterial) -> void:
 	_material = material
 	_theme = load(_THEME_PATH)
 	_apply_theme()
+	_apply_shadow_darkness()
 	_apply_quality(_get_quality_setting())
 
 	# The quality can be changed in the options at any time
@@ -35,11 +38,27 @@ func setup(material: ShaderMaterial) -> void:
 	_watch_timer.autostart = true
 	_watch_timer.timeout.connect(
 		func() -> void:
+			_apply_shadow_darkness()
 			var wanted: int = _get_quality_setting()
-			if wanted != _quality:
+			if wanted != _quality or (_quality > 0 and absf(_get_shadow_length() - _baked_shadow_length) > 0.5):
 				_apply_quality(wanted)
 	)
 	add_child(_watch_timer)
+
+
+## Shadow settings of the options: on / off and two sliders (25..100 %, the maximum is the look of the theme)
+func _get_shadow_length() -> float:
+	var percent: float = float(GameSettings.get_setting(GameSettings.VIDEO_SHADOW_DISTANCE).value())
+	return _theme.shadow_length * clampf(percent, 25.0, 100.0) / 100.0
+
+
+func _apply_shadow_darkness() -> void:
+	var enabled: bool = GameSettings.get_setting(GameSettings.VIDEO_MAP_SHADOWS).value()
+	var percent: float = float(GameSettings.get_setting(GameSettings.VIDEO_SHADOW_DARKNESS).value())
+	var strength: float = 0.0
+	if enabled:
+		strength = _theme.shadow_strength * clampf(percent, 25.0, 100.0) / 100.0
+	_material.set_shader_parameter(&"shadow_strength", strength)
 
 
 func _get_quality_setting() -> int:
@@ -53,6 +72,8 @@ func _apply_theme() -> void:
 	m.set_shader_parameter(&"border_colour", t.border_colour)
 	m.set_shader_parameter(&"border_opacity", t.border_opacity)
 	m.set_shader_parameter(&"border_width", t.border_width)
+	m.set_shader_parameter(&"tint_width", t.tint_width)
+	m.set_shader_parameter(&"tint_opacity", t.tint_opacity)
 	m.set_shader_parameter(&"glow_width", t.glow_width)
 	m.set_shader_parameter(&"glow_opacity", t.glow_opacity)
 	m.set_shader_parameter(&"coast_colour", t.coast_colour)
@@ -61,7 +82,6 @@ func _apply_theme() -> void:
 	m.set_shader_parameter(&"relief_ambient", t.ambient)
 	m.set_shader_parameter(&"relief_diffuse", t.diffuse)
 	m.set_shader_parameter(&"sun_colour", Vector3(t.sun_colour.r, t.sun_colour.g, t.sun_colour.b))
-	m.set_shader_parameter(&"shadow_strength", t.shadow_strength)
 	m.set_shader_parameter(&"ao_strength", t.ao_strength)
 	m.set_shader_parameter(&"shallow_colour", Vector3(t.shallow_colour.r, t.shallow_colour.g, t.shallow_colour.b))
 	m.set_shader_parameter(&"deep_colour", Vector3(t.deep_colour.r, t.deep_colour.g, t.deep_colour.b))
@@ -143,7 +163,8 @@ func _bake(quality: int, serial: int) -> void:
 	light_material.set_shader_parameter(&"height_scale", t.height_scale)
 	light_material.set_shader_parameter(&"normal_strength", t.normal_strength)
 	light_material.set_shader_parameter(&"ao_radius", t.ao_radius)
-	light_material.set_shader_parameter(&"shadow_length", t.shadow_length)
+	_baked_shadow_length = _get_shadow_length()
+	light_material.set_shader_parameter(&"shadow_length", _baked_shadow_length)
 	light_material.set_shader_parameter(&"coast_cliff", t.coast_cliff)
 	var azimuth: float = deg_to_rad(t.sun_azimuth)
 	light_material.set_shader_parameter(&"sun_direction", Vector2(sin(azimuth), -cos(azimuth)))

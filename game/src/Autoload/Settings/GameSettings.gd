@@ -141,6 +141,9 @@ const VIDEO_MONITOR_SELECTION := &"video/monitor_selection"
 const VIDEO_REFRESH_RATE := &"video/refresh_rate"
 const VIDEO_QUALITY_PRESET := &"video/quality_preset"
 const VIDEO_MAP_QUALITY := &"video/map_quality"
+const VIDEO_MAP_SHADOWS := &"video/map_shadows"
+const VIDEO_SHADOW_DISTANCE := &"video/shadow_distance"
+const VIDEO_SHADOW_DARKNESS := &"video/shadow_darkness"
 const VIDEO_DRAW_DISTANCE := &"video/draw_distance"
 const VIDEO_UNIT_ICON_SIZE := &"video/unit_icon_size"
 #
@@ -255,6 +258,29 @@ func _init() -> void:
 		.add_meta(&"hint", PROPERTY_HINT_ENUM)
 		.add_meta(&"values", MapQuality.values())
 		.add_meta(&"display_values", MAP_QUALITY_DISPLAY_NAMES))
+
+	self.add_setting(Setting.new(VIDEO_MAP_SHADOWS, true)
+		.set_description("Shadows of the mountains on the map.")
+		.add_meta(&"display_name", "Map Shadows")
+		.add_meta(&"type", TYPE_BOOL))
+	self.add_setting(Setting.new(VIDEO_SHADOW_DISTANCE, 50)
+		.set_description("Length of the shadows of the mountains in percent of the maximum (25..100, the default is half of it).")
+		.set_validate_fn(_shadow_percent_validate)
+		.add_meta(&"display_name", "Shadow Distance (%)")
+		.add_meta(&"type", TYPE_INT)
+		.add_meta(&"hint", PROPERTY_HINT_RANGE)
+		.add_meta(&"min", 25)
+		.add_meta(&"max", 100)
+		.add_meta(&"step", 5))
+	self.add_setting(Setting.new(VIDEO_SHADOW_DARKNESS, 50)
+		.set_description("How dark the shadows of the mountains are in percent of the maximum (25..100, the default is half of it).")
+		.set_validate_fn(_shadow_percent_validate)
+		.add_meta(&"display_name", "Shadow Darkness (%)")
+		.add_meta(&"type", TYPE_INT)
+		.add_meta(&"hint", PROPERTY_HINT_RANGE)
+		.add_meta(&"min", 25)
+		.add_meta(&"max", 100)
+		.add_meta(&"step", 5))
 
 	self.add_setting(Setting.new(VIDEO_DRAW_DISTANCE, 0)
 		.set_description("Draw distance of unit and building models and unit icons, in percent relative to the default (-50..+50).")
@@ -447,6 +473,10 @@ func _refresh_rate_apply(stg: Setting) -> void:
 func _volume_apply(stg: Setting, bus_index: int) -> void:
 	const RATIO_FOR_LINEAR: float = 100
 	AudioServer.set_bus_volume_db(bus_index, linear_to_db(stg.value() / RATIO_FOR_LINEAR))
+
+
+func _shadow_percent_validate(stg: Setting, val: Variant) -> bool:
+	return val >= stg.get_meta(&"min", 25) and val <= stg.get_meta(&"max", 100)
 
 
 func _draw_distance_validate(stg: Setting, val: Variant) -> bool:

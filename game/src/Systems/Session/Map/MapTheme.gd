@@ -5,12 +5,15 @@ extends Resource
 @export_group("Borders")
 ## Colour of the dark outline of the countries
 @export var border_colour: Color = Color(0.015, 0.015, 0.025)
-@export_range(0.0, 1.0) var border_opacity: float = 0.55
+@export_range(0.0, 1.0) var border_opacity: float = 0.8
 ## Half width of the crisp line of a border
-@export_range(0.3, 6.0) var border_width: float = 1.5
-## How wide the soft inner glow (the "silhouette" of the country) next to the border is
-@export_range(0.0, 20.0) var glow_width: float = 6.0
-@export_range(0.0, 1.0) var glow_opacity: float = 0.2
+@export_range(0.3, 6.0) var border_width: float = 1.1
+## Dark band of the country colour right next to the line
+@export_range(0.0, 20.0) var glow_width: float = 8.0
+@export_range(0.0, 1.0) var glow_opacity: float = 0.45
+## Wide glow in the colour of the country that fades towards the inside of the country
+@export_range(0.0, 80.0) var tint_width: float = 26.0
+@export_range(0.0, 1.0) var tint_opacity: float = 0.65
 ## Line along the coasts
 @export var coast_colour: Color = Color(0.03, 0.04, 0.06)
 @export_range(0.0, 1.0) var coast_opacity: float = 0.55
@@ -38,7 +41,7 @@ extends Resource
 ## How far the light moves with the camera
 @export_range(0.0, 40.0) var light_sway: float = 12.0
 @export_range(0.0, 1.0) var shadow_strength: float = 0.65
-## Length of the baked shadows in map pixels
+## Longest shadows (map pixels) and the darkest shadow: the shadow settings in the options scale them down to a quarter
 @export_range(4.0, 200.0) var shadow_length: float = 60.0
 @export_range(0.0, 1.0) var ao_strength: float = 0.6
 ## Radius of the ambient occlusion in map pixels
