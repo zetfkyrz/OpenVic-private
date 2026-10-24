@@ -47,7 +47,7 @@ func _on_ground_changed() -> void:
 	_sync_units()
 	for building: Node3D in _building_nodes:
 		var map_position: Vector2 = building.get_meta(&"map_position")
-		building.position = _map_view._map_to_ground_coords(map_position) + Vector3(0, 0.1 * MODEL_SCALE, 0)
+		building.position = _map_view._map_to_standing_coords(map_position) + Vector3(0, 0.1 * MODEL_SCALE, 0)
 
 
 func _get_unit_signature(unit: Dictionary) -> int:
@@ -85,7 +85,7 @@ func _sync_units() -> void:
 
 # Moves an existing model to the position of its unit and plays the matching animation
 func _update_unit_node(node: Node3D, unit: Dictionary) -> void:
-	var target: Vector3 = _map_view._map_to_ground_coords(unit[&"position"]) + Vector3(0, 0.1 * MODEL_SCALE, 0)
+	var target: Vector3 = _map_view._map_to_standing_coords(unit[&"position"]) + Vector3(0, 0.1 * MODEL_SCALE, 0)
 	var moving: bool = unit.get(&"moving", false)
 
 	if not node.position.is_equal_approx(target):
@@ -160,7 +160,7 @@ func _generate_unit(unit_dict: Dictionary) -> Node3D:
 
 	model.scale *= MODEL_SCALE
 	model.rotate_y(PI + rotation)
-	model.set_position(_map_view._map_to_ground_coords(unit_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
+	model.set_position(_map_view._map_to_standing_coords(unit_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
 
 	if model is UnitModel:
 		model.current_anim = UnitModel.Anim.MOVE if unit_dict.get(&"moving", false) else UnitModel.Anim.IDLE
@@ -189,7 +189,7 @@ func _generate_building(building_dict: Dictionary) -> void:
 
 	model.scale *= MODEL_SCALE
 	model.rotate_y(PI + building_dict.get(rotation_key, 0.0))
-	model.set_position(_map_view._map_to_ground_coords(building_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
+	model.set_position(_map_view._map_to_standing_coords(building_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
 	model.set_meta(&"map_position", building_dict[position_key])
 	_building_nodes.append(model)
 

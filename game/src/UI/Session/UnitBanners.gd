@@ -176,7 +176,7 @@ func _process(_delta: float) -> void:
 			continue
 
 		# The same position as the unit's model, the icon is then lifted by a few pixels above it
-		var world_position: Vector3 = _map_view._map_to_ground_coords(icon[&"position"])
+		var world_position: Vector3 = _map_view._map_to_standing_coords(icon[&"position"])
 		if camera.is_position_behind(world_position):
 			panel.hide()
 			continue

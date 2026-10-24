@@ -25,6 +25,7 @@ var _watch_timer: Timer
 var _height_bytes: PackedByteArray
 var _height_size: Vector2i
 var _displacement: float = 0.0
+var _map_pixels: Vector2 = Vector2(5632, 2048)
 
 signal relief_ready
 # Length of the shadows the textures were baked with (rebaked when the setting changes)
@@ -33,6 +34,7 @@ var _baked_shadow_length: float = -1.0
 
 func setup(material: ShaderMaterial) -> void:
 	_material = material
+	_map_pixels = Vector2(GameSingleton.get_map_width(), GameSingleton.get_map_height())
 	_theme = load(_THEME_PATH)
 	_apply_theme()
 	_apply_shadow_darkness()
@@ -230,3 +232,18 @@ func get_ground_height(uv: Vector2) -> float:
 	var x: int = clampi(int(posmod(uv.x, 1.0) * _height_size.x), 0, _height_size.x - 1)
 	var y: int = clampi(int(uv.y * _height_size.y), 0, _height_size.y - 1)
 	return float(_height_bytes[(y * _height_size.x + x) * 4]) / 255.0 * _displacement
+
+
+## Height at which an object with a footprint of `radius_px` map pixels can stand on the slope: the highest ground
+## under it, so that the model is not sunk into the hill
+func get_standing_height(uv: Vector2, radius_px: float = 3.0) -> float:
+	if _height_bytes.is_empty():
+		return 0.0
+	var dx: float = radius_px / _map_pixels.x
+	var dy: float = radius_px / _map_pixels.y
+	var height: float = get_ground_height(uv)
+	height = maxf(height, get_ground_height(uv + Vector2(dx, 0.0)))
+	height = maxf(height, get_ground_height(uv - Vector2(dx, 0.0)))
+	height = maxf(height, get_ground_height(uv + Vector2(0.0, dy)))
+	height = maxf(height, get_ground_height(uv - Vector2(0.0, dy)))
+	return height

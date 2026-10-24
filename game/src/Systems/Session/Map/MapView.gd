@@ -191,6 +191,14 @@ func _map_to_ground_coords(pos: Vector2) -> Vector3:
 	return world
 
 
+## Position for objects with a footprint (models, icons) that stand on the highest ground under them
+func _map_to_standing_coords(pos: Vector2) -> Vector3:
+	var world: Vector3 = _map_to_world_coords(pos)
+	if _map_baker != null:
+		world.y = _map_baker.get_standing_height(pos)
+	return world
+
+
 func _viewport_to_world_coords(pos_viewport: Vector2) -> Vector3:
 	var ray_origin := _camera.project_ray_origin(pos_viewport)
 	var ray_normal := _camera.project_ray_normal(pos_viewport)
