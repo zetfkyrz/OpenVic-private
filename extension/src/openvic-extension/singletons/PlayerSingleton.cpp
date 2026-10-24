@@ -160,13 +160,15 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::cancel_recruitment, { "order_id" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_credit_overview);
-	OV_BIND_METHOD(PlayerSingleton::take_external_loan, { "lender_index", "amount", "term" });
-	OV_BIND_METHOD(PlayerSingleton::give_external_loans, { "group", "amount_each", "rate", "term" });
-	OV_BIND_METHOD(PlayerSingleton::stage_loan_target, { "country_index", "selected" });
-	OV_BIND_METHOD(PlayerSingleton::give_internal_loan, { "province_index", "amount", "rate", "term", "policy" });
+	OV_BIND_METHOD(PlayerSingleton::get_available_credit_offers);
+	OV_BIND_METHOD(PlayerSingleton::stage_credit_region, { "province_index", "selected" });
+	OV_BIND_METHOD(PlayerSingleton::offer_internal_credit, { "amount", "rate", "term", "all_regions" });
+	OV_BIND_METHOD(PlayerSingleton::stage_credit_country, { "country_index", "selected" });
+	OV_BIND_METHOD(PlayerSingleton::offer_external_credit, { "amount", "rate", "term", "all_countries" });
+	OV_BIND_METHOD(PlayerSingleton::take_credit, { "loan_id" });
+	OV_BIND_METHOD(PlayerSingleton::withdraw_credit_offer, { "loan_id" });
 	OV_BIND_METHOD(PlayerSingleton::repay_loan, { "loan_id", "amount" });
 	OV_BIND_METHOD(PlayerSingleton::set_central_bank_rates, { "internal_rate", "external_rate" });
-	OV_BIND_METHOD(PlayerSingleton::answer_alliance_request, { "from_index", "accept" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_identifiers);
 	OV_BIND_METHOD(PlayerSingleton::get_diplomacy_country_list);
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_relation, { "country_index" });
@@ -1518,27 +1520,77 @@ Array PlayerSingleton::get_map_units() const {
 	return result;
 }
 
-// Credit and the central bank
+// Credits (docs/CREDITS.md)
 namespace {
 	String format_date(Date const date) {
-		return Utilities::format("%d.%d.%d", static_cast<int32_t>(date.get_year()), static_cast<int32_t>(date.get_month()), static_cast<int32_t>(date.get_day()));
+		return Utilities::format("%d.%d.%d", static_cast<int32_t>(date.get_day()), static_cast<int32_t>(date.get_month()), static_cast<int32_t>(date.get_year()));
 	}
 
-	Dictionary make_loan_entry(Loan const& loan, MenuSingleton const& menu_singleton, CountryInstance const& player) {
+	int32_t days_until(Date const from, Date const to) {
+		return std::max<int32_t>(0, static_cast<int32_t>((to - from).to_int()));
+	}
+
+	Dictionary make_credit_entry(
+		Loan const& loan, MenuSingleton const& menu_singleton, CountryInstance const& player, Date const today
+	) {
 		Dictionary entry;
+		const bool taken = loan.status == Loan::status_t::ACTIVE;
 		entry["id"] = static_cast<int32_t>(loan.id);
-		entry["principal"] = static_cast<float>(loan.principal);
-		entry["remaining"] = static_cast<float>(loan.remaining);
+		entry["kind"] = static_cast<int32_t>(loan.kind);
+		entry["status"] = taken ? 1 : 0;
+		entry["amount"] = static_cast<float>(loan.principal);
 		entry["rate"] = static_cast<float>(loan.annual_rate);
-		entry["due"] = format_date(loan.due_date);
-		entry["interest_paid"] = static_cast<float>(loan.interest_paid);
 		entry["term"] = static_cast<int32_t>(loan.term);
-		entry["policy"] = static_cast<int32_t>(loan.policy);
+		entry["issue_date"] = format_date(loan.issue_date);
+		entry["taken_date"] = taken ? format_date(loan.taken_date) : String {};
+		entry["paid"] = static_cast<float>(loan.principal_paid + loan.interest_paid);
+		entry["remaining"] = static_cast<float>(taken ? loan.get_remaining() : loan.principal);
+		entry["delay_left_days"] = taken ? days_until(today, loan.payments_start) : loan.delay_days;
+		entry["payments_start"] = taken ? format_date(loan.payments_start) : String {};
+		entry["due"] = taken ? format_date(loan.due_date) : String {};
+		entry["installment"] = static_cast<float>(loan.get_installment_due(loan.payments_start));
 		entry["unspent"] = static_cast<float>(loan.unspent);
-		entry["grace_end"] = format_date(loan.grace_end);
-		CountryInstance const& other = loan.lender == &player ? *loan.borrower : *loan.lender;
-		entry["other_index"] = static_cast<int32_t>(type_safe::get(other.index));
-		entry["other_name"] = Utilities::get_country_name(menu_singleton, other);
+
+		if (loan.kind == Loan::kind_t::EXTERNAL) {
+			if (loan.lender == &player) {
+				entry["direction"] = taken ? "given" : "offered";
+			} else {
+				entry["direction"] = "taken";
+			}
+			CountryInstance const* const other = loan.lender == &player ? loan.borrower : loan.lender;
+			entry["country_index"] = other != nullptr ? static_cast<int32_t>(type_safe::get(other->index)) : -1;
+			entry["country_tag"] = other != nullptr ? convert_to<String>(other->get_identifier()) : String {};
+			entry["country_name"] = other != nullptr ? Utilities::get_country_name(menu_singleton, *other) : String {};
+			PackedStringArray targets;
+			for (CountryInstance const* target : loan.target_countries) {
+				targets.push_back(convert_to<String>(target->get_identifier()));
+			}
+			entry["targets"] = targets;
+		} else {
+			entry["direction"] = taken ? "given" : "offered";
+			entry["country_index"] = -1;
+			entry["country_tag"] = String {};
+			entry["country_name"] = String {};
+			entry["targets"] = PackedStringArray {};
+		}
+
+		PackedStringArray regions;
+		if (loan.kind == Loan::kind_t::INTERNAL) {
+			if (taken && loan.state != nullptr) {
+				ProvinceInstance const* const capital = loan.state->get_capital();
+				if (capital != nullptr) {
+					regions.push_back(convert_to<String>(capital->get_identifier()));
+				}
+			} else {
+				for (State const* state : loan.target_states) {
+					ProvinceInstance const* const capital = state->get_capital();
+					if (capital != nullptr) {
+						regions.push_back(convert_to<String>(capital->get_identifier()));
+					}
+				}
+			}
+		}
+		entry["regions"] = regions;
 		return entry;
 	}
 }
@@ -1552,58 +1604,56 @@ Dictionary PlayerSingleton::get_credit_overview() const {
 	ERR_FAIL_NULL_V(menu_singleton, result);
 
 	CreditManager const& credit = instance_manager->get_credit_manager();
+	OpenVicCreditDefines const& credit_defines = credit.get_defines();
+	const Date today = instance_manager->get_today();
 
 	result["cash"] = static_cast<float>(player_country->get_cash_stockpile().load());
+	result["total_debt"] = static_cast<float>(credit.get_total_debt(*player_country));
+	result["monthly_payments"] = static_cast<float>(credit.get_monthly_payments(*player_country, today));
+	result["debt_limit"] = static_cast<float>(CreditManager::get_debt_limit(credit_defines, *player_country));
+	result["min_loan"] = credit_defines.min_loan;
+	result["rate_min"] = static_cast<float>(credit_defines.interest_min.fixed());
+	result["rate_max"] = static_cast<float>(credit_defines.interest_max.fixed());
+	result["rate_limit"] = static_cast<float>(credit_defines.interest_limit.fixed());
+
+	Array terms;
+	for (Loan::term_t term : { Loan::term_t::SHORT, Loan::term_t::MEDIUM, Loan::term_t::LONG }) {
+		Dictionary entry;
+		entry["term"] = static_cast<int32_t>(term);
+		entry["term_days"] = credit.get_term_days(term);
+		entry["delay_days"] = credit.get_delay_days(term);
+		entry["repayment_days"] = credit.get_term_days(term) - credit.get_delay_days(term);
+		entry["short_max_construction_days"] = term == Loan::term_t::SHORT ? credit_defines.short_max_construction_days : 0;
+		terms.push_back(entry);
+	}
+	result["terms"] = terms;
 
 	Dictionary bank;
 	bank["internal_rate"] = static_cast<float>(player_country->get_internal_loan_rate());
 	bank["external_rate"] = static_cast<float>(player_country->get_external_loan_rate());
-	bank["min_rate"] = static_cast<float>(CreditManager::get_min_rate());
-	bank["max_rate"] = static_cast<float>(CreditManager::get_max_rate());
 	result["central_bank"] = bank;
 
-	result["total_debt"] = static_cast<float>(credit.get_total_debt(*player_country));
-	result["monthly_interest"] = static_cast<float>(credit.get_monthly_interest(*player_country));
-	result["debt_limit"] = static_cast<float>(CreditManager::get_debt_limit(*player_country));
-
-	Array external_taken, external_given, internal_given;
+	Array internal, external;
 	for (std::unique_ptr<Loan> const& loan : credit.get_loans()) {
-		if (!loan->active) {
+		if (loan->status == Loan::status_t::CLOSED) {
 			continue;
 		}
-		if (loan->kind == Loan::kind_t::EXTERNAL) {
-			if (loan->borrower == player_country) {
-				external_taken.push_back(make_loan_entry(*loan, *menu_singleton, *player_country));
-			} else if (loan->lender == player_country) {
-				external_given.push_back(make_loan_entry(*loan, *menu_singleton, *player_country));
+		if (loan->kind == Loan::kind_t::INTERNAL) {
+			if (loan->lender == player_country) {
+				internal.push_back(make_credit_entry(*loan, *menu_singleton, *player_country, today));
 			}
-		} else if (loan->lender == player_country) {
-			Dictionary entry = make_loan_entry(*loan, *menu_singleton, *player_country);
-			ProvinceInstance const* capital = loan->state->get_capital();
-			entry["province_index"] = capital != nullptr ? static_cast<int32_t>(type_safe::get(capital->index)) : -1;
-			entry["province_identifier"] = capital != nullptr ? convert_to<String>(capital->get_identifier()) : String {};
-			internal_given.push_back(entry);
+		} else if (loan->lender == player_country || loan->borrower == player_country) {
+			external.push_back(make_credit_entry(*loan, *menu_singleton, *player_country, today));
 		}
 	}
-	result["external_taken"] = external_taken;
-	result["external_given"] = external_given;
-	result["internal_given"] = internal_given;
+	result["internal"] = internal;
+	result["external"] = external;
 
-	Array offers;
-	for (ExternalOffer const& offer : credit.get_offers(*instance_manager, *player_country)) {
-		Dictionary entry;
-		entry["lender_index"] = static_cast<int32_t>(type_safe::get(offer.lender->index));
-		entry["lender_name"] = Utilities::get_country_name(*menu_singleton, *offer.lender);
-		entry["max_amount"] = static_cast<float>(offer.max_amount);
-		entry["rate"] = static_cast<float>(offer.rate);
-		offers.push_back(entry);
-	}
-	result["offers"] = offers;
-
-	// States whose capitalists can borrow
-	Array states;
+	// Regions whose capitalists can take an internal credit
+	memory::vector<State*> const& staged_states = credit.get_staged_states(*player_country);
+	Array regions;
 	PopType const* capitalists = instance_manager->definition_manager.get_pop_manager().get_pop_type_by_identifier("capitalists");
-	for (State const* state : player_country->get_states()) {
+	for (State* state : player_country->get_states()) {
 		ProvinceInstance const* capital = state->get_capital();
 		if (capital == nullptr || capitalists == nullptr) {
 			continue;
@@ -1618,74 +1668,113 @@ Dictionary PlayerSingleton::get_credit_overview() const {
 		Dictionary entry;
 		entry["province_index"] = static_cast<int32_t>(type_safe::get(capital->index));
 		entry["province_identifier"] = convert_to<String>(capital->get_identifier());
-		entry["capitalist_money"] = static_cast<float>(state->get_capitalist_money(Loan::purpose_t::CONSTRUCTION, 365));
 		entry["capitalists"] = size;
-		states.push_back(entry);
+		entry["capitalist_money"] = static_cast<float>(
+			state->get_capitalist_money(Loan::purpose_t::CONSTRUCTION, credit_defines.short_max_construction_days)
+		);
+		entry["staged"] = std::find(staged_states.begin(), staged_states.end(), state) != staged_states.end();
+		regions.push_back(entry);
 	}
-	result["states"] = states;
+	result["regions"] = regions;
 
-	PackedInt32Array selected;
-	for (CountryInstance const* target : credit.get_staged_targets(*player_country)) {
-		selected.push_back(static_cast<int32_t>(type_safe::get(target->index)));
+	PackedInt32Array staged_countries, staged_regions;
+	for (CountryInstance const* target : credit.get_staged_countries(*player_country)) {
+		staged_countries.push_back(static_cast<int32_t>(type_safe::get(target->index)));
 	}
-	result["selected_targets"] = selected;
-
-	Array requests;
-	for (AllianceRequest const& request : credit.get_alliance_requests()) {
-		if (request.to != player_country) {
-			continue;
+	for (State const* state : staged_states) {
+		ProvinceInstance const* capital = state->get_capital();
+		if (capital != nullptr) {
+			staged_regions.push_back(static_cast<int32_t>(type_safe::get(capital->index)));
 		}
-		Dictionary entry;
-		entry["from_index"] = static_cast<int32_t>(type_safe::get(request.from->index));
-		entry["from_name"] = Utilities::get_country_name(*menu_singleton, *request.from);
-		entry["date"] = format_date(request.date);
-		requests.push_back(entry);
 	}
-	result["alliance_requests"] = requests;
-
+	result["staged_countries"] = staged_countries;
+	result["staged_regions"] = staged_regions;
 	return result;
 }
 
-bool PlayerSingleton::take_external_loan(int32_t lender_index, float amount, int32_t term) const {
+Array PlayerSingleton::get_available_credit_offers() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	CreditManager const& credit = instance_manager->get_credit_manager();
+	for (Loan const* offer : credit.get_available_offers(*instance_manager, *player_country)) {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(offer->id);
+		entry["lender_index"] = static_cast<int32_t>(type_safe::get(offer->lender->index));
+		entry["lender_tag"] = convert_to<String>(offer->lender->get_identifier());
+		entry["lender_name"] = Utilities::get_country_name(*menu_singleton, *offer->lender);
+		entry["amount"] = static_cast<float>(offer->principal);
+		entry["rate"] = static_cast<float>(offer->annual_rate);
+		entry["term"] = static_cast<int32_t>(offer->term);
+		entry["term_days"] = offer->term_days;
+		entry["delay_days"] = offer->delay_days;
+		entry["issue_date"] = format_date(offer->issue_date);
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::stage_credit_region(int32_t province_index, bool selected) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
-	ERR_FAIL_COND_V(lender_index < 0 || term < 0, false);
-	return instance_manager->queue_game_action<take_external_loan_argument_t>(
-	    player_country->index, country_index_t(static_cast<uint32_t>(lender_index)), fixed_point_t::parse_unsafe(amount),
-	    static_cast<uint32_t>(term)
+	ERR_FAIL_COND_V(province_index < 0, false);
+	return instance_manager->queue_game_action<stage_credit_region_argument_t>(
+	    player_country->index, province_index_t(static_cast<uint32_t>(province_index)), selected
 	);
 }
 
-bool PlayerSingleton::give_external_loans(int32_t group, float amount_each, float rate, int32_t term) const {
+bool PlayerSingleton::offer_internal_credit(float amount, float rate, int32_t term, bool all_regions) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
-	ERR_FAIL_COND_V(group < 0 || term < 0, false);
-	return instance_manager->queue_game_action<give_external_loans_argument_t>(
-	    player_country->index, static_cast<uint32_t>(group), fixed_point_t::parse_unsafe(amount_each),
-	    fixed_point_t::parse_unsafe(rate), static_cast<uint32_t>(term)
+	ERR_FAIL_COND_V(term < 0, false);
+	return instance_manager->queue_game_action<offer_internal_credit_argument_t>(
+	    player_country->index, fixed_point_t::parse_unsafe(amount), fixed_point_t::parse_unsafe(rate), static_cast<uint32_t>(term),
+	    all_regions
 	);
 }
 
-bool PlayerSingleton::stage_loan_target(int32_t country_index, bool selected) const {
+bool PlayerSingleton::stage_credit_country(int32_t country_index, bool selected) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
 	ERR_FAIL_COND_V(country_index < 0, false);
-	return instance_manager->queue_game_action<stage_loan_target_argument_t>(
+	return instance_manager->queue_game_action<stage_credit_country_argument_t>(
 	    player_country->index, country_index_t(static_cast<uint32_t>(country_index)), selected
 	);
 }
 
-bool PlayerSingleton::give_internal_loan(int32_t province_index, float amount, float rate, int32_t term, int32_t policy) const {
+bool PlayerSingleton::offer_external_credit(float amount, float rate, int32_t term, bool all_countries) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
-	ERR_FAIL_COND_V(province_index < 0 || term < 0 || policy < 0, false);
-	return instance_manager->queue_game_action<give_internal_loan_argument_t>(
-	    player_country->index, province_index_t(static_cast<uint32_t>(province_index)), fixed_point_t::parse_unsafe(amount),
-	    fixed_point_t::parse_unsafe(rate), static_cast<uint32_t>(term), static_cast<uint32_t>(policy)
+	ERR_FAIL_COND_V(term < 0, false);
+	return instance_manager->queue_game_action<offer_external_credit_argument_t>(
+	    player_country->index, fixed_point_t::parse_unsafe(amount), fixed_point_t::parse_unsafe(rate), static_cast<uint32_t>(term),
+	    all_countries
+	);
+}
+
+bool PlayerSingleton::take_credit(int32_t loan_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(loan_id <= 0, false);
+	return instance_manager->queue_game_action<take_credit_argument_t>(player_country->index, static_cast<uint32_t>(loan_id));
+}
+
+bool PlayerSingleton::withdraw_credit_offer(int32_t loan_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(loan_id <= 0, false);
+	return instance_manager->queue_game_action<withdraw_credit_offer_argument_t>(
+	    player_country->index, static_cast<uint32_t>(loan_id)
 	);
 }
 
@@ -1705,16 +1794,6 @@ bool PlayerSingleton::set_central_bank_rates(float internal_rate, float external
 	ERR_FAIL_NULL_V(instance_manager, false);
 	return instance_manager->queue_game_action<set_central_bank_rates_argument_t>(
 	    player_country->index, fixed_point_t::parse_unsafe(internal_rate), fixed_point_t::parse_unsafe(external_rate)
-	);
-}
-
-bool PlayerSingleton::answer_alliance_request(int32_t from_index, bool accept) const {
-	ERR_FAIL_NULL_V(player_country, false);
-	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
-	ERR_FAIL_NULL_V(instance_manager, false);
-	ERR_FAIL_COND_V(from_index < 0, false);
-	return instance_manager->queue_game_action<answer_alliance_request_argument_t>(
-	    player_country->index, country_index_t(static_cast<uint32_t>(from_index)), accept
 	);
 }
 

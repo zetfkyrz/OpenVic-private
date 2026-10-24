@@ -244,25 +244,40 @@ namespace OpenVic {
 		godot::Array get_recruitment_queue() const;
 		bool cancel_recruitment(int64_t order_id) const;
 
-		// Credit and the central bank
-		// { cash, central_bank: { internal_rate, external_rate }, total_debt, monthly_interest,
-		//   external_taken: [{ id, lender_index, lender_name, principal, remaining, rate, due, interest_paid }],
-		//   external_given: [{ id, borrower_index, borrower_name, principal, remaining, rate, due, interest_paid }],
-		//   internal_given: [{ id, province_index, province_identifier, principal, remaining, unspent, rate, term, grace_end, due,
-		//                      policy }],
-		//   offers: [{ lender_index, lender_name, max_amount, rate }],
-		//   states: [{ province_index, province_identifier, capitalist_money, capitalists }],
-		//   selected_targets: [country_index], alliance_requests: [{ from_index, from_name, date }] }
+		// Credits (docs/CREDITS.md). Dates are "day.month.year" strings, rates are fractions (0.05 = 5%), terms: 0 = short,
+		// 1 = medium, 2 = long (their lengths are in "terms").
+		// get_credit_overview() = {
+		//   cash, total_debt, monthly_payments, debt_limit, min_loan,
+		//   rate_min (the AI lends at this or more), rate_max (the AI borrows at this or less), rate_limit (highest rate allowed),
+		//   terms: [{ term, term_days, delay_days, repayment_days, short_max_construction_days (0 = no limit) }],
+		//   central_bank: { internal_rate, external_rate }   (the rates the AI of the country offers its credits at),
+		//   internal: [Credit],  (offered or taken by capitalists, lender is the player)
+		//   external: [Credit],  (the player is the lender or the borrower, see "direction")
+		//   regions: [{ province_index, province_identifier, capitalists, capitalist_money, staged }],
+		//   staged_countries: [country_index], staged_regions: [province_index] }
+		// Credit = { id, kind (0 internal, 1 external), status (0 offered, 1 taken), direction ("given"/"taken"/"offered"),
+		//   amount, rate, term, issue_date, taken_date ("" while offered), paid (principal and interest paid so far),
+		//   remaining (principal and interest still owed), delay_left_days (days before the payments start, 0 when they have),
+		//   payments_start, due, installment (next payment), unspent (internal), country_index/country_tag/country_name (the
+		//   other side of an external credit, -1 while nobody took it), targets: [tag] (empty = everybody),
+		//   regions: [province_identifier] (internal, empty = all regions) }
 		godot::Dictionary get_credit_overview() const;
-		bool take_external_loan(int32_t lender_index, float amount, int32_t term) const;
-		// group: 0 = all countries, 1 = allies, 2 = friends (relations above 100), 3 = the selected countries
-		bool give_external_loans(int32_t group, float amount_each, float rate, int32_t term) const;
-		bool stage_loan_target(int32_t country_index, bool selected) const;
-		// term: 0 = 5 years, 1 = 10 years, 2 = 20 years; policy: 0 = forgive, 1 = soft collection, 2 = hard collection
-		bool give_internal_loan(int32_t province_index, float amount, float rate, int32_t term, int32_t policy) const;
+		// Offers the player can take: [{ id, lender_index, lender_tag, lender_name, amount, rate, term, term_days, delay_days,
+		//   issue_date }], the cheapest first
+		godot::Array get_available_credit_offers() const;
+		// Tab "Issue an internal credit": regions chosen with stage_credit_region (or all_regions), the capitalists take it
+		bool stage_credit_region(int32_t province_index, bool selected) const;
+		bool offer_internal_credit(float amount, float rate, int32_t term, bool all_regions) const;
+		// Tab "Issue an external credit": countries chosen with stage_credit_country (or all_countries)
+		bool stage_credit_country(int32_t country_index, bool selected) const;
+		bool offer_external_credit(float amount, float rate, int32_t term, bool all_countries) const;
+		// Tab "Take a credit"
+		bool take_credit(int32_t loan_id) const;
+		// The player takes back an offer nobody has taken yet
+		bool withdraw_credit_offer(int32_t loan_id) const;
+		// Early repayment of a credit the player took (amount = all that is owed or a part of the principal)
 		bool repay_loan(int32_t loan_id, float amount) const;
 		bool set_central_bank_rates(float internal_rate, float external_rate) const;
-		bool answer_alliance_request(int32_t from_index, bool accept) const;
 
 		// Military
 		// Argument true for general, false for admiral

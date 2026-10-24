@@ -1,0 +1,55 @@
+;; Credit window (CreditPanel.gd), docs/CREDITS.md
+CREDIT_TITLE;Credits
+CREDIT_TAB_MAIN;Overview
+CREDIT_TAB_ISSUE_INTERNAL;Issue an internal credit
+CREDIT_TAB_ISSUE_EXTERNAL;Issue an external credit
+CREDIT_TAB_TAKE;Take a credit
+CREDIT_INTERNAL_HEADER;Internal credits (issued to capitalists)
+CREDIT_EXTERNAL_HEADER;External credits
+CREDIT_COL_AMOUNT;Amount
+CREDIT_COL_ISSUED;Issued
+CREDIT_COL_TAKEN;Taken
+CREDIT_COL_RATE;Interest
+CREDIT_COL_PAID;Paid
+CREDIT_COL_DELAY;Until payments
+CREDIT_COL_REGIONS;Regions
+CREDIT_COL_TAG;Tag
+CREDIT_COL_WHO;Who
+CREDIT_COL_REGION;Region
+CREDIT_COL_CAPITALISTS;Capitalists
+CREDIT_COL_CAPITALIST_MONEY;Their money
+CREDIT_COL_COUNTRY;Country
+CREDIT_COL_RELATIONS;Relations
+CREDIT_COL_LENDER;Lender
+CREDIT_COL_TYPE;Type
+CREDIT_REPAY_TIP;Early repayment amount, 0 = pay everything back
+CREDIT_REPAY_BUTTON;Repay early the selected credit (taken by you)
+CREDIT_WITHDRAW_BUTTON;Withdraw the offer (not taken yet)
+CREDIT_INTERNAL_INFO;The capitalists get the credit: they take it themselves when they need money for a factory. The money is held when the credit is issued.
+CREDIT_ALL_REGIONS;Whole country (all regions with capitalists)
+CREDIT_AMOUNT;Amount:
+CREDIT_RATE_ONCE;Interest (set once):
+CREDIT_PER_YEAR; % per year
+CREDIT_TYPE;Type:
+CREDIT_ISSUE_BUTTON;Issue the credit
+CREDIT_EXTERNAL_INFO;All countries get the offer, or only the chosen ones: if a tag is named, the others cannot take the credit.
+CREDIT_ALL_COUNTRIES;All countries
+CREDIT_SEARCH;Search country...
+CREDIT_TAKE_INFO;Offers of other countries addressed to you or to everybody. The lender set the interest and it does not change.
+CREDIT_TAKE_BUTTON;Take
+CREDIT_SHORT;Short-term
+CREDIT_MEDIUM;Medium-term
+CREDIT_LONG;Long-term
+CREDIT_NOT_TAKEN;not taken
+CREDIT_PAYING;paying
+CREDIT_DAYS_SUFFIX;days
+CREDIT_WHOLE_COUNTRY;whole country
+CREDIT_GIVEN_TO;issued to: 
+CREDIT_TAKEN_FROM;taken from: 
+CREDIT_OFFERED_TO;offered to: 
+CREDIT_EVERYBODY;everybody
+CREDIT_YEARS_UNIT;years
+CREDIT_TERM_TEXT;%s years, payments start after %s years
+CREDIT_TERM_SHORT_LIMIT;, the money can only be spent on constructions of up to %d days
+CREDIT_SUMMARY;Treasury: %s    Debt: %s (limit %s)    Payments per month: %s    AI interest: %s to %s
+CREDIT_TERM_TYPE_YEARS;%s (%s years)

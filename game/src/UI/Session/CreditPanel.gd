@@ -1,69 +1,52 @@
 extends "res://src/UI/Session/Vic2Window.gd"
-## Central bank and credit: rates of the loans the country gives, tables of the loans it took and gave, the offers of the
-## other countries, lending to groups of countries and loans to the capitalists of the states.
+## Credits window with four tabs (docs/CREDITS.md): tr("CREDIT_TAB_MAIN") (tables of internal and external credits), tr("CREDIT_TAB_ISSUE_INTERNAL"),
+## tr("CREDIT_TAB_ISSUE_EXTERNAL"), tr("CREDIT_TAB_TAKE"). All the data come from PlayerSingleton.get_credit_overview() and
+## PlayerSingleton.get_available_credit_offers(), all the commands are PlayerSingleton methods (see PlayerSingleton.hpp).
 ## A Victoria 2 style window (frame, close button, dragging), opened from the budget screen.
 
-const _TERM_NAMES: PackedStringArray = ["Краткосрочный (5 лет)", "Среднесрочный (10 лет)", "Долгосрочный (20 лет)"]
-const _TERM_TIPS: PackedStringArray = [
-	"5 лет, платежи по телу долга не берутся первые 2 года. Капиталисты могут тратить только на стройки до 365 дней.",
-	"10 лет, платежи по телу долга не берутся первые 4 года. Без ограничений на траты.",
-	"20 лет, платежи по телу долга не берутся первые 8 лет. Без ограничений на траты.",
-]
-const _POLICY_NAMES: PackedStringArray = ["Простить долг", "Мягко: забрать деньги", "Жёстко: деньги, затем доли заводов"]
-const _POLICY_TIPS: PackedStringArray = [
-	"По окончании срока непогашенный долг списывается.",
-	"По окончании срока берутся деньги капиталистов (накопления и наличные), заводы не трогаются. Остаток списывается.",
-	"Сначала берутся деньги, затем доли капиталистов в заводах по стоимости завода. Остаток списывается.",
-]
-const _GROUP_ALL: int = 0
-const _GROUP_ALLIES: int = 1
-const _GROUP_FRIENDS: int = 2
-const _GROUP_SELECTED: int = 3
+const _TERM_SHORT: int = 0
+const _TERM_MEDIUM: int = 1
+const _TERM_LONG: int = 2
 
 var _overview: Dictionary = {}
+var _terms: Array = []
 
 var _tabs: TabContainer
 var _summary: Label
 
-# Central bank
-var _internal_rate: SpinBox
-var _external_rate: SpinBox
-
-# Taken / given loans
-var _taken_tree: Tree
-var _repay_amount: SpinBox
-var _given_tree: Tree
+# Tab 1: main
 var _internal_tree: Tree
+var _external_tree: Tree
+var _repay_amount: SpinBox
+var _main_buttons: HBoxContainer
 
-# Offers
-var _offers_tree: Tree
-var _offer_amount: SpinBox
-var _offer_term: OptionButton
+# Tab 2: internal credit
+var _regions_tree: Tree
+var _all_regions: CheckBox
+var _internal_amount: SpinBox
+var _internal_rate: SpinBox
+var _internal_term: OptionButton
+var _internal_info: Label
+var _updating_regions: bool = false
 
-# Lending to countries
+# Tab 3: external credit
 var _search: LineEdit
 var _countries_tree: Tree
-var _lend_amount: SpinBox
-var _lend_rate: SpinBox
-var _lend_term: OptionButton
-var _lend_result: Label
-var _requests_box: VBoxContainer
+var _all_countries: CheckBox
+var _external_amount: SpinBox
+var _external_rate: SpinBox
+var _external_term: OptionButton
+var _external_info: Label
 var _countries: Array = []
-var _updating_selection: bool = false
-var _last_selected: PackedInt32Array = []
+var _updating_countries: bool = false
+var _last_staged_countries: PackedInt32Array = []
 
-# Loan to capitalists
-var _state_option: OptionButton
-var _internal_amount: SpinBox
-var _internal_rate_field: SpinBox
-var _internal_term: OptionButton
-var _internal_policy: OptionButton
-var _internal_info: Label
-var _states: Array = []
+# Tab 4: take a credit
+var _offers_tree: Tree
 
 
 func _ready() -> void:
-	setup(Vector2(980, 600), "Центробанк и кредиты")
+	setup(Vector2(980, 600), tr("CREDIT_TITLE"))
 
 	var root := VBoxContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -76,12 +59,10 @@ func _ready() -> void:
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(_tabs)
 
-	_build_bank_tab()
-	_build_taken_tab()
-	_build_offers_tab()
-	_build_given_tab()
-	_build_lend_tab()
+	_build_main_tab()
 	_build_internal_tab()
+	_build_external_tab()
+	_build_take_tab()
 
 	GameSingleton.gamestate_updated.connect(_refresh)
 
@@ -146,16 +127,43 @@ func _row(parent: Node, label_text: String, control: Control) -> void:
 	row.add_child(control)
 
 
+func _money(value: float) -> String:
+	return GUINode.float_to_string_dp(value, 0)
+
+
+func _percent(value: float) -> String:
+	return "%.2f %%" % (value * 100.0)
+
+
+func _years(days: int) -> String:
+	return ("%.1f" % (float(days) / 365.0)).trim_suffix(".0")
+
+
+func _term_text(term: int) -> String:
+	for entry: Dictionary in _terms:
+		if int(entry["term"]) == term:
+			var text: String = tr("CREDIT_TERM_TEXT") % [_years(int(entry["term_days"])), _years(int(entry["delay_days"]))]
+			if int(entry["short_max_construction_days"]) > 0:
+				text += tr("CREDIT_TERM_SHORT_LIMIT") % int(entry["short_max_construction_days"])
+			return text
+	return ""
+
+
 func _term_option() -> OptionButton:
 	var option := OptionButton.new()
-	for i: int in _TERM_NAMES.size():
-		option.add_item(_TERM_NAMES[i])
-	option.tooltip_text = "\n".join(_TERM_TIPS)
+	option.add_item(tr("CREDIT_SHORT"))
+	option.add_item(tr("CREDIT_MEDIUM"))
+	option.add_item(tr("CREDIT_LONG"))
 	return option
 
 
-func _money(value: float) -> String:
-	return GUINode.float_to_string_dp(value, 0)
+func _term_name(term: int) -> String:
+	match term:
+		_TERM_SHORT:
+			return tr("CREDIT_SHORT")
+		_TERM_MEDIUM:
+			return tr("CREDIT_MEDIUM")
+	return tr("CREDIT_LONG")
 
 
 func _selected_id(tree: Tree) -> int:
@@ -163,158 +171,169 @@ func _selected_id(tree: Tree) -> int:
 	return int(item.get_metadata(0)) if item else 0
 
 
-# ---- Central bank ----
+func _delay_text(credit: Dictionary) -> String:
+	var days: int = int(credit["delay_left_days"])
+	if int(credit["status"]) == 0:
+		return tr("CREDIT_NOT_TAKEN")
+	if days <= 0:
+		return tr("CREDIT_PAYING")
+	return "%d %s" % [days, tr("CREDIT_DAYS_SUFFIX")]
 
 
-func _build_bank_tab() -> void:
-	var tab := _tab("Центробанк")
-	var info := Label.new()
-	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.text = (
-		"Процент по кредитам, которые выдаёт государство. Ставка никогда не бывает ниже 1%.\n"
-		+ "Внутренний кредит выдаётся капиталистам на стройку заводов и покрытие убытков, внешний — другим странам."
+# ---- Tab 1: main ----
+
+
+func _build_main_tab() -> void:
+	var tab := _tab(tr("CREDIT_TAB_MAIN"))
+
+	var internal_label := Label.new()
+	internal_label.text = tr("CREDIT_INTERNAL_HEADER")
+	tab.add_child(internal_label)
+	_internal_tree = _make_tree(
+		tab, [tr("CREDIT_COL_AMOUNT"), tr("CREDIT_COL_ISSUED"), tr("CREDIT_COL_TAKEN"), tr("CREDIT_COL_RATE"), tr("CREDIT_COL_PAID"), tr("CREDIT_COL_DELAY"), tr("CREDIT_COL_REGIONS")],
+		[90, 100, 100, 80, 90, 120, 0]
 	)
-	tab.add_child(info)
 
-	_internal_rate = _spin(1.0, 50.0, 0.5, 5.0, " % в год")
-	_external_rate = _spin(1.0, 50.0, 0.5, 4.0, " % в год")
-	_row(tab, "Внутренний кредит (капиталистам):", _internal_rate)
-	_row(tab, "Внешний кредит (странам):", _external_rate)
-
-	var apply := Button.new()
-	apply.text = "Применить ставки"
-	apply.pressed.connect(
-		func() -> void: PlayerSingleton.set_central_bank_rates(_internal_rate.value / 100.0, _external_rate.value / 100.0)
+	var external_label := Label.new()
+	external_label.text = tr("CREDIT_EXTERNAL_HEADER")
+	tab.add_child(external_label)
+	_external_tree = _make_tree(
+		tab, [tr("CREDIT_COL_TAG"), tr("CREDIT_COL_AMOUNT"), tr("CREDIT_COL_ISSUED"), tr("CREDIT_COL_TAKEN"), tr("CREDIT_COL_RATE"), tr("CREDIT_COL_PAID"), tr("CREDIT_COL_DELAY"), tr("CREDIT_COL_WHO")],
+		[60, 90, 100, 100, 80, 90, 120, 0]
 	)
-	tab.add_child(apply)
 
-
-# ---- Taken loans ----
-
-
-func _build_taken_tab() -> void:
-	var tab := _tab("Взятые кредиты")
-	_taken_tree = _make_tree(tab, ["Кредитор", "Взято", "Осталось", "Ставка", "Срок", "Выплачено %"], [0, 90, 90, 70, 90, 100])
-	var row := HBoxContainer.new()
-	tab.add_child(row)
+	_main_buttons = HBoxContainer.new()
+	tab.add_child(_main_buttons)
 	_repay_amount = _spin(0.0, 100000000.0, 10.0, 0.0)
-	row.add_child(_repay_amount)
+	_repay_amount.tooltip_text = tr("CREDIT_REPAY_TIP")
+	_main_buttons.add_child(_repay_amount)
 	var repay := Button.new()
-	repay.text = "Погасить выбранный кредит (сумма, 0 = весь)"
+	repay.text = tr("CREDIT_REPAY_BUTTON")
 	repay.pressed.connect(
 		func() -> void:
-			var id: int = _selected_id(_taken_tree)
+			var id: int = _selected_id(_external_tree)
 			if id > 0:
 				var amount: float = _repay_amount.value
 				if amount <= 0.0:
 					amount = 100000000.0
 				PlayerSingleton.repay_loan(id, amount)
 	)
-	row.add_child(repay)
-
-
-# ---- Offers ----
-
-
-func _build_offers_tab() -> void:
-	var tab := _tab("Взять кредит")
-	var info := Label.new()
-	info.text = "Предложения стран, у которых есть свободные деньги. Ставка зависит от ваших долгов."
-	tab.add_child(info)
-	_offers_tree = _make_tree(tab, ["Кредитор", "Макс. сумма", "Ставка"], [0, 120, 90])
-	var row := HBoxContainer.new()
-	tab.add_child(row)
-	_offer_amount = _spin(100.0, 100000.0, 100.0, 1000.0)
-	row.add_child(_offer_amount)
-	_offer_term = _term_option()
-	row.add_child(_offer_term)
-	var take := Button.new()
-	take.text = "Взять кредит"
-	take.pressed.connect(
+	_main_buttons.add_child(repay)
+	var withdraw := Button.new()
+	withdraw.text = tr("CREDIT_WITHDRAW_BUTTON")
+	withdraw.pressed.connect(
 		func() -> void:
-			var lender: int = _selected_id(_offers_tree)
-			if lender >= 0 and _offers_tree.get_selected():
-				PlayerSingleton.take_external_loan(lender, _offer_amount.value, _offer_term.selected)
+			var id: int = _selected_id(_external_tree)
+			if id <= 0:
+				id = _selected_id(_internal_tree)
+			if id > 0:
+				PlayerSingleton.withdraw_credit_offer(id)
 	)
-	row.add_child(take)
+	_main_buttons.add_child(withdraw)
 
 
-# ---- Given loans ----
+# ---- Tab 2: issue an internal credit ----
 
 
-func _build_given_tab() -> void:
-	var tab := _tab("Выданные кредиты")
-	var label := Label.new()
-	label.text = "Внешние кредиты, которые вы выдали другим странам"
-	tab.add_child(label)
-	_given_tree = _make_tree(tab, ["Должник", "Выдано", "Осталось", "Ставка", "Срок", "Получено процентов"], [0, 90, 90, 70, 90, 130])
+func _build_internal_tab() -> void:
+	var tab := _tab(tr("CREDIT_TAB_ISSUE_INTERNAL"))
+
+	var info := Label.new()
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.text = tr("CREDIT_INTERNAL_INFO")
+	tab.add_child(info)
+
+	_all_regions = CheckBox.new()
+	_all_regions.text = tr("CREDIT_ALL_REGIONS")
+	_all_regions.button_pressed = true
+	tab.add_child(_all_regions)
+
+	_regions_tree = _make_tree(tab, [tr("CREDIT_COL_REGION"), tr("CREDIT_COL_CAPITALISTS"), tr("CREDIT_COL_CAPITALIST_MONEY")], [0, 110, 110])
+	_regions_tree.select_mode = Tree.SELECT_MULTI
+	_regions_tree.multi_selected.connect(_on_region_selected)
+
+	_internal_amount = _spin(100.0, 100000000.0, 100.0, 2000.0)
+	_row(tab, tr("CREDIT_AMOUNT"), _internal_amount)
+	_internal_rate = _spin(0.1, 100.0, 0.1, 5.0, tr("CREDIT_PER_YEAR"))
+	_row(tab, tr("CREDIT_RATE_ONCE"), _internal_rate)
+	_internal_term = _term_option()
+	_internal_term.item_selected.connect(func(_index: int) -> void: _update_info())
+	_row(tab, tr("CREDIT_TYPE"), _internal_term)
+
+	_internal_info = Label.new()
+	_internal_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(_internal_info)
+
+	var give := Button.new()
+	give.text = tr("CREDIT_ISSUE_BUTTON")
+	give.pressed.connect(
+		func() -> void:
+			PlayerSingleton.offer_internal_credit(
+				_internal_amount.value, _internal_rate.value / 100.0, _internal_term.selected, _all_regions.button_pressed
+			)
+	)
+	tab.add_child(give)
 
 
-# ---- Lending to countries ----
+func _on_region_selected(item: TreeItem, _column: int, selected: bool) -> void:
+	if _updating_regions:
+		return
+	PlayerSingleton.stage_credit_region(int(item.get_metadata(0)), selected)
 
 
-func _build_lend_tab() -> void:
-	var tab := _tab("Выдать странам")
+# ---- Tab 3: issue an external credit ----
+
+
+func _build_external_tab() -> void:
+	var tab := _tab(tr("CREDIT_TAB_ISSUE_EXTERNAL"))
+
+	var info := Label.new()
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.text = tr("CREDIT_EXTERNAL_INFO")
+	tab.add_child(info)
+
+	_all_countries = CheckBox.new()
+	_all_countries.text = tr("CREDIT_ALL_COUNTRIES")
+	_all_countries.button_pressed = true
+	tab.add_child(_all_countries)
 
 	_search = LineEdit.new()
-	_search.placeholder_text = "Поиск страны..."
+	_search.placeholder_text = tr("CREDIT_SEARCH")
 	_search.clear_button_enabled = true
 	_search.text_changed.connect(func(_text: String) -> void: _fill_countries())
 	tab.add_child(_search)
 
-	_countries_tree = _make_tree(tab, ["Страна", "Отношения"], [0, 90])
+	_countries_tree = _make_tree(tab, [tr("CREDIT_COL_COUNTRY"), tr("CREDIT_COL_RELATIONS")], [0, 90])
 	_countries_tree.select_mode = Tree.SELECT_MULTI
 	_countries_tree.multi_selected.connect(_on_country_selected)
 
-	var terms := HBoxContainer.new()
-	tab.add_child(terms)
-	_lend_amount = _spin(100.0, 100000.0, 100.0, 1000.0)
-	_lend_amount.tooltip_text = "Сумма каждой стране"
-	terms.add_child(_lend_amount)
-	_lend_rate = _spin(1.0, 50.0, 0.5, 4.0, " %")
-	_lend_rate.tooltip_text = "Годовая ставка, не меньше 1%"
-	terms.add_child(_lend_rate)
-	_lend_term = _term_option()
-	terms.add_child(_lend_term)
+	_external_amount = _spin(100.0, 100000000.0, 100.0, 1000.0)
+	_row(tab, tr("CREDIT_AMOUNT"), _external_amount)
+	_external_rate = _spin(0.1, 100.0, 0.1, 4.0, tr("CREDIT_PER_YEAR"))
+	_row(tab, tr("CREDIT_RATE_ONCE"), _external_rate)
+	_external_term = _term_option()
+	_external_term.item_selected.connect(func(_index: int) -> void: _update_info())
+	_row(tab, tr("CREDIT_TYPE"), _external_term)
 
-	var groups := HBoxContainer.new()
-	tab.add_child(groups)
-	for entry: Array in [
-		["Всем", _GROUP_ALL, "Предложить кредит всем странам"],
-		["Союзникам", _GROUP_ALLIES, "Предложить кредит странам в альянсе с вами"],
-		["Друзьям (>100)", _GROUP_FRIENDS, "Предложить кредит странам с отношениями выше 100"],
-		["Выбранным", _GROUP_SELECTED, "Предложить кредит странам, выбранным в таблице"],
-	]:
-		var button := Button.new()
-		button.text = entry[0]
-		button.tooltip_text = entry[2]
-		button.pressed.connect(_on_lend_pressed.bind(entry[1]))
-		groups.add_child(button)
+	_external_info = Label.new()
+	_external_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(_external_info)
 
-	_lend_result = Label.new()
-	_lend_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_lend_result.text = (
-		"Страны решают сами: нуждающиеся принимают кредит, а те, кому вы не нравитесь, могут улучшить отношения "
-		+ "или попроситься в альянс."
+	var give := Button.new()
+	give.text = tr("CREDIT_ISSUE_BUTTON")
+	give.pressed.connect(
+		func() -> void:
+			PlayerSingleton.offer_external_credit(
+				_external_amount.value, _external_rate.value / 100.0, _external_term.selected, _all_countries.button_pressed
+			)
 	)
-	tab.add_child(_lend_result)
-
-	var requests_label := Label.new()
-	requests_label.text = "Просьбы об альянсе:"
-	tab.add_child(requests_label)
-	_requests_box = VBoxContainer.new()
-	tab.add_child(_requests_box)
-
-
-func _on_lend_pressed(group: int) -> void:
-	PlayerSingleton.give_external_loans(group, _lend_amount.value, _lend_rate.value / 100.0, _lend_term.selected)
-	_lend_result.text = "Предложение отправлено. Результат виден в таблице выданных кредитов через день."
+	tab.add_child(give)
 
 
 func _on_country_selected(item: TreeItem, _column: int, selected: bool) -> void:
-	if _updating_selection:
+	if _updating_countries:
 		return
-	PlayerSingleton.stage_loan_target(int(item.get_metadata(0)), selected)
+	PlayerSingleton.stage_credit_country(int(item.get_metadata(0)), selected)
 
 
 func _fill_countries() -> void:
@@ -322,9 +341,9 @@ func _fill_countries() -> void:
 		_countries = PlayerSingleton.get_diplomacy_country_list()
 
 	var query: String = _search.text.strip_edges().to_lower() if _search else ""
-	var selected: PackedInt32Array = _overview.get("selected_targets", PackedInt32Array())
+	var staged: PackedInt32Array = _overview.get("staged_countries", PackedInt32Array())
 
-	_updating_selection = true
+	_updating_countries = true
 	_countries_tree.clear()
 	var root: TreeItem = _countries_tree.create_item()
 	for country: Dictionary in _countries:
@@ -335,77 +354,38 @@ func _fill_countries() -> void:
 		item.set_text(0, country_name)
 		item.set_text(1, str(int(country.get(&"relation", 0))))
 		item.set_metadata(0, int(country[&"index"]))
-		if selected.has(int(country[&"index"])):
+		if staged.has(int(country[&"index"])):
 			item.select(0)
-	_updating_selection = false
+	_updating_countries = false
 
 
-# ---- Internal loans ----
+# ---- Tab 4: take a credit ----
 
 
-func _build_internal_tab() -> void:
-	var tab := _tab("Капиталистам")
-
-	_internal_tree = _make_tree(
-		tab, ["Штат", "Выдано", "Осталось", "Не потрачено", "Ставка", "Без выплат до", "Срок"], [0, 80, 80, 100, 60, 110, 90]
-	)
-
-	var plate := PanelContainer.new()
-	tab.add_child(plate)
-	var form := VBoxContainer.new()
-	plate.add_child(form)
-	var title := Label.new()
-	title.text = "Новый кредит капиталистам (не чаще раза в месяц)"
-	form.add_child(title)
-
-	_state_option = OptionButton.new()
-	_state_option.item_selected.connect(func(_index: int) -> void: _update_internal_info())
-	_row(form, "Штат:", _state_option)
-	_internal_amount = _spin(100.0, 1000000.0, 100.0, 2000.0)
-	_row(form, "Сумма:", _internal_amount)
-	_internal_rate_field = _spin(1.0, 50.0, 0.5, 5.0, " % в год")
-	_row(form, "Процент:", _internal_rate_field)
-	_internal_term = _term_option()
-	_row(form, "Срок:", _internal_term)
-	_internal_policy = OptionButton.new()
-	for policy_name in _POLICY_NAMES:
-		_internal_policy.add_item(policy_name)
-	_internal_policy.tooltip_text = "\n".join(_POLICY_TIPS)
-	_row(form, "По окончании срока:", _internal_policy)
-
-	_internal_info = Label.new()
-	_internal_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	form.add_child(_internal_info)
-
-	var give := Button.new()
-	give.text = "Выдать кредит"
-	give.pressed.connect(
+func _build_take_tab() -> void:
+	var tab := _tab(tr("CREDIT_TAB_TAKE"))
+	var info := Label.new()
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.text = tr("CREDIT_TAKE_INFO")
+	tab.add_child(info)
+	_offers_tree = _make_tree(tab, [tr("CREDIT_COL_AMOUNT"), tr("CREDIT_COL_TAG"), tr("CREDIT_COL_LENDER"), tr("CREDIT_COL_TYPE"), tr("CREDIT_COL_RATE")], [100, 70, 0, 130, 90])
+	var take := Button.new()
+	take.text = tr("CREDIT_TAKE_BUTTON")
+	take.pressed.connect(
 		func() -> void:
-			var selected: int = _state_option.selected
-			if selected >= 0 and selected < _states.size():
-				PlayerSingleton.give_internal_loan(
-					int(_states[selected][&"province_index"]), _internal_amount.value, _internal_rate_field.value / 100.0,
-					_internal_term.selected, _internal_policy.selected
-				)
+			var id: int = _selected_id(_offers_tree)
+			if id > 0:
+				PlayerSingleton.take_credit(id)
 	)
-	form.add_child(give)
-
-
-func _update_internal_info() -> void:
-	var selected: int = _state_option.selected
-	if selected < 0 or selected >= _states.size():
-		_internal_info.text = "Нет штатов с капиталистами."
-		return
-	var state: Dictionary = _states[selected]
-	_internal_info.text = (
-		"Капиталистов: %d. Свободные деньги капиталистов: %s.\n%s\n%s" % [
-			state[&"capitalists"], _money(state[&"capitalist_money"]),
-			_TERM_TIPS[_internal_term.selected], _POLICY_TIPS[_internal_policy.selected],
-		]
-	)
+	tab.add_child(take)
 
 
 # ---- Refresh ----
+
+
+func _update_info() -> void:
+	_internal_info.text = _term_text(_internal_term.selected)
+	_external_info.text = _term_text(_external_term.selected)
 
 
 func _refresh(force: bool = false) -> void:
@@ -415,103 +395,104 @@ func _refresh(force: bool = false) -> void:
 	_overview = PlayerSingleton.get_credit_overview()
 	if _overview.is_empty():
 		return
+	_terms = _overview["terms"]
 
-	var bank: Dictionary = _overview["central_bank"]
-	_summary.text = "Казна: %s    Долг: %s (лимит %s)    Проценты в месяц: %s" % [
+	_summary.text = tr("CREDIT_SUMMARY") % [
 		_money(_overview["cash"]), _money(_overview["total_debt"]), _money(_overview["debt_limit"]),
-		_money(_overview["monthly_interest"]),
+		_money(_overview["monthly_payments"]), _percent(_overview["rate_min"]), _percent(_overview["rate_max"]),
 	]
+	_update_info()
 
-	# The rate fields show the real rates until the player edits them
-	if not _internal_rate.get_line_edit().has_focus() and not _external_rate.get_line_edit().has_focus():
-		_internal_rate.set_value_no_signal(snappedf(float(bank["internal_rate"]) * 100.0, 0.5))
-		_external_rate.set_value_no_signal(snappedf(float(bank["external_rate"]) * 100.0, 0.5))
+	_fill_internal_table()
+	_fill_external_table()
+	_fill_regions()
 
-	_fill_loans(_taken_tree, _overview["external_taken"], false)
-	_fill_loans(_given_tree, _overview["external_given"], false)
-	_fill_loans(_internal_tree, _overview["internal_given"], true)
-
-	# Offers
-	var previous_offer: int = _selected_id(_offers_tree) if _offers_tree.get_selected() else -1
-	_offers_tree.clear()
-	var offers_root: TreeItem = _offers_tree.create_item()
-	for offer: Dictionary in _overview["offers"]:
-		var item: TreeItem = _offers_tree.create_item(offers_root)
-		item.set_text(0, offer["lender_name"])
-		item.set_text(1, _money(offer["max_amount"]))
-		item.set_text(2, "%.1f %%" % (float(offer["rate"]) * 100.0))
-		item.set_metadata(0, int(offer["lender_index"]))
-		if int(offer["lender_index"]) == previous_offer:
-			item.select(0)
-
-	# The table of countries is only rebuilt when the chosen countries changed elsewhere
-	var selected: PackedInt32Array = _overview["selected_targets"]
-	if force or selected != _last_selected:
-		_last_selected = selected
+	var staged: PackedInt32Array = _overview["staged_countries"]
+	if force or staged != _last_staged_countries:
+		_last_staged_countries = staged
 		_fill_countries()
 
-	# Requests for an alliance
-	for child: Node in _requests_box.get_children():
-		_requests_box.remove_child(child)
-		child.queue_free()
-	for request: Dictionary in _overview["alliance_requests"]:
-		var row := HBoxContainer.new()
-		_requests_box.add_child(row)
-		var label := Label.new()
-		label.text = "%s просит союза (%s)" % [request["from_name"], request["date"]]
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(label)
-		var accept := Button.new()
-		accept.text = "Принять"
-		accept.pressed.connect(func() -> void: PlayerSingleton.answer_alliance_request(int(request["from_index"]), true))
-		row.add_child(accept)
-		var decline := Button.new()
-		decline.text = "Отказать"
-		decline.pressed.connect(func() -> void: PlayerSingleton.answer_alliance_request(int(request["from_index"]), false))
-		row.add_child(decline)
-
-	# States for the loans to the capitalists
-	var previous_state: int = -1
-	if _state_option.selected >= 0 and _state_option.selected < _states.size():
-		previous_state = int(_states[_state_option.selected][&"province_index"])
-	_states = _overview["states"]
-	_state_option.clear()
-	var restore: int = 0
-	for i: int in _states.size():
-		var state: Dictionary = _states[i]
-		_state_option.add_item("%s (капиталисты: %s)" % [
-			GUINode.format_province_name(state[&"province_identifier"]), _money(state[&"capitalist_money"]),
-		])
-		if int(state[&"province_index"]) == previous_state:
-			restore = i
-	if not _states.is_empty():
-		_state_option.select(restore)
-	_update_internal_info()
+	_fill_offers()
 
 
-func _fill_loans(tree: Tree, loans: Array, internal: bool) -> void:
-	var previous: int = _selected_id(tree) if tree.get_selected() else 0
-	tree.clear()
-	var root: TreeItem = tree.create_item()
-	for loan: Dictionary in loans:
-		var item: TreeItem = tree.create_item(root)
-		var principal: float = loan["principal"]
-		var remaining: float = loan["remaining"]
-		if internal:
-			item.set_text(0, GUINode.format_province_name(loan["province_identifier"]))
-			item.set_text(1, _money(principal))
-			item.set_text(2, _money(remaining))
-			item.set_text(3, _money(loan["unspent"]))
-			item.set_text(4, "%.1f %%" % (float(loan["rate"]) * 100.0))
-			item.set_text(5, loan["grace_end"])
-			item.set_text(6, loan["due"])
-		else:
-			item.set_text(0, loan["other_name"])
-			item.set_text(1, _money(principal))
-			item.set_text(2, _money(remaining))
-			item.set_text(3, "%.1f %%" % (float(loan["rate"]) * 100.0))
-			item.set_text(4, loan["due"])
-			item.set_text(5, "%d %%" % roundi((1.0 - remaining / maxf(principal, 0.01)) * 100.0) if tree == _taken_tree else _money(loan["interest_paid"]))
-		item.set_metadata(0, int(loan["id"]))
-		if int(loan["id"]) == previous:
+func _fill_internal_table() -> void:
+	var previous: int = _selected_id(_internal_tree) if _internal_tree.get_selected() else 0
+	_internal_tree.clear()
+	var root: TreeItem = _internal_tree.create_item()
+	for credit: Dictionary in _overview["internal"]:
+		var item: TreeItem = _internal_tree.create_item(root)
+		item.set_text(0, _money(credit["amount"]))
+		item.set_text(1, credit["issue_date"])
+		item.set_text(2, credit["taken_date"] if int(credit["status"]) == 1 else "—")
+		item.set_text(3, _percent(credit["rate"]))
+		item.set_text(4, _money(credit["paid"]))
+		item.set_text(5, _delay_text(credit))
+		var regions: PackedStringArray = credit["regions"]
+		var names: PackedStringArray = []
+		for identifier: String in regions:
+			names.append(GUINode.format_province_name(identifier))
+		item.set_text(6, tr("CREDIT_WHOLE_COUNTRY") if names.is_empty() else ", ".join(names))
+		item.set_metadata(0, int(credit["id"]))
+		if int(credit["id"]) == previous:
+			item.select(0)
+
+
+func _fill_external_table() -> void:
+	var previous: int = _selected_id(_external_tree) if _external_tree.get_selected() else 0
+	_external_tree.clear()
+	var root: TreeItem = _external_tree.create_item()
+	for credit: Dictionary in _overview["external"]:
+		var item: TreeItem = _external_tree.create_item(root)
+		var direction: String = credit["direction"]
+		item.set_text(0, credit["country_tag"] if not String(credit["country_tag"]).is_empty() else "—")
+		item.set_text(1, _money(credit["amount"]))
+		item.set_text(2, credit["issue_date"])
+		item.set_text(3, credit["taken_date"] if int(credit["status"]) == 1 else "—")
+		item.set_text(4, _percent(credit["rate"]))
+		item.set_text(5, _money(credit["paid"]))
+		item.set_text(6, _delay_text(credit))
+		var who: String = credit["country_name"]
+		match direction:
+			"given":
+				who = tr("CREDIT_GIVEN_TO") + who
+			"taken":
+				who = tr("CREDIT_TAKEN_FROM") + who
+			_:
+				var targets: PackedStringArray = credit["targets"]
+				who = tr("CREDIT_OFFERED_TO") + (tr("CREDIT_EVERYBODY") if targets.is_empty() else ", ".join(targets))
+		item.set_text(7, who)
+		item.set_metadata(0, int(credit["id"]))
+		if int(credit["id"]) == previous:
+			item.select(0)
+
+
+func _fill_regions() -> void:
+	var regions: Array = _overview["regions"]
+	_updating_regions = true
+	_regions_tree.clear()
+	var root: TreeItem = _regions_tree.create_item()
+	for region: Dictionary in regions:
+		var item: TreeItem = _regions_tree.create_item(root)
+		item.set_text(0, GUINode.format_province_name(region[&"province_identifier"]))
+		item.set_text(1, str(int(region[&"capitalists"])))
+		item.set_text(2, _money(region[&"capitalist_money"]))
+		item.set_metadata(0, int(region[&"province_index"]))
+		if bool(region[&"staged"]):
+			item.select(0)
+	_updating_regions = false
+
+
+func _fill_offers() -> void:
+	var previous: int = _selected_id(_offers_tree) if _offers_tree.get_selected() else 0
+	_offers_tree.clear()
+	var root: TreeItem = _offers_tree.create_item()
+	for offer: Dictionary in PlayerSingleton.get_available_credit_offers():
+		var item: TreeItem = _offers_tree.create_item(root)
+		item.set_text(0, _money(offer["amount"]))
+		item.set_text(1, offer["lender_tag"])
+		item.set_text(2, offer["lender_name"])
+		item.set_text(3, tr("CREDIT_TERM_TYPE_YEARS") % [_term_name(int(offer["term"])), _years(int(offer["term_days"]))])
+		item.set_text(4, _percent(offer["rate"]))
+		item.set_metadata(0, int(offer["id"]))
+		if int(offer["id"]) == previous:
 			item.select(0)
