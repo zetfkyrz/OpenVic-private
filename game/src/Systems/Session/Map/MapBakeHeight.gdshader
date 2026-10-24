@@ -1,7 +1,8 @@
 shader_type canvas_item;
+render_mode blend_disabled;
 // Bakes the relief of the map once: the height of the terrain (blurred terrain types plus fine noise), the land mask
 // and the closeness to the coast. R = height, G = land mask (slightly blurred), B = land fraction around the pixel
-// (0 in the open sea, about 0.5 at the coast), A = 1.
+// (0 in the open sea, about 0.5 at the coast), A = land fraction in a small disc (the surf along the coast).
 
 #include "res://src/Systems/Session/Map/ProvinceIndexSampler.gdshaderinc"
 
@@ -13,6 +14,8 @@ uniform float terrain_blur = 12.0;
 uniform float height_detail = 0.35;
 // Radius in map pixels over which the closeness to the coast is measured
 uniform float shore_distance = 32.0;
+// Radius in map pixels of the surf zone along the coast
+uniform float foam_distance = 9.0;
 
 const int HEIGHT_TAPS = 32;
 const int COAST_TAPS = 24;
@@ -60,5 +63,15 @@ void fragment() {
 	}
 	coast /= float(COAST_TAPS);
 
-	COLOR = vec4(clamp(height, 0.0, 1.0), land_near, coast, 1.0);
+	// Land fraction in a small disc: 0.5 on the coast line, falls to 0 over the surf zone. Smooth, so the waves can
+	// follow the coast line
+	float surf = 0.0;
+	for (int i = 0; i < COAST_TAPS; i++) {
+		float r = sqrt((float(i) + 0.5) / float(COAST_TAPS));
+		float a = float(i) * GOLDEN_ANGLE;
+		surf += land_at(UV + vec2(cos(a), sin(a)) * r * px * foam_distance);
+	}
+	surf /= float(COAST_TAPS);
+
+	COLOR = vec4(clamp(height, 0.0, 1.0), land_near, coast, surf);
 }

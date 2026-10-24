@@ -69,8 +69,8 @@ uniform float ao_strength = 0.6;
 uniform vec3 shallow_colour = vec3(0.55, 0.85, 0.95);
 uniform vec3 deep_colour = vec3(0.12, 0.28, 0.5);
 uniform float depth_strength = 0.55;
-uniform vec3 foam_colour = vec3(1.0);
-uniform float foam_opacity = 0.55;
+uniform vec3 foam_colour = vec3(0.62, 0.8, 0.9);
+uniform float foam_opacity = 0.4;
 uniform float wave_speed = 0.8;
 uniform float specular_strength = 0.35;
 
@@ -263,9 +263,16 @@ vec3 apply_relief_and_water(vec3 colour, vec2 uv) {
 	float time = TIME * wave_speed;
 	vec2 sea_uv = uv * vec2(70.0, 70.0 * float(textureSize(province_shape_tex, 0).y) / float(max(textureSize(province_shape_tex, 0).x, 1)));
 	vec3 sea = texture(sea_normal_tex, sea_uv + vec2(time * 0.03, time * 0.012)).rgb;
-	float waves = quality >= 2 ? 0.5 + 0.5 * sin(coast * 70.0 - time * 2.4 + sea.r * 7.0) : 0.75;
-	float foam = smoothstep(0.40, 0.49, coast) * waves * foam_opacity * (1.0 - parchment_mix * 0.6);
-	water_colour = mix(water_colour, foam_colour, clamp(foam, 0.0, 1.0));
+
+	// Surf: smooth waves that follow the coast line and roll towards the shore (surf is 0.5 on the coast, 0 away)
+	float surf = heights.a;
+	float zone = smoothstep(0.03, 0.22, surf);
+	float phase = surf * 22.0 - (quality >= 2 ? time * 1.6 : 0.0);
+	float wave = smoothstep(0.1, 0.9, 0.5 + 0.5 * sin(phase * 3.14159));
+	// The foam is a lighter shade of the sea, brightest at the shore
+	vec3 foam_tint = mix(water_colour * 1.35, foam_colour, 0.55);
+	float foam = zone * (0.3 + 0.7 * wave) * foam_opacity * (1.0 - parchment_mix * 0.6);
+	water_colour = mix(water_colour, foam_tint, clamp(foam, 0.0, 1.0));
 
 	if (quality >= 2 && specular_strength > 0.0) {
 		vec3 glint_normal = normalize(vec3((sea.xy * 2.0 - 1.0) * 0.4, 1.0));

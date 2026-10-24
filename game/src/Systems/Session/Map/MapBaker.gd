@@ -97,7 +97,8 @@ func _make_pass(size: Vector2i, shader_material: ShaderMaterial, update_mode: in
 	var viewport := SubViewport.new()
 	viewport.size = size
 	viewport.disable_3d = true
-	viewport.transparent_bg = false
+	# Alpha carries data of the baked textures
+	viewport.transparent_bg = true
 	viewport.render_target_update_mode = update_mode
 	var rect := ColorRect.new()
 	rect.size = Vector2(size)
@@ -124,6 +125,7 @@ func _bake(quality: int, serial: int) -> void:
 	height_material.set_shader_parameter(&"terrain_blur", t.terrain_blur)
 	height_material.set_shader_parameter(&"height_detail", t.height_detail)
 	height_material.set_shader_parameter(&"shore_distance", t.shore_distance)
+	height_material.set_shader_parameter(&"foam_distance", t.foam_distance)
 	var height_pass: SubViewport = _make_pass(bake_size, height_material, SubViewport.UPDATE_ONCE)
 
 	await RenderingServer.frame_post_draw

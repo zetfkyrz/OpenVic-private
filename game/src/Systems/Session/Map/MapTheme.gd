@@ -53,7 +53,10 @@ extends Resource
 @export_range(0.0, 1.0) var depth_strength: float = 0.55
 ## Distance from the coast (in map pixels) over which the water turns deep
 @export_range(4.0, 120.0) var shore_distance: float = 32.0
-@export var foam_colour: Color = Color(1.0, 1.0, 1.0)
-@export_range(0.0, 1.0) var foam_opacity: float = 0.55
+## Width of the surf along the coast in map pixels
+@export_range(2.0, 30.0) var foam_distance: float = 9.0
+## Colour of the foam, close to the colour of the sea so that it is not too bright
+@export var foam_colour: Color = Color(0.62, 0.8, 0.9)
+@export_range(0.0, 1.0) var foam_opacity: float = 0.4
 @export_range(0.0, 4.0) var wave_speed: float = 0.8
 @export_range(0.0, 1.0) var specular_strength: float = 0.35

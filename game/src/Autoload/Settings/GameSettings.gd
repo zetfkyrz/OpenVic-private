@@ -88,6 +88,7 @@ const GRAPHICS_DETAIL_DISPLAY_NAMES: PackedStringArray = [
 # Resolution
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(3840, 2160),
+	Vector2i(2560, 1440),
 	Vector2i(2560, 1080),
 	Vector2i(1920, 1080),
 	Vector2i(1366, 768),
@@ -100,6 +101,7 @@ const RESOLUTIONS: Array[Vector2i] = [
 ]
 const RESOLUTION_DISPLAY_NAMES: PackedStringArray = [
 	"3840x2160 (4K)",
+	"2560x1440 (1440p)",
 	"2560x1080 (UW1080p)",
 	"1920x1080 (1080p)",
 	"1366x768",
