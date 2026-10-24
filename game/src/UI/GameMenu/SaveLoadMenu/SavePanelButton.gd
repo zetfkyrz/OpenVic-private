@@ -39,7 +39,12 @@ func _is_start_date() -> bool:
 func _resource_changed() -> void:
 	if resource == null: return
 	name_label.text = resource.save_name
-	date_label.text = Time.get_datetime_string_from_unix_time(resource.get_save_file_time(), true)
+	var saved: String = Time.get_datetime_string_from_unix_time(resource.get_save_file_time(), true)
+	if resource.is_replay:
+		# The date in the game and the time the file was written
+		date_label.text = "%s · %s" % [resource.replay_header.get("date", ""), saved]
+	else:
+		date_label.text = saved
 
 
 func _on_delete_button_pressed() -> void:

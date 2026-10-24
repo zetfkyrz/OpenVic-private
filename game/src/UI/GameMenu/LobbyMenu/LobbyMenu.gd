@@ -37,7 +37,16 @@ var _flag_rect: TextureRect
 var _info_label: Label
 
 
+const _ReplayLoader := preload("res://src/Systems/Startup/ReplayLoader.gd")
+
+var _replay_loader: Node
+
+
 func _ready() -> void:
+	# Save games of the simulation (*.ovsave) in the list of saves start the game by replaying the actions
+	_replay_loader = _ReplayLoader.new()
+	add_child(_replay_loader)
+	_replay_loader.load_confirmed.connect(func(path: String) -> void: _ReplayLoader.start_game(path, get_tree()))
 	_build_country_preview()
 	_update_selected_country_label()
 
@@ -213,6 +222,9 @@ func _on_back_button_pressed() -> void:
 
 
 func _on_start_button_pressed() -> void:
+	if SaveManager.current_save != null and SaveManager.current_save.is_replay:
+		_replay_loader.request_load(SaveManager.current_save.file_path)
+		return
 	print("Starting new game.")
 	if SaveManager.current_session_tag == "":
 		# TODO: Get country tag as well
@@ -281,6 +293,9 @@ func _on_start_date_panel_button_pressed(node: Control) -> void:
 		_on_start_button_pressed()
 		return
 	_start_date_index = node.get_index(true)
+	# A start date was chosen instead of a save game
+	SaveManager.current_save = null
+	SaveManager.current_session_tag = ""
 	_setup_start_date(_start_date_index)
 	start_button.disabled = false
 	start_date_selected.emit(_start_date_index)

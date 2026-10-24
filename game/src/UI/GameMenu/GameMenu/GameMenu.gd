@@ -6,6 +6,27 @@ extends Control
 @export var _lobby_menu: Control
 @export var _credits_menu: Control
 
+const _ReplayLoader := preload("res://src/Systems/Startup/ReplayLoader.gd")
+
+var _replay_loader: Node
+
+
+func _ready() -> void:
+	# "Continue" loads the newest save game (autosave, quick save, ...)
+	_replay_loader = _ReplayLoader.new()
+	add_child(_replay_loader)
+	_replay_loader.load_confirmed.connect(func(path: String) -> void: _ReplayLoader.start_game(path, get_tree()))
+	_main_menu.continue_button_pressed.connect(_on_main_menu_continue_button_pressed)
+
+
+func _on_main_menu_continue_button_pressed() -> void:
+	var path: String = _ReplayLoader.latest_save_path()
+	if path.is_empty():
+		push_warning("There is no save game to continue.")
+		return
+	_replay_loader.request_load(path)
+
+
 # REQUIREMENTS
 # * SS-10
 

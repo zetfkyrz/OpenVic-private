@@ -19,7 +19,11 @@ func _ready() -> void:
 	var saves_dir := DirAccess.open(saves_dir_path)
 	for file: String in saves_dir.get_files():
 		var save := SaveResource.new()
-		save.load_save(saves_dir_path.path_join(file))
+		if file.get_extension() == "ovsave":
+			if save.load_replay(saves_dir_path.path_join(file)) != OK:
+				continue
+		else:
+			save.load_save(saves_dir_path.path_join(file))
 		add_or_replace_save(save, true)
 
 
@@ -43,6 +47,20 @@ func make_new_save(
 	print(new_save.file_path)
 	new_save.session_tag = session_tag
 	return new_save
+
+
+## Saves the running game as a replay file (*.ovsave) in the saves directory, returns the error of the write
+func save_replay(save_name: String) -> Error:
+	var dir_path: String = ProjectSettings.get_setting_with_override(save_directory_setting)
+	DirAccess.make_dir_recursive_absolute(dir_path)
+	var path: String = dir_path.path_join(save_name.validate_filename() + ".ovsave")
+	var result: Error = GameSingleton.save_game(path, save_name)
+	if result != OK:
+		return result
+	var save := SaveResource.new()
+	if save.load_replay(path) == OK:
+		add_or_replace_save(save, true)
+	return OK
 
 
 func has_save(save_name: StringName, session_tag: StringName = current_session_tag) -> bool:

@@ -13,6 +13,7 @@ const _FleetPanel: GDScript = preload("res://src/UI/Session/FleetPanel.gd")
 const _RecruitmentWindow: GDScript = preload("res://src/UI/Session/RecruitmentWindow.gd")
 const _RECRUITMENT_KEY: Key = KEY_F7
 const _SaveGameWindow := preload("res://src/UI/Session/SaveGameWindow.gd")
+const _ReplayLoader := preload("res://src/Systems/Startup/ReplayLoader.gd")
 # Autosave interval in real seconds
 const _AUTOSAVE_SECONDS: float = 300.0
 
@@ -57,7 +58,14 @@ func _ready() -> void:
 	_save_window = Control.new()
 	_save_window.set_script(_SaveGameWindow)
 	_game_session_menu.get_parent().add_child(_save_window)
-	_save_window.load_requested.connect(_load_game)
+	var replay_loader := Node.new()
+	replay_loader.set_script(_ReplayLoader)
+	add_child(replay_loader)
+	replay_loader.load_confirmed.connect(_load_game)
+	_save_window.load_requested.connect(replay_loader.request_load)
+	var save_load_menu: Node = _game_session_menu.get_parent().get_node_or_null(^"SaveLoadMenu")
+	if save_load_menu:
+		save_load_menu.replay_load_requested.connect(replay_loader.request_load)
 	var autosave_timer := Timer.new()
 	autosave_timer.wait_time = _AUTOSAVE_SECONDS
 	autosave_timer.autostart = true
