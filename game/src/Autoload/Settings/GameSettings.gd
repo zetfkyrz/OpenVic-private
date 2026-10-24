@@ -387,6 +387,10 @@ func _resolution_apply(stg: Setting) -> void:
 	if window != null:
 		mode = window.mode
 
+	# A resolution with another aspect ratio than the screen gets black bars instead of stretching the picture
+	if window != null:
+		window.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+
 	match mode:
 		Window.MODE_EXCLUSIVE_FULLSCREEN, Window.MODE_FULLSCREEN:
 			if window != null: window.content_scale_size = stg.value() as Vector2i
