@@ -68,11 +68,11 @@ uniform float ao_strength = 0.6;
 
 uniform vec3 shallow_colour = vec3(0.55, 0.85, 0.95);
 uniform vec3 deep_colour = vec3(0.12, 0.28, 0.5);
-uniform float depth_strength = 0.65;
+uniform float depth_strength = 0.55;
 uniform vec3 shelf_colour = vec3(0.45, 0.64, 0.88);
-uniform float shelf_strength = 0.55;
+uniform float shelf_strength = 0.4;
 uniform float shelf_edge = 0.17;
-uniform float rim_strength = 0.35;
+uniform float rim_strength = 0.06;
 uniform vec3 foam_colour = vec3(0.62, 0.8, 0.9);
 uniform float foam_opacity = 0.4;
 uniform float wave_speed = 0.8;
@@ -265,8 +265,9 @@ vec3 apply_relief_and_water(vec3 colour, vec2 uv) {
 	vec3 water_colour = mix(colour, colour * water_tint * 1.8, depth_strength * (1.0 - parchment_mix));
 
 	// Shelf: light shallow water along the coast, getting lighter towards the shore, and a darker rim at its edge
-	float shelf = smoothstep(shelf_edge - 0.05, shelf_edge + 0.03, coast);
-	float rim = exp(-pow((coast - shelf_edge) / 0.02, 2.0));
+	// A wide, soft gradient: no visible edge between the shallow water and the deep sea
+	float shelf = smoothstep(shelf_edge - 0.17, shelf_edge + 0.2, coast);
+	float rim = exp(-pow((coast - shelf_edge) / 0.08, 2.0));
 	vec3 shelf_tint = shelf_colour * (0.85 + 0.45 * smoothstep(shelf_edge, 0.5, coast));
 	water_colour = mix(water_colour, shelf_tint, shelf * shelf_strength * (1.0 - parchment_mix));
 	water_colour *= 1.0 - rim * rim_strength * (1.0 - parchment_mix);
