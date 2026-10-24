@@ -58,6 +58,17 @@ var _countries_by_index: Dictionary[int, Dictionary]
 var _selected_country_index: int = -1
 
 
+# Tabs of the window: great powers, wars, casus belli, crisis (country_diplomacy.gui)
+const _TAB_NAMES: PackedStringArray = ["gp_info", "war_info", "cb_info", "crisis_info"]
+const _GP_ORIGIN := Vector2(30, 52)
+const _GP_STEP := Vector2(335, 62)
+var _tab: int = 0
+var _war_listbox: GUIListBox
+var _cb_window: Control
+var _crisis_window: Control
+var _gp_entries: Array[Panel] = []
+
+
 func _ready() -> void:
 	GameSingleton.gamestate_updated.connect(_update_info)
 
@@ -94,6 +105,7 @@ func _ready() -> void:
 			if label and not _FACT_LABELS.has(StringName(label_name)):
 				_empty_facts_labels.append(label)
 
+	_setup_tabs()
 	_update_info()
 
 
@@ -126,6 +138,7 @@ func _update_info() -> void:
 	_update_country_list()
 	_generate_action_buttons()
 	_update_selected_country()
+	_update_tabs()
 
 
 func _find_facts_label(label_name: String) -> GUILabel:
@@ -334,3 +347,134 @@ func _is_action_available(identifier: String, relation: Dictionary) -> bool:
 			return relation[&"we_have_vision"]
 
 	return true
+
+
+# ---- Tabs: great powers, wars, casus belli, crisis ----
+
+
+func _setup_tabs() -> void:
+	for i: int in _TAB_NAMES.size():
+		var button: GUIIconButton = get_gui_icon_button_from_nodepath(NodePath("./country_diplomacy/" + _TAB_NAMES[i]))
+		if button:
+			button.pressed.connect(_set_tab.bind(i))
+	_war_listbox = GUINode.get_gui_listbox_from_node(_main_window.get_node_or_null(^"./war_listbox"))
+	_cb_window = _main_window.get_node_or_null(^"./cb_info_win")
+	_crisis_window = _main_window.get_node_or_null(^"./crisis_info_win")
+
+
+func _set_tab(tab: int) -> void:
+	_tab = tab
+	_update_tabs()
+
+
+func _update_tabs() -> void:
+	if _war_listbox:
+		_war_listbox.visible = _tab == 1
+	if _cb_window:
+		_cb_window.visible = _tab == 2
+	if _crisis_window:
+		_crisis_window.visible = _tab == 3
+	for entry: Panel in _gp_entries:
+		entry.visible = _tab == 0
+
+	match _tab:
+		0:
+			_fill_great_powers()
+		1:
+			_fill_wars()
+		3:
+			_update_crisis()
+
+
+func _fill_great_powers() -> void:
+	var powers: Array = PlayerSingleton.get_great_powers_info()
+	# Entries are made again only when the amount changes, their numbers are refreshed every time
+	if _gp_entries.size() != powers.size():
+		for entry: Panel in _gp_entries:
+			entry.queue_free()
+		_gp_entries.clear()
+		for i: int in powers.size():
+			var entry: Panel = GUINode.generate_gui_element(_gui_file, "diplomacy_greatpower_info")
+			if entry == null:
+				break
+			entry.position = _GP_ORIGIN + Vector2(_GP_STEP.x * (i % 2), _GP_STEP.y * (i / 2))
+			_main_window.add_child(entry)
+			_gp_entries.append(entry)
+
+	for i: int in mini(_gp_entries.size(), powers.size()):
+		var entry: Panel = _gp_entries[i]
+		var power: Dictionary = powers[i]
+		var name_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./country_name")
+		if name_label:
+			name_label.set_text(str(power[&"name"]))
+		var flag_button: GUIMaskedFlagButton = GUINode.get_gui_masked_flag_button_from_node_and_path(entry, ^"./country_flag")
+		if flag_button:
+			flag_button.set_flag_country_name(str(power[&"tag"]))
+		for pair: Array in [
+			[^"./gp_prestige", &"prestige"], [^"./gp_economic", &"industrial_power"], [^"./gp_military", &"military_power"],
+		]:
+			var label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, pair[0])
+			if label:
+				label.set_text(GUINode.float_to_string_dp(float(power[pair[1]]), 0))
+		var total: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./gp_total")
+		if total:
+			total.set_text(str(power[&"total_rank"]))
+		entry.tooltip_text = "%s\n%s: %s" % [power[&"name"], "Ваше влияние", GUINode.float_to_string_dp(float(power[&"influence"]), 0)]
+
+
+func _fill_wars() -> void:
+	if _war_listbox == null:
+		return
+	var wars: Array = PlayerSingleton.get_world_wars_info()
+	_war_listbox.clear_children(wars.size())
+	for war: Dictionary in wars:
+		var entry: Panel = GUINode.generate_gui_element(_gui_file, "diplomacy_war_info")
+		if entry == null:
+			break
+		_war_listbox.add_child(entry)
+		var attackers: PackedStringArray = []
+		for side: Dictionary in war[&"attackers"]:
+			attackers.append(str(side[&"name"]))
+		var defenders: PackedStringArray = []
+		for side: Dictionary in war[&"defenders"]:
+			defenders.append(str(side[&"name"]))
+		var title: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./war_name")
+		if title:
+			title.set_text("%s — %s" % [", ".join(attackers), ", ".join(defenders)])
+		var score: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./warscore_text")
+		if score:
+			score.set_text("%s : %s" % [
+				GUINode.float_to_string_dp(float(war[&"attacker_score"]), 0), GUINode.float_to_string_dp(float(war[&"defender_score"]), 0),
+			])
+		entry.tooltip_text = "%s: %d" % ["Дней войны", int(war[&"days"])]
+		# There is no joining of wars and no military strength per side in the simulation yet
+		for part: StringName in [&"join_attackers", &"join_defenders"]:
+			var button: Node = entry.find_child(String(part), true, false)
+			if button is CanvasItem:
+				(button as CanvasItem).visible = false
+		for label_name: NodePath in [^"./attackers_mil_strength", ^"./defenders_mil_strength"]:
+			var strength: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, label_name)
+			if strength:
+				strength.set_text("")
+
+
+func _update_crisis() -> void:
+	if _crisis_window == null:
+		return
+	var crisis: Dictionary = PlayerSingleton.get_crisis_info()
+	var active: bool = crisis.get(&"active", false)
+	# There is no crisis system yet: the window only says so, the parts of a crisis are hidden
+	for part: StringName in [&"attacker_win", &"defender_win", &"fence_sitters_win", &"fence_sitters_label", &"crisis_temperature",
+			&"crisis_temperature_overlay"]:
+		var node: Node = _crisis_window.find_child(String(part), true, false)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = active
+	var title: GUILabel = GUINode.get_gui_label_from_node_and_path(_crisis_window, ^"./crisis_title")
+	if title:
+		title.set_text("Кризис")
+	var sub_title: GUILabel = GUINode.get_gui_label_from_node_and_path(_crisis_window, ^"./crisis_sub_title")
+	if sub_title:
+		sub_title.set_text("" if active else "В мире нет кризиса")
+	var status: GUILabel = GUINode.get_gui_label_from_node_and_path(_crisis_window, ^"./crisis_status_label")
+	if status:
+		status.set_text("")
