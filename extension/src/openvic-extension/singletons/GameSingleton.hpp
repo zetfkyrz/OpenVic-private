@@ -126,6 +126,9 @@ namespace OpenVic {
 
 		/* The cosmetic terrain textures stored in a Texture2DArray. */
 		godot::Ref<godot::Texture2DArray> get_terrain_texture() const;
+		/* Relief height (0..1) for every terrain index of the province shape image (index 0 is water), derived from
+		 * the terrain types of the terrain mappings. Used to bake the relief of the map. */
+		godot::PackedFloat32Array get_terrain_height_table() const;
 
 		godot::Ref<godot::Image> get_flag_sheet_image() const;
 		godot::Ref<godot::ImageTexture> get_flag_sheet_texture() const;

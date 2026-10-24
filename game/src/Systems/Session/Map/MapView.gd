@@ -67,6 +67,9 @@ var _is_detailed_view: bool = false
 
 var _map_mesh: MapMesh
 var _map_shader_material: ShaderMaterial
+# Bakes the relief and feeds the map theme and the map quality into the shader
+const _MapBaker: GDScript = preload("res://src/Systems/Session/Map/MapBaker.gd")
+var _map_baker: Node
 var _map_mesh_corner: Vector2
 var _map_mesh_dims: Vector2
 
@@ -126,6 +129,11 @@ func _ready() -> void:
 		map_mesh_aabb.position.x - map_mesh_aabb.end.x,
 		map_mesh_aabb.position.z - map_mesh_aabb.end.z
 	))
+
+	_map_baker = Node.new()
+	_map_baker.set_script(_MapBaker)
+	add_child(_map_baker)
+	_map_baker.setup(_map_shader_material)
 
 	PlayerSingleton.province_selected.connect(_on_province_selected)
 
@@ -375,6 +383,7 @@ func _process(delta: float) -> void:
 	_zoom_process(delta)
 	# Orient based on height
 	_update_orientation()
+	_update_map_lighting()
 	# Update viewport on minimap
 	_update_minimap_viewport()
 	# Calculate where the mouse lies on the map
@@ -463,6 +472,17 @@ func _zoom_process(delta: float) -> void:
 			GameLoader.ShaderManager.param_parchment_mix,
 			float(parchment_mapmode),
 		)
+
+
+# Relief strength, light direction and line widths follow the zoom and the position of the camera
+func _update_map_lighting() -> void:
+	if _map_baker == null or _map_mesh_dims == Vector2.ZERO:
+		return
+	var height: float = _camera.position.y
+	var camera_uv: Vector2 = (Vector2(_camera.position.x, _camera.position.z) - _map_mesh_corner) / _map_mesh_dims
+	var zoom: float = 1.0 - smoothstep(_zoom_detailed_threshold * 0.4, _zoom_parchment_threshold, height)
+	var border_scale: float = clampf(height / _zoom_detailed_threshold, 0.7, 2.2)
+	_map_baker.update_view(zoom, camera_uv, border_scale)
 
 
 func _update_orientation() -> void:

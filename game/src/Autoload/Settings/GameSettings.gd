@@ -56,6 +56,18 @@ const REFRESH_RATE_DISPLAY_NAMES: PackedStringArray = [
 	"Unlimited",
 ]
 
+enum MapQuality {
+	LOW,
+	MEDIUM,
+	HIGH,
+}
+
+const MAP_QUALITY_DISPLAY_NAMES: PackedStringArray = [
+	"Low",
+	"Medium",
+	"High",
+]
+
 enum GraphicsDetail {
 	LOW,
 	MEDIUM,
@@ -126,6 +138,7 @@ const VIDEO_SCREEN_MODE := &"video/screen_mode"
 const VIDEO_MONITOR_SELECTION := &"video/monitor_selection"
 const VIDEO_REFRESH_RATE := &"video/refresh_rate"
 const VIDEO_QUALITY_PRESET := &"video/quality_preset"
+const VIDEO_MAP_QUALITY := &"video/map_quality"
 const VIDEO_DRAW_DISTANCE := &"video/draw_distance"
 const VIDEO_UNIT_ICON_SIZE := &"video/unit_icon_size"
 #
@@ -231,6 +244,15 @@ func _init() -> void:
 		.add_meta(&"hint", PROPERTY_HINT_ENUM)
 		.add_meta(&"values", GraphicsDetail.values())
 		.add_meta(&"display_values", GRAPHICS_DETAIL_DISPLAY_NAMES))
+
+	self.add_setting(Setting.new(VIDEO_MAP_QUALITY, MapQuality.MEDIUM)
+		.set_description("Quality of the map: smooth borders, relief lighting and the water layers.")
+		.set_validate_fn(_enum_validate)
+		.add_meta(&"display_name", "Map Quality")
+		.add_meta(&"type", TYPE_INT)
+		.add_meta(&"hint", PROPERTY_HINT_ENUM)
+		.add_meta(&"values", MapQuality.values())
+		.add_meta(&"display_values", MAP_QUALITY_DISPLAY_NAMES))
 
 	self.add_setting(Setting.new(VIDEO_DRAW_DISTANCE, 0)
 		.set_description("Draw distance of unit and building models and unit icons, in percent relative to the default (-50..+50).")

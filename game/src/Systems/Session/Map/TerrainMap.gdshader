@@ -34,6 +34,46 @@ uniform sampler2D colormap_water_tex: repeat_enable, filter_linear;
 // Overlay map tint
 uniform sampler2D colormap_overlay_tex: repeat_enable, filter_linear;
 
+// ---- Look of the map (values come from the map theme, see MapBaker.gd) ----
+
+// 0 low, 1 medium, 2 high: the number of samples of the borders and the layers of the relief and the water
+uniform int quality = 0;
+uniform int border_taps = 8;
+// Widths of the lines scale with the zoom so that they keep a similar width on the screen
+uniform float border_scale = 1.0;
+uniform vec4 border_colour = vec4(0.015, 0.015, 0.025, 1.0);
+uniform float border_opacity = 0.55;
+uniform float border_width = 1.5;
+uniform float glow_width = 6.0;
+uniform float glow_opacity = 0.2;
+uniform vec4 coast_colour = vec4(0.03, 0.04, 0.06, 1.0);
+uniform float coast_opacity = 0.55;
+uniform float coast_width = 1.1;
+
+// Baked relief: heights / land mask / coast closeness, and normal / ambient occlusion / shadow
+uniform sampler2D height_tex: filter_linear, repeat_enable;
+uniform sampler2D relief_tex: filter_linear, repeat_enable;
+uniform sampler2D sea_normal_tex: filter_linear, repeat_enable;
+// 1 once the relief is baked
+uniform float relief_amount = 0.0;
+// Strength of the relief for the current zoom (0 far away)
+uniform float relief_zoom = 0.0;
+// Direction towards the sun (u right, v down, z up), moves a little with the camera
+uniform vec3 sun_vector = vec3(-0.5, -0.5, 0.7);
+uniform vec3 sun_colour = vec3(1.0, 0.96, 0.88);
+uniform float relief_ambient = 0.6;
+uniform float relief_diffuse = 0.7;
+uniform float shadow_strength = 0.5;
+uniform float ao_strength = 0.6;
+
+uniform vec3 shallow_colour = vec3(0.55, 0.85, 0.95);
+uniform vec3 deep_colour = vec3(0.12, 0.28, 0.5);
+uniform float depth_strength = 0.55;
+uniform vec3 foam_colour = vec3(1.0);
+uniform float foam_opacity = 0.55;
+uniform float wave_speed = 0.8;
+uniform float specular_strength = 0.35;
+
 struct corner_args_t {
 	vec2 uv, half_pixel_size; // Components for calculating a corner's sampling UV
 	vec2 terrain_uv; // UV coordinates scaled for terrain texture tiling
@@ -142,6 +182,100 @@ vec3 mix_overlay(const vec3 overlay_colour, const vec3 base_colour) {
 	);
 }
 
+const float GOLDEN_ANGLE = 2.39996323;
+
+// Base colour (rgb) and land flag (a) of the province at a position, used by the smooth borders
+vec4 flat_province_colour(vec2 uv) {
+	uvec3 province_data = read_uvec3(uv);
+	vec4 colour = texelFetch(province_colour_tex, ivec2(int(province_data.x) * 2, int(province_data.y)), 0);
+	colour.a *= float(province_data.z != 0u);
+	return colour;
+}
+
+// Fraction (0..1) of the samples of a disc around the position that belong to a region of another colour, or with
+// coast = true to land of the other kind. It is about 0.5 on a border and falls to 0 at the radius of the disc, so it
+// has no steps even though the province map is made of pixels.
+float border_fraction(vec2 uv, vec2 pixel_uv, float radius, int taps, vec4 centre, bool coast) {
+	float different = 0.0;
+	for (int i = 0; i < taps; i++) {
+		float r = sqrt((float(i) + 0.5) / float(taps));
+		float a = float(i) * GOLDEN_ANGLE;
+		vec4 other = flat_province_colour(uv + vec2(cos(a), sin(a)) * r * radius * pixel_uv);
+		if (coast) {
+			different += abs(centre.a - other.a);
+		} else {
+			different += smoothstep(0.04, 0.14, length(other.rgb - centre.rgb) * min(other.a, centre.a));
+		}
+	}
+	return different / float(taps);
+}
+
+// Dark smooth outlines of the countries (HOI4 style): a crisp line on the border, a soft glow inside next to it
+// and a thin line along the coast
+vec3 apply_borders(vec3 colour, vec2 uv, vec2 pixel_uv) {
+	vec4 centre = flat_province_colour(uv);
+
+	float scale = border_scale * mix(1.0, 1.35, parchment_mix);
+	float f = border_fraction(uv, pixel_uv, border_width * scale, border_taps, centre, false);
+	float line = smoothstep(0.03, 0.42, f);
+	float amount = line * border_opacity * mix(1.0, 0.7, parchment_mix);
+
+	if (quality >= 1 && glow_opacity > 0.0) {
+		int glow_taps = quality >= 2 ? 12 : 8;
+		float g = border_fraction(uv, pixel_uv, glow_width * scale, glow_taps, centre, false);
+		amount = max(amount, smoothstep(0.0, 0.5, g) * glow_opacity * (1.0 - 0.4 * parchment_mix));
+	}
+	colour = mix(colour, border_colour.rgb, clamp(amount, 0.0, 1.0));
+
+	if (quality >= 2 && coast_opacity > 0.0) {
+		float c = border_fraction(uv, pixel_uv, coast_width * scale, 8, centre, true);
+		colour = mix(colour, coast_colour.rgb, smoothstep(0.03, 0.45, c) * coast_opacity * (1.0 - 0.5 * parchment_mix));
+	}
+	return colour;
+}
+
+// Light and shade of the relief on land, depth, foam and glints on the water
+vec3 apply_relief_and_water(vec3 colour, vec2 uv) {
+	if (quality == 0 || relief_amount <= 0.0) {
+		return colour;
+	}
+
+	vec4 heights = texture(height_tex, uv);
+	vec4 relief = texture(relief_tex, uv);
+	float k = relief_zoom * (1.0 - parchment_mix);
+	float land = smoothstep(0.1, 0.9, heights.g);
+
+	// Land: diffuse light on the baked normal with ambient occlusion and the soft shadow of the sun
+	vec3 sun = normalize(sun_vector);
+	vec2 n_xy = relief.xy * 2.0 - 1.0;
+	vec3 normal = vec3(n_xy, sqrt(max(1.0 - dot(n_xy, n_xy), 0.0)));
+	float flat_light = relief_ambient + relief_diffuse * sun.z;
+	float light = relief_ambient + relief_diffuse * max(dot(normal, sun), 0.0) * mix(1.0, relief.a, shadow_strength);
+	light = light / flat_light * mix(1.0, relief.b, ao_strength);
+	vec3 land_colour = colour * mix(1.0, light, k) * mix(vec3(1.0), sun_colour, 0.35 * k);
+
+	// Water: deeper and darker away from the coast, foam waves along it
+	float coast = heights.b;
+	float depth = 1.0 - smoothstep(0.0, 0.42, coast);
+	vec3 water_tint = mix(shallow_colour, deep_colour, depth);
+	vec3 water_colour = mix(colour, colour * water_tint * 1.8, depth_strength * (1.0 - parchment_mix));
+
+	float time = TIME * wave_speed;
+	vec2 sea_uv = uv * vec2(70.0, 70.0 * float(textureSize(province_shape_tex, 0).y) / float(max(textureSize(province_shape_tex, 0).x, 1)));
+	vec3 sea = texture(sea_normal_tex, sea_uv + vec2(time * 0.03, time * 0.012)).rgb;
+	float waves = quality >= 2 ? 0.5 + 0.5 * sin(coast * 70.0 - time * 2.4 + sea.r * 7.0) : 0.75;
+	float foam = smoothstep(0.40, 0.49, coast) * waves * foam_opacity * (1.0 - parchment_mix * 0.6);
+	water_colour = mix(water_colour, foam_colour, clamp(foam, 0.0, 1.0));
+
+	if (quality >= 2 && specular_strength > 0.0) {
+		vec3 glint_normal = normalize(vec3((sea.xy * 2.0 - 1.0) * 0.4, 1.0));
+		float glint = pow(max(dot(glint_normal, normalize(sun + vec3(0.0, 0.0, 1.0))), 0.0), 90.0);
+		water_colour += sun_colour * glint * specular_strength * k * depth;
+	}
+
+	return mix(water_colour, land_colour, land);
+}
+
 // Calculate map colour at specified UV coordinates, combining terrain, province base and stripe colour,
 // parchment overlay, and highlighting the result if it is a hovered over and/or selected province.
 vec3 get_map_colour(vec2 uv) {
@@ -199,10 +333,9 @@ vec3 get_map_colour(vec2 uv) {
 	// Blend the near (detailed terrain) and far (parchment) colours according to the parchment mix factor (0 for near, 1 for far)
 	vec3 final_colour = mix(near_colour, far_colour, parchment_mix);
 
-	// Dark, partly transparent borders, fainter on the far parchment map
-	const vec3 border_colour = vec3(0.03, 0.03, 0.04);
-	float border_amount = smoothstep(0.06, 0.22, colours.border_val) * mix(0.45, 0.3, parchment_mix);
-	final_colour = mix(final_colour, border_colour, border_amount);
+	// Relief light and water layers, then the smooth dark outlines on top
+	final_colour = apply_relief_and_water(final_colour, uv);
+	final_colour = apply_borders(final_colour, uv, 1.0 / map_size);
 
 	// Significantly brighted the colour if it is hovered over and/or selected, but not if it has province index 0 (all invalid pixels)
 	const vec3 highlight_colour = vec3(1.0);

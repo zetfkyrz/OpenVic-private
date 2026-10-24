@@ -15,6 +15,7 @@
 #include <openvic-simulation/core/object/FixedPoint/Math.hpp>
 #include <openvic-simulation/dataloader/ModManager.hpp>
 #include <openvic-simulation/map/Crime.hpp>
+#include <openvic-simulation/map/TerrainType.hpp>
 #include <openvic-simulation/types/TypedIndices.hpp>
 #include <openvic-simulation/utility/Logger.hpp>
 
@@ -83,6 +84,7 @@ void GameSingleton::_bind_methods() {
 	OV_BIND_METHOD(GameSingleton::get_map_aspect_ratio);
 	OV_BIND_METHOD(GameSingleton::get_bookmark_start_position);
 	OV_BIND_METHOD(GameSingleton::get_terrain_texture);
+	OV_BIND_METHOD(GameSingleton::get_terrain_height_table);
 	OV_BIND_METHOD(GameSingleton::get_flag_dims);
 	OV_BIND_METHOD(GameSingleton::get_flag_sheet_texture);
 	OV_BIND_METHOD(GameSingleton::get_province_shape_image_subdivisions);
@@ -446,6 +448,45 @@ Vector2 GameSingleton::get_bookmark_start_position() const {
 
 Ref<Texture2DArray> GameSingleton::get_terrain_texture() const {
 	return terrain_texture;
+}
+
+PackedFloat32Array GameSingleton::get_terrain_height_table() const {
+	static constexpr int32_t TABLE_SIZE = 128;
+	PackedFloat32Array result;
+	result.resize(TABLE_SIZE);
+	result.fill(0.0f);
+
+	TerrainTypeManager const& terrain_manager = get_definition_manager().get_map_definition().get_terrain_type_manager();
+	for (int32_t index = 1; index < TABLE_SIZE; index++) {
+		// The shader's terrain index is the terrain.bmp value + 1, 0 is water
+		TerrainTypeMapping const* mapping = terrain_manager.get_terrain_type_mapping_for(static_cast<uint8_t>(index - 1));
+		if (mapping == nullptr || mapping->type.is_water) {
+			continue;
+		}
+		const std::string_view type = mapping->type.get_identifier();
+		float height = 0.3f;
+		if (type == "mountain") {
+			height = 0.95f;
+		} else if (type == "hills") {
+			height = 0.58f;
+		} else if (type == "arctic") {
+			height = 0.4f;
+		} else if (type == "woods" || type == "forest") {
+			height = 0.36f;
+		} else if (type == "jungle") {
+			height = 0.34f;
+		} else if (type == "desert") {
+			height = 0.33f;
+		} else if (type == "plains" || type == "urban") {
+			height = 0.3f;
+		} else if (type == "farmlands") {
+			height = 0.28f;
+		} else if (type == "marsh") {
+			height = 0.25f;
+		}
+		result[index] = height;
+	}
+	return result;
 }
 
 Ref<Image> GameSingleton::get_flag_sheet_image() const {
