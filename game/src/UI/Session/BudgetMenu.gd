@@ -20,6 +20,14 @@ var _subsidy_mode: int = 0
 const _SubsidyDialog: GDScript = preload("res://src/UI/Session/SubsidyModeDialog.gd")
 const _CreditPanel: GDScript = preload("res://src/UI/Session/CreditPanel.gd")
 var _credit_panel: Control
+# List of the credits of the original budget window: the credits the country took / gave, with the sorting buttons
+var _debt_listbox: GUIListBox
+var _showing_taken: bool = true
+var _sort_loans_by_country: bool = false
+var _selected_loan_id: int = 0
+var _listed_loans: Array = []
+const _TAB_MAIN: int = 0
+const _TAB_TAKE: int = 3
 const _SUBSIDY_MODE_NAMES: PackedStringArray = [
 	"Субсидировать все предприятия", "Только государственные", "По доле владения",
 ]
@@ -74,14 +82,6 @@ func _ready() -> void:
 		)
 		budget_window.add_child(_subsidy_mode_button)
 
-		# Central bank and credit
-		var bank_button := Button.new()
-		bank_button.text = "Центробанк и кредиты"
-		bank_button.position = Vector2(572, 112)
-		bank_button.size = Vector2(250, 24)
-		bank_button.pressed.connect(func() -> void: _open_credit_panel(0))
-		budget_window.add_child(bank_button)
-
 	_subsidy_dialog = Control.new()
 	_subsidy_dialog.set_script(_SubsidyDialog)
 	_subsidy_dialog.mode_chosen.connect(
@@ -94,6 +94,8 @@ func _ready() -> void:
 	_credit_panel = Control.new()
 	_credit_panel.set_script(_CreditPanel)
 	add_child(_credit_panel)
+
+	_debt_listbox = GUINode.get_gui_listbox_from_node(get_node_or_null(^"./country_budget/debt_listbox"))
 
 	# debt buttons
 	var _tab_takenloans_button: GUIIconButton = get_gui_icon_button_from_nodepath(^"./country_budget/tab_takenloans")
@@ -158,7 +160,9 @@ func _update_info() -> void:
 			_debt_val_label.text = "%s¤" % GUINode.float_to_string_dp(credit.get("total_debt", 0.0), 1)
 
 		if _interest_val_label:
-			_interest_val_label.text = "%s¤" % GUINode.float_to_string_dp(credit.get("monthly_interest", 0.0), 2)
+			_interest_val_label.text = "%s¤" % GUINode.float_to_string_dp(credit.get("monthly_payments", 0.0), 2)
+
+		_update_loans(credit)
 
 		var subsidies: Dictionary = PlayerSingleton.get_subsidy_info()
 		if _ind_sub_val_label:
@@ -189,23 +193,77 @@ func _open_credit_panel(tab: int) -> void:
 
 
 func _switch_loans_tab(taken_loans: bool) -> void:
-	_open_credit_panel(1 if taken_loans else 3)
-	# TODO - code the necessary logic
-	#if taken_loans:
-	#else: # given loans
-	pass
+	_showing_taken = taken_loans
+	_selected_loan_id = 0
+	_update_info()
 
 
 func _sort_loans(sort_by_country: bool) -> void:
-	# TODO - code the necessary logic
-	#if sort_by_country:
-	#else: # sort by amount
-	pass
+	_sort_loans_by_country = sort_by_country
+	_update_info()
 
 
+# The take button opens the window with the credits that can be taken (and the ones to issue)
 func _take_loan() -> void:
-	_open_credit_panel(2)
+	_open_credit_panel(_TAB_TAKE)
 
 
+# The repay button pays back the selected credit that the country took, without a selection it opens the credits
 func _repay_loan() -> void:
-	_open_credit_panel(1)
+	for loan: Dictionary in _listed_loans:
+		if int(loan[&"id"]) == _selected_loan_id and loan[&"direction"] == "taken":
+			PlayerSingleton.repay_loan(_selected_loan_id, float(loan[&"remaining"]))
+			return
+	_open_credit_panel(_TAB_MAIN)
+
+
+# Fills the list of the credits taken / given by the country, one row (who, amount) per credit
+func _update_loans(credit: Dictionary) -> void:
+	if _debt_listbox == null:
+		return
+
+	_listed_loans.clear()
+	var all: Array = []
+	all.append_array(credit.get("internal", []))
+	all.append_array(credit.get("external", []))
+	for loan: Dictionary in all:
+		# Only credits in force: offers nobody took yet are managed in the credits window
+		if int(loan.get("status", 0)) != 1:
+			continue
+		var taken: bool = loan.get("direction", "") == "taken"
+		if taken != _showing_taken:
+			continue
+		var who: String = loan.get("country_name", "")
+		if who.is_empty():
+			who = tr("Capitalists")
+		_listed_loans.append({
+			&"id": loan["id"], &"who": who, &"remaining": loan.get("remaining", 0.0), &"direction": loan.get("direction", ""),
+		})
+
+	if _sort_loans_by_country:
+		_listed_loans.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a[&"who"]) < String(b[&"who"]))
+	else:
+		_listed_loans.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a[&"remaining"]) > float(b[&"remaining"]))
+
+	_debt_listbox.clear_children(_listed_loans.size())
+	for loan: Dictionary in _listed_loans:
+		var entry: Panel = GUINode.generate_gui_element("country_budget", "debt_listitem")
+		if entry == null:
+			break
+		_debt_listbox.add_child(entry)
+		var who_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./who")
+		if who_label:
+			who_label.set_text(loan[&"who"])
+		var debt_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./debt")
+		if debt_label:
+			debt_label.set_text("%s¤" % GUINode.float_to_string_dp(loan[&"remaining"], 1))
+		# A click selects the credit (for the repay button), the selected one is highlighted
+		var loan_id: int = int(loan[&"id"])
+		entry.mouse_filter = Control.MOUSE_FILTER_STOP
+		entry.modulate = Color(1.3, 1.15, 0.8) if loan_id == _selected_loan_id else Color.WHITE
+		entry.gui_input.connect(
+			func(event: InputEvent) -> void:
+				if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+					_selected_loan_id = loan_id
+					_update_info()
+		)
