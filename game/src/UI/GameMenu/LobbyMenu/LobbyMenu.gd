@@ -50,7 +50,16 @@ var _filling: bool = false
 var _saves_tree: Tree
 
 
+const _ReplayLoader := preload("res://src/Systems/Startup/ReplayLoader.gd")
+
+var _replay_loader: Node
+
+
 func _ready() -> void:
+	# Save games of the simulation (*.ovsave) are loaded by replaying the actions (with the version / defines checks)
+	_replay_loader = _ReplayLoader.new()
+	add_child(_replay_loader)
+	_replay_loader.load_confirmed.connect(func(path: String) -> void: _ReplayLoader.start_game(path, get_tree()))
 	_build_original_layout()
 	_build_country_preview()
 	_update_selected_country_label()
@@ -265,20 +274,12 @@ func _refresh_saves() -> void:
 		item.set_metadata(0, entry[&"path"])
 
 
-# Loads a save game: the game is set up again from the bookmark and the country of the save, then the session scene
-# replays the saved actions (see GameSession)
+# Loads a save game of the simulation: the loader checks the versions and asks before opening a save of another version
 func _on_save_activated() -> void:
 	var item: TreeItem = _saves_tree.get_selected()
 	if item == null:
 		return
-	var header: Dictionary = GameSingleton.prepare_load_game(item.get_metadata(0))
-	if not header.has("valid"):
-		push_error("Failed to read the save game")
-		return
-	if GameSingleton.setup_game(int(header["bookmark"])) != OK 			or not PlayerSingleton.set_player_country_by_identifier(header["country"]):
-		push_error("Failed to set up the game from the save")
-		return
-	get_tree().change_scene_to_file("res://src/Systems/Session/GameSession.tscn")
+	_replay_loader.request_load(item.get_metadata(0))
 
 
 func _on_sort_pressed(key: String) -> void:
@@ -345,6 +346,10 @@ func _make_row_label(parent: Control, key: String, rect: Rect2, colour: Color, s
 	parent.add_child(label)
 	_rows[key] = label
 
+
+# TODO (multiplayer): there is no multiplayer lobby yet. When it appears, its handshake must carry
+# GameSingleton.get_defines_hash() (hash of the openvic_defines values after the mods) and the game must refuse to start
+# when the hashes of the players differ, so that everybody plays with the same parameters.
 
 func _build_country_preview() -> void:
 	if not _selected_country_label:
@@ -534,6 +539,9 @@ func _on_back_button_pressed() -> void:
 
 
 func _on_start_button_pressed() -> void:
+	if SaveManager.current_save != null and SaveManager.current_save.is_replay:
+		_replay_loader.request_load(SaveManager.current_save.file_path)
+		return
 	print("Starting new game.")
 	if SaveManager.current_session_tag == "":
 		# TODO: Get country tag as well
@@ -602,6 +610,9 @@ func _on_start_date_panel_button_pressed(node: Control) -> void:
 		_on_start_button_pressed()
 		return
 	_start_date_index = node.get_index(true)
+	# A start date was chosen instead of a save game
+	SaveManager.current_save = null
+	SaveManager.current_session_tag = ""
 	_setup_start_date(_start_date_index)
 	start_button.disabled = false
 	start_date_selected.emit(_start_date_index)

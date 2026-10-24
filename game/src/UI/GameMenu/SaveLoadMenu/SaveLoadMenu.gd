@@ -1,5 +1,8 @@
 extends Control
 
+## A save game was chosen to be loaded (the game session checks it and replays it)
+signal replay_load_requested(path: String)
+
 @export var _save_scene: PackedScene
 @export_group("Nodes")
 @export var _label: Label
@@ -14,6 +17,7 @@ var is_save_menu: bool = true
 var _id_to_tag: Array[StringName] = []
 var _submitted_text: String = ""
 var _requested_node_to_delete: Control
+var _selected_load: SaveResource
 
 
 func filter_for_tag(tag: StringName) -> void:
@@ -96,7 +100,9 @@ func _on_delete_dialog_confirmed() -> void:
 
 
 func _on_overwrite_dialog_confirmed() -> void:
-	SaveManager.add_or_replace_save(SaveManager.make_new_save(_submitted_text))
+	if SaveManager.save_replay(_submitted_text) != OK:
+		push_error("Failed to save the game as " + _submitted_text)
+		return
 	_on_close_button_pressed()
 
 
@@ -113,6 +119,9 @@ func _on_save_line_edit_text_submitted(new_text) -> void:
 func _on_save_load_button_pressed() -> void:
 	if is_save_menu:
 		_save_line_edit.text_submitted.emit(_save_line_edit.text)
+	elif _selected_load != null and _selected_load.is_replay:
+		_on_close_button_pressed()
+		replay_load_requested.emit(_selected_load.file_path)
 
 
 func _on_save_node_delete_requested(node: Control) -> void:
@@ -130,6 +139,8 @@ func _on_save_node_delete_requested(node: Control) -> void:
 func _on_save_node_pressed(node: Control) -> void:
 	if is_save_menu:
 		_save_line_edit.text = node.resource.save_name
+	else:
+		_selected_load = node.resource
 
 
 func _on_tag_selection_tab_bar_tab_changed(tab) -> void:

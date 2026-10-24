@@ -1,0 +1,55 @@
+;; Credit window (CreditPanel.gd), docs/CREDITS.md
+CREDIT_TITLE;Кредиты
+CREDIT_TAB_MAIN;Главная
+CREDIT_TAB_ISSUE_INTERNAL;Выдать внутренний кредит
+CREDIT_TAB_ISSUE_EXTERNAL;Выдать внешний кредит
+CREDIT_TAB_TAKE;Взять кредит
+CREDIT_INTERNAL_HEADER;Внутренние кредиты (вы выдали капиталистам)
+CREDIT_EXTERNAL_HEADER;Внешние кредиты
+CREDIT_COL_AMOUNT;Сумма
+CREDIT_COL_ISSUED;Дата выдачи
+CREDIT_COL_TAKEN;Дата взятия
+CREDIT_COL_RATE;Процент
+CREDIT_COL_PAID;Выплачено
+CREDIT_COL_DELAY;До начала выплат
+CREDIT_COL_REGIONS;Регионы
+CREDIT_COL_TAG;Тег
+CREDIT_COL_WHO;Кто
+CREDIT_COL_REGION;Регион
+CREDIT_COL_CAPITALISTS;Капиталистов
+CREDIT_COL_CAPITALIST_MONEY;Их деньги
+CREDIT_COL_COUNTRY;Страна
+CREDIT_COL_RELATIONS;Отношения
+CREDIT_COL_LENDER;Кредитор
+CREDIT_COL_TYPE;Тип
+CREDIT_REPAY_TIP;Сумма досрочного погашения, 0 = погасить весь кредит
+CREDIT_REPAY_BUTTON;Погасить досрочно выбранный (взятый вами)
+CREDIT_WITHDRAW_BUTTON;Отозвать предложение (пока не взято)
+CREDIT_INTERNAL_INFO;Кредит получают капиталисты: они берут его сами, когда им нужны деньги на завод. Деньги резервируются при выдаче.
+CREDIT_ALL_REGIONS;Вся страна (все регионы с капиталистами)
+CREDIT_AMOUNT;Сумма:
+CREDIT_RATE_ONCE;Процент (задаётся один раз):
+CREDIT_PER_YEAR; % в год
+CREDIT_TYPE;Тип:
+CREDIT_ISSUE_BUTTON;Выдать кредит
+CREDIT_EXTERNAL_INFO;Предложение получают все страны или только выбранные: если указан тег, остальные не могут взять этот кредит.
+CREDIT_ALL_COUNTRIES;Все страны
+CREDIT_SEARCH;Поиск страны...
+CREDIT_TAKE_INFO;Предложения других стран, адресованные вам или всем. Процент задал кредитор и он не меняется.
+CREDIT_TAKE_BUTTON;Взять
+CREDIT_SHORT;Краткосрочный
+CREDIT_MEDIUM;Среднесрочный
+CREDIT_LONG;Долгосрочный
+CREDIT_NOT_TAKEN;не взят
+CREDIT_PAYING;выплаты идут
+CREDIT_DAYS_SUFFIX;дн.
+CREDIT_WHOLE_COUNTRY;вся страна
+CREDIT_GIVEN_TO;выдан: 
+CREDIT_TAKEN_FROM;взят у: 
+CREDIT_OFFERED_TO;предложен: 
+CREDIT_EVERYBODY;всем
+CREDIT_YEARS_UNIT;лет
+CREDIT_TERM_TEXT;%s лет, выплаты начинаются через %s
+CREDIT_TERM_SHORT_LIMIT;, деньги можно тратить только на стройки до %d дней
+CREDIT_SUMMARY;Казна: %s    Долг: %s (лимит %s)    Платежи в месяц: %s    Процент ИИ: от %s до %s
+CREDIT_TERM_TYPE_YEARS;%s (%s лет)

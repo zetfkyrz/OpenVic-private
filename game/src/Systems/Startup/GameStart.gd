@@ -116,13 +116,6 @@ func _initialize_game() -> void:
 	var end := Time.get_ticks_usec()
 	print("Loading took ", float(end - start) / 1_000_000, " seconds")
 
-	# DEV CHECK (not committed)
-	if FileAccess.file_exists("user://dev_check.txt"):
-		await get_tree().process_frame
-		GameSingleton.setup_game(0)
-		get_tree().change_scene_to_file.call_deferred("res://src/Systems/Session/GameSession.tscn")
-		return
-
 	# change scene in a thread-safe way
 	get_tree().change_scene_to_packed.call_deferred(GameMenuScene)
 

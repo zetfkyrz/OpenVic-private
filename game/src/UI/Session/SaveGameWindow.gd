@@ -4,7 +4,7 @@ extends "res://src/UI/Session/Vic2Window.gd"
 
 signal load_requested(path: String)
 
-const SAVE_DIR: String = "user://saves"
+var _save_dir: String = ProjectSettings.get_setting_with_override(&"openvic/data/saves_directory")
 const EXTENSION: String = "ovsave"
 const QUICKSAVE: String = "quicksave"
 const AUTOSAVE: String = "autosave"
@@ -77,23 +77,21 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	super._unhandled_key_input(event)
 
 
-## Writes user://saves/<save_name>.ovsave, returns a message for the player.
+## Writes <saves directory>/<save_name>.ovsave, returns a message for the player.
 func save_to(save_name: String, label: String) -> String:
-	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
-	var path: String = "%s/%s.%s" % [SAVE_DIR, save_name.validate_filename(), EXTENSION]
-	if GameSingleton.save_game(path, label) != OK:
+	if SaveManager.save_replay(save_name) != OK:
 		return "Не удалось сохранить игру"
-	return "Игра сохранена: " + path.get_file()
+	return "Игра сохранена: " + save_name.validate_filename() + "." + EXTENSION
 
 
 func refresh_list() -> void:
 	_tree.clear()
 	var root: TreeItem = _tree.create_item()
 	var entries: Array = []
-	for file_name: String in DirAccess.get_files_at(SAVE_DIR):
+	for file_name: String in DirAccess.get_files_at(_save_dir):
 		if file_name.get_extension() != EXTENSION:
 			continue
-		var path: String = SAVE_DIR + "/" + file_name
+		var path: String = _save_dir + "/" + file_name
 		var header: Dictionary = GameSingleton.read_save_header(path)
 		if header.is_empty():
 			continue
@@ -130,6 +128,7 @@ func _on_load_pressed() -> void:
 		_status.text = "Выберите сохранение в списке"
 		return
 	close()
+	# The game session checks the header (version, defines hash) and replays the save
 	load_requested.emit(path)
 
 
@@ -137,5 +136,12 @@ func _on_delete_pressed() -> void:
 	var path: String = _selected_path()
 	if path.is_empty():
 		return
-	DirAccess.remove_absolute(path)
+	var found: SaveResource = null
+	for save: SaveResource in SaveManager._save_dictionary.values():
+		if save.file_path == path:
+			found = save
+	if found != null:
+		found.delete()
+	else:
+		DirAccess.remove_absolute(path)
 	refresh_list()

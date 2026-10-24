@@ -26,11 +26,27 @@ var file_path: String:
 		file_path = v
 		emit_changed()
 var file: ConfigFile = ConfigFile.new()
+## A save game of the simulation (a replay of the actions, *.ovsave) and not a stub of the old ConfigFile saves
+var is_replay: bool = false
+var replay_header: Dictionary = {}
 
 
 func set_file_path(name: StringName, path: String) -> void:
 	file_path = path
 	save_name = name
+
+
+## Reads the header of a *.ovsave file: the name is the file name, the session tag is the country
+func load_replay(path: String) -> Error:
+	var header: Dictionary = GameSingleton.read_save_header(path)
+	if header.is_empty():
+		return ERR_FILE_UNRECOGNIZED
+	is_replay = true
+	replay_header = header
+	file_path = path
+	save_name = path.get_file().get_basename()
+	session_tag = header.get("country", "")
+	return OK
 
 
 func flush_save() -> Error:

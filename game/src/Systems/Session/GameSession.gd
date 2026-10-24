@@ -13,6 +13,7 @@ const _FleetPanel: GDScript = preload("res://src/UI/Session/FleetPanel.gd")
 const _RecruitmentWindow: GDScript = preload("res://src/UI/Session/RecruitmentWindow.gd")
 const _RECRUITMENT_KEY: Key = KEY_F7
 const _SaveGameWindow := preload("res://src/UI/Session/SaveGameWindow.gd")
+const _ReplayLoader := preload("res://src/Systems/Startup/ReplayLoader.gd")
 # Autosave interval in real seconds
 const _AUTOSAVE_SECONDS: float = 300.0
 
@@ -31,7 +32,6 @@ var _replay_bar: ProgressBar
 
 
 func _ready() -> void:
-	_dev_check()
 	if GameSingleton.start_game_session() != OK:
 		push_error("Failed to setup game")
 
@@ -58,7 +58,14 @@ func _ready() -> void:
 	_save_window = Control.new()
 	_save_window.set_script(_SaveGameWindow)
 	_game_session_menu.get_parent().add_child(_save_window)
-	_save_window.load_requested.connect(_load_game)
+	var replay_loader := Node.new()
+	replay_loader.set_script(_ReplayLoader)
+	add_child(replay_loader)
+	replay_loader.load_confirmed.connect(_load_game)
+	_save_window.load_requested.connect(replay_loader.request_load)
+	var save_load_menu: Node = _game_session_menu.get_parent().get_node_or_null(^"SaveLoadMenu")
+	if save_load_menu:
+		save_load_menu.replay_load_requested.connect(replay_loader.request_load)
 	var autosave_timer := Timer.new()
 	autosave_timer.wait_time = _AUTOSAVE_SECONDS
 	autosave_timer.autostart = true
@@ -108,45 +115,6 @@ func _notification(what: int) -> void:
 		NOTIFICATION_PREDELETE:
 			if not _reloading and GameSingleton.end_game_session() != OK:
 				push_error("Failed to end game session")
-
-
-# DEV CHECK (not committed) BEGIN
-func _shot(name: String) -> void:
-	await get_tree().create_timer(1.0).timeout
-	var image: Image = get_viewport().get_texture().get_image()
-	DirAccess.make_dir_recursive_absolute("C:/Users/zetfk/AppData/Local/Temp/claude/C--Users-zetfk-Desktop-OpenVic/3897f01b-4a43-41d3-adb0-267bb8a1dd2f/scratchpad/shots")
-	image.save_png("C:/Users/zetfk/AppData/Local/Temp/claude/C--Users-zetfk-Desktop-OpenVic/3897f01b-4a43-41d3-adb0-267bb8a1dd2f/scratchpad/shots/%s.png" % name)
-	print("DEVSHOT ", name)
-
-
-func _dev_check() -> void:
-	if not FileAccess.file_exists("user://dev_check.txt"):
-		return
-	await get_tree().create_timer(3.0).timeout
-	print("DEVCHECK start country=", PlayerSingleton.get_player_country_identifier())
-	_map_view._camera.position = _map_view._map_to_world_coords(PlayerSingleton.get_player_country_capital_position())
-	_map_view._camera.position.y = _map_view._zoom_parchment_threshold * 0.6
-	_map_view._zoom_target = _map_view._zoom_parchment_threshold * 0.6
-	await _shot("01_map")
-
-	var home: Vector3 = _map_view._map_to_world_coords(PlayerSingleton.get_player_country_capital_position())
-	for mi in GameSingleton.get_mapmode_count():
-		if GameSingleton.get_mapmode_identifier(mi) == "mapmode_political":
-			GameSingleton.set_mapmode(mi)
-	for q in [2]:
-		GameSettings.get_setting(GameSettings.VIDEO_MAP_QUALITY).set_value(q)
-		await get_tree().create_timer(5.0).timeout
-		var i: int = 0
-		for off: Vector2 in [Vector2(-0.3, 0.45), Vector2(0.0, 0.0)]:
-			_map_view._camera.position = Vector3(home.x + off.x, _map_view._zoom_detailed_threshold * 0.5, home.z + off.y)
-			_map_view._zoom_target = _map_view._camera.position.y
-			await get_tree().create_timer(1.5).timeout
-			await _shot("coast" + str(i))
-			i += 1
-	print("DEVCHECK done")
-	await get_tree().create_timer(1.0).timeout
-	get_tree().quit()
-# DEV CHECK END
 
 
 func _process(_delta: float) -> void:
