@@ -45,8 +45,6 @@ shader_parameter/stripe_tile_factor = 0.0
 shader_parameter/overlay_tile_factor = 0.0
 
 [sub_resource type="MapMesh" id="MapMesh_3gtsd"]
-subdivide_width = 700
-subdivide_depth = 255
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_irk50"]
 albedo_color = Color(0, 0, 0, 1)

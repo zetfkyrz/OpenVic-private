@@ -23,8 +23,9 @@ extends Resource
 @export_range(0.0, 0.8) var colour_darken: float = 0.1
 
 @export_group("Relief")
-## Height of the highest mountains above the sea in world units: the map mesh is really displaced (0 is flat)
-@export_range(0.0, 0.3) var height_displacement: float = 0.06
+## Height of the highest mountains above the sea in world units: the map mesh is really displaced (0 is flat, off for now:
+## units, names and icons are not placed on the displaced ground well enough yet)
+@export_range(0.0, 0.3) var height_displacement: float = 0.0
 ## How strongly the relief shades the map (0 is flat)
 @export_range(0.0, 2.0) var relief_strength: float = 1.0
 ## Slope strength used when the normal map is baked

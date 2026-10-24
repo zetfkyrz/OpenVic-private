@@ -196,7 +196,9 @@ func _bake(quality: int, serial: int) -> void:
 	_material.set_shader_parameter(&"relief_amount", 1.0)
 
 	# The mesh of the map is displaced by the heights, objects on the map read them back to stand on the ground
-	var image: Image = height_pass.get_texture().get_image()
+	var image: Image = null
+	if t.height_displacement > 0.0:
+		image = height_pass.get_texture().get_image()
 	if image != null:
 		image.convert(Image.FORMAT_RGBA8)
 		_height_size = image.get_size()

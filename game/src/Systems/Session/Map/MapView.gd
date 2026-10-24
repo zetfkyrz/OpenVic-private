@@ -518,7 +518,7 @@ func _update_orientation() -> void:
 	if _is_detailed_view:
 		# Zero at the transition point, increases as you zoom further in
 		var delta: float = (_zoom_detailed_threshold - _camera.position.y) / _zoom_detailed_threshold
-		dir.z = -(delta ** 2) * 1.5
+		dir.z = -(delta ** 2)
 	_camera.look_at(_camera.position + dir, up)
 
 
