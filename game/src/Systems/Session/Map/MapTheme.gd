@@ -13,11 +13,14 @@ extends Resource
 @export_range(0.0, 1.0) var glow_opacity: float = 0.45
 ## Wide glow in the colour of the country that fades towards the inside of the country
 @export_range(0.0, 80.0) var tint_width: float = 26.0
-@export_range(0.0, 1.0) var tint_opacity: float = 0.65
+@export_range(0.0, 1.0) var tint_opacity: float = 0.0
 ## Line along the coasts
 @export var coast_colour: Color = Color(0.03, 0.04, 0.06)
 @export_range(0.0, 1.0) var coast_opacity: float = 0.55
 @export_range(0.3, 4.0) var coast_width: float = 1.1
+
+## How much darker the colours of the countries are than the original ones (0.2 is 20 percent)
+@export_range(0.0, 0.8) var colour_darken: float = 0.2
 
 @export_group("Relief")
 ## How strongly the relief shades the map (0 is flat)

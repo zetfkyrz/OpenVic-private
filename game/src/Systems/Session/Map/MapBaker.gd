@@ -72,6 +72,7 @@ func _apply_theme() -> void:
 	m.set_shader_parameter(&"border_colour", t.border_colour)
 	m.set_shader_parameter(&"border_opacity", t.border_opacity)
 	m.set_shader_parameter(&"border_width", t.border_width)
+	m.set_shader_parameter(&"colour_darken", t.colour_darken)
 	m.set_shader_parameter(&"tint_width", t.tint_width)
 	m.set_shader_parameter(&"tint_opacity", t.tint_opacity)
 	m.set_shader_parameter(&"glow_width", t.glow_width)

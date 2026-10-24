@@ -47,7 +47,9 @@ uniform float border_width = 1.1;
 uniform float glow_width = 8.0;
 uniform float glow_opacity = 0.45;
 uniform float tint_width = 26.0;
-uniform float tint_opacity = 0.65;
+uniform float tint_opacity = 0.0;
+// Darkens the colours of the countries (0.2 is 20 percent darker)
+uniform float colour_darken = 0.2;
 uniform vec4 coast_colour = vec4(0.03, 0.04, 0.06, 1.0);
 uniform float coast_opacity = 0.55;
 uniform float coast_width = 1.1;
@@ -363,6 +365,8 @@ vec3 get_map_colour(vec2 uv) {
 
 	// Blend the near (detailed terrain) and far (parchment) colours according to the parchment mix factor (0 for near, 1 for far)
 	vec3 final_colour = mix(near_colour, far_colour, parchment_mix);
+
+	final_colour *= 1.0 - colour_darken * province_colour.a;
 
 	// Relief light and water layers, then the smooth dark outlines on top
 	final_colour = apply_relief_and_water(final_colour, uv);
