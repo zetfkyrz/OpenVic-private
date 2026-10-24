@@ -100,6 +100,17 @@ namespace OpenVic {
 		bool buy_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
 		bool sell_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
 		bool set_factory_open(int32_t province_index, int32_t building_type_index, bool open) const;
+		// Hiring priority inside the state: 0 low, 1 normal, 2 high (factories with a higher priority hire first)
+		bool set_factory_priority(int32_t province_index, int32_t building_type_index, int32_t priority) const;
+		// Removes the factory (the money of its budget goes back to its owners). Factories under construction can be deleted too.
+		bool delete_factory(int32_t province_index, int32_t building_type_index) const;
+		// "Investments" tab: what is being built in the states of the player and who pays.
+		// { total_capitalist_money,
+		//   projects: [{ province_index, province_identifier, building_type_index, name, level, max_level, progress,
+		//                built_by_state, capitalist_funded (false if the state pays) }],
+		//   states: [{ province_index, province_identifier, capitalists, capitalist_money, free_slots, factories,
+		//              credit_unspent (money of the internal credits the capitalists have not spent) }] }
+		godot::Dictionary get_investment_overview() const;
 
 		// Technology
 		// { folders: [{ index, identifier, name, researched_count, total_count, areas: [{ identifier, name,
@@ -243,6 +254,17 @@ namespace OpenVic {
 		// Recruitment orders of the player: [{ id, type_name, province_number, province_name, days_left, days_total }]
 		godot::Array get_recruitment_queue() const;
 		bool cancel_recruitment(int64_t order_id) const;
+
+		// Diplomacy tabs (country_diplomacy.gui):
+		// "Great powers": [{ index, tag, name, rank (position among the great powers), total_rank, prestige, prestige_rank,
+		//   industrial_power, industrial_rank, military_power, military_rank, influence (the player's influence in the country),
+		//   is_player, sphere: [{ index, tag, name }] (countries in its sphere of influence) }], the best first
+		godot::Array get_great_powers_info() const;
+		// "Wars": every war in the world: [{ id, days, attacker_score, defender_score, involves_player, attackers: [{ index, name }],
+		//   defenders: [{ index, name }] }]
+		godot::Array get_world_wars_info() const;
+		// "Crisis": the crisis system does not exist in the simulation yet, so this is always { available = false, active = false }
+		godot::Dictionary get_crisis_info() const;
 
 		// Credits (docs/CREDITS.md). Dates are "day.month.year" strings, rates are fractions (0.05 = 5%), terms: 0 = short,
 		// 1 = medium, 2 = long (their lengths are in "terms").

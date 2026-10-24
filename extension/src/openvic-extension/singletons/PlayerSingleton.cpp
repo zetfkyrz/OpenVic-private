@@ -102,6 +102,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::buy_factory_share, { "province_index", "building_type_index", "percent" });
 	OV_BIND_METHOD(PlayerSingleton::sell_factory_share, { "province_index", "building_type_index", "percent" });
 	OV_BIND_METHOD(PlayerSingleton::set_factory_open, { "province_index", "building_type_index", "open" });
+	OV_BIND_METHOD(PlayerSingleton::set_factory_priority, { "province_index", "building_type_index", "priority" });
+	OV_BIND_METHOD(PlayerSingleton::delete_factory, { "province_index", "building_type_index" });
+	OV_BIND_METHOD(PlayerSingleton::get_investment_overview);
 
 	OV_BIND_METHOD(PlayerSingleton::get_technology_info);
 	OV_BIND_METHOD(PlayerSingleton::start_research, { "technology_index" });
@@ -159,6 +162,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_recruitment_queue);
 	OV_BIND_METHOD(PlayerSingleton::cancel_recruitment, { "order_id" });
 
+	OV_BIND_METHOD(PlayerSingleton::get_great_powers_info);
+	OV_BIND_METHOD(PlayerSingleton::get_world_wars_info);
+	OV_BIND_METHOD(PlayerSingleton::get_crisis_info);
 	OV_BIND_METHOD(PlayerSingleton::get_credit_overview);
 	OV_BIND_METHOD(PlayerSingleton::get_available_credit_offers);
 	OV_BIND_METHOD(PlayerSingleton::stage_credit_region, { "province_index", "selected" });
@@ -817,6 +823,7 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["constructing"] = factory.is_under_construction();
 				factory_dict["construction_progress"] = static_cast<float>(factory.get_construction_progress(today));
 				factory_dict["open"] = factory.is_open();
+				factory_dict["priority"] = static_cast<int32_t>(factory.get_priority());
 				factory_dict["employees"] = static_cast<int32_t>(type_safe::get(factory.get_employee_count()));
 				factory_dict["max_employees"] = static_cast<int32_t>(type_safe::get(factory.get_max_employee_count()));
 				factory_dict["efficiency"] = static_cast<float>(factory.get_efficiency());
@@ -1019,6 +1026,105 @@ bool PlayerSingleton::set_factory_open(int32_t province_index, int32_t building_
 	);
 }
 
+bool PlayerSingleton::set_factory_priority(int32_t province_index, int32_t building_type_index, int32_t priority) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0 || priority < 0 || priority > 2, false);
+
+	return instance_manager->queue_game_action<set_factory_priority_argument_t>(
+	    player_country->index,
+	    province_index_t(static_cast<uint32_t>(province_index)),
+	    building_type_index_t(static_cast<uint32_t>(building_type_index)),
+	    static_cast<uint32_t>(priority)
+	);
+}
+
+bool PlayerSingleton::delete_factory(int32_t province_index, int32_t building_type_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0, false);
+
+	return instance_manager->queue_game_action<delete_factory_argument_t>(
+	    player_country->index,
+	    province_index_t(static_cast<uint32_t>(province_index)),
+	    building_type_index_t(static_cast<uint32_t>(building_type_index))
+	);
+}
+
+Dictionary PlayerSingleton::get_investment_overview() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	const Date today = instance_manager->get_today();
+	PopType const* capitalists = instance_manager->definition_manager.get_pop_manager().get_pop_type_by_identifier("capitalists");
+	const int32_t short_days = instance_manager->get_credit_manager().get_defines().short_max_construction_days;
+
+	Array projects, states;
+	fixed_point_t total_money = 0;
+	for (StateSet const& state_set : instance_manager->get_map_instance().get_state_manager().get_state_sets()) {
+		for (State const& state : state_set.get_states()) {
+			if (state.get_owner() != player_country || state.get_capital() == nullptr) {
+				continue;
+			}
+			ProvinceInstance const& capital = *state.get_capital();
+			const String capital_identifier = convert_to<String>(capital.get_identifier());
+
+			for (FactoryInstance const& factory : state.get_factories()) {
+				if (!factory.is_under_construction()) {
+					continue;
+				}
+				const String identifier = convert_to<String>(factory.building_type.get_identifier());
+				Dictionary project;
+				project["province_index"] = static_cast<int32_t>(type_safe::get(capital.index));
+				project["province_identifier"] = capital_identifier;
+				project["building_type_index"] = static_cast<int32_t>(type_safe::get(factory.building_type.index));
+				project["name"] = menu_singleton->tr(identifier);
+				project["level"] = static_cast<int32_t>(type_safe::get(factory.get_level()));
+				project["max_level"] = static_cast<int32_t>(type_safe::get(factory.building_type.max_level));
+				project["progress"] = static_cast<float>(factory.get_construction_progress(today));
+				project["built_by_state"] = factory.was_built_by_state();
+				project["capitalist_funded"] = !factory.was_built_by_state();
+				projects.push_back(std::move(project));
+			}
+
+			int32_t capitalist_count = 0;
+			if (capitalists != nullptr) {
+				for (Pop const& pop : state.get_pops_cache_by_type()[capitalists->index]) {
+					capitalist_count += type_safe::get(pop.get_size());
+				}
+			}
+			fixed_point_t credit_unspent = 0;
+			for (std::unique_ptr<Loan> const& loan : instance_manager->get_credit_manager().get_loans()) {
+				if (loan->status == Loan::status_t::ACTIVE && loan->kind == Loan::kind_t::INTERNAL && loan->state == &state) {
+					credit_unspent += loan->unspent;
+				}
+			}
+			const fixed_point_t money = state.get_capitalist_money(Loan::purpose_t::CONSTRUCTION, short_days);
+			total_money += money;
+
+			Dictionary entry;
+			entry["province_index"] = static_cast<int32_t>(type_safe::get(capital.index));
+			entry["province_identifier"] = capital_identifier;
+			entry["capitalists"] = capitalist_count;
+			entry["capitalist_money"] = static_cast<float>(money);
+			entry["free_slots"] = state.has_free_factory_slot();
+			entry["factories"] = static_cast<int32_t>(state.get_factories().size());
+			entry["credit_unspent"] = static_cast<float>(credit_unspent);
+			states.push_back(std::move(entry));
+		}
+	}
+	result["total_capitalist_money"] = static_cast<float>(total_money);
+	result["projects"] = projects;
+	result["states"] = states;
+	return result;
+}
+
 // Wars, armies and fronts
 namespace {
 	Array make_war_side(
@@ -1040,6 +1146,84 @@ namespace {
 		entry["identifier"] = convert_to<String>(province.get_identifier());
 		return entry;
 	}
+}
+
+Array PlayerSingleton::get_great_powers_info() const {
+	Array result;
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	CountryInstanceManager const& country_manager = instance_manager->get_country_instance_manager();
+	int32_t position = 0;
+	for (CountryInstance const& power : country_manager.get_great_powers()) {
+		if (!power.exists()) {
+			continue;
+		}
+		Dictionary entry;
+		entry["index"] = static_cast<int32_t>(type_safe::get(power.index));
+		entry["tag"] = convert_to<String>(power.get_identifier());
+		entry["name"] = Utilities::get_country_name(*menu_singleton, power);
+		entry["rank"] = ++position;
+		entry["total_rank"] = static_cast<int32_t>(power.get_total_rank());
+		entry["prestige"] = static_cast<float>(power.get_prestige_untracked());
+		entry["prestige_rank"] = static_cast<int32_t>(power.get_prestige_rank());
+		entry["industrial_power"] = static_cast<float>(power.get_industrial_power_untracked());
+		entry["industrial_rank"] = static_cast<int32_t>(power.get_industrial_rank());
+		entry["military_power"] = static_cast<float>(
+		    power.get_military_power_from_land_untracked() + power.get_military_power_from_sea_untracked() +
+		    power.get_military_power_from_leaders_untracked()
+		);
+		entry["military_rank"] = static_cast<int32_t>(power.get_military_rank());
+		entry["is_player"] = &power == player_country;
+		entry["influence"] = player_country != nullptr && &power != player_country
+		    ? static_cast<int32_t>(static_cast<uint16_t>(player_country->get_influence_with(power)))
+		    : 0;
+
+		Array sphere;
+		for (CountryInstance const& country : country_manager.get_country_instances()) {
+			if (country.exists() && country.get_sphere_owner_untracked() == &power) {
+				Dictionary member;
+				member["index"] = static_cast<int32_t>(type_safe::get(country.index));
+				member["tag"] = convert_to<String>(country.get_identifier());
+				member["name"] = Utilities::get_country_name(*menu_singleton, country);
+				sphere.push_back(member);
+			}
+		}
+		entry["sphere"] = sphere;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Array PlayerSingleton::get_world_wars_info() const {
+	Array result;
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	const Date today = instance_manager->get_today();
+	for (War const& war : instance_manager->get_war_manager().get_wars()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(war.id);
+		entry["days"] = static_cast<int32_t>((today - war.start_date).to_int());
+		entry["attacker_score"] = static_cast<float>(war.attacker_score);
+		entry["defender_score"] = static_cast<float>(war.defender_score);
+		entry["involves_player"] = player_country != nullptr && war.has_participant(*player_country);
+		entry["attackers"] = make_war_side(*menu_singleton, war.attackers);
+		entry["defenders"] = make_war_side(*menu_singleton, war.defenders);
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Dictionary PlayerSingleton::get_crisis_info() const {
+	Dictionary result;
+	result["available"] = false;
+	result["active"] = false;
+	return result;
 }
 
 Dictionary PlayerSingleton::get_war_overview() const {
