@@ -11,6 +11,7 @@ const MODEL_SCALE: float = 1.0 / 256.0
 # stop being drawn. Moving units glide to their new position and play their walking animation.
 var _unit_nodes: Dictionary[int, Node3D] = {}
 var _unit_signatures: Dictionary[int, int] = {}
+var _building_nodes: Array[Node3D] = []
 
 # Time the models take to move to the position of the next day
 const _MOVE_TWEEN_TIME: float = 0.6
@@ -37,6 +38,16 @@ func generate_units() -> void:
 
 	if not GameSingleton.gamestate_updated.is_connected(_sync_units):
 		GameSingleton.gamestate_updated.connect(_sync_units)
+	# The relief is baked a moment after the map is shown: models are placed on the ground again
+	if _map_view and not _map_view.ground_changed.is_connected(_on_ground_changed):
+		_map_view.ground_changed.connect(_on_ground_changed)
+
+
+func _on_ground_changed() -> void:
+	_sync_units()
+	for building: Node3D in _building_nodes:
+		var map_position: Vector2 = building.get_meta(&"map_position")
+		building.position = _map_view._map_to_ground_coords(map_position) + Vector3(0, 0.1 * MODEL_SCALE, 0)
 
 
 func _get_unit_signature(unit: Dictionary) -> int:
@@ -74,7 +85,7 @@ func _sync_units() -> void:
 
 # Moves an existing model to the position of its unit and plays the matching animation
 func _update_unit_node(node: Node3D, unit: Dictionary) -> void:
-	var target: Vector3 = _map_view._map_to_world_coords(unit[&"position"]) + Vector3(0, 0.1 * MODEL_SCALE, 0)
+	var target: Vector3 = _map_view._map_to_ground_coords(unit[&"position"]) + Vector3(0, 0.1 * MODEL_SCALE, 0)
 	var moving: bool = unit.get(&"moving", false)
 
 	if not node.position.is_equal_approx(target):
@@ -149,7 +160,7 @@ func _generate_unit(unit_dict: Dictionary) -> Node3D:
 
 	model.scale *= MODEL_SCALE
 	model.rotate_y(PI + rotation)
-	model.set_position(_map_view._map_to_world_coords(unit_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
+	model.set_position(_map_view._map_to_ground_coords(unit_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
 
 	if model is UnitModel:
 		model.current_anim = UnitModel.Anim.MOVE if unit_dict.get(&"moving", false) else UnitModel.Anim.IDLE
@@ -178,7 +189,9 @@ func _generate_building(building_dict: Dictionary) -> void:
 
 	model.scale *= MODEL_SCALE
 	model.rotate_y(PI + building_dict.get(rotation_key, 0.0))
-	model.set_position(_map_view._map_to_world_coords(building_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
+	model.set_position(_map_view._map_to_ground_coords(building_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
+	model.set_meta(&"map_position", building_dict[position_key])
+	_building_nodes.append(model)
 
 	add_child(model)
 

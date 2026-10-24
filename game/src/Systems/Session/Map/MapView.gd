@@ -12,6 +12,8 @@ signal detailed_view_changed(is_detailed_view: bool)
 signal province_hovered(index: int)
 signal province_unhovered()
 signal province_clicked(index: int)
+# The relief was baked (or switched off): objects on the map have to be placed on the ground again
+signal ground_changed
 signal province_right_clicked(index: int)
 
 const _action_north: StringName = &"map_north"
@@ -133,6 +135,7 @@ func _ready() -> void:
 	_map_baker = Node.new()
 	_map_baker.set_script(_MapBaker)
 	add_child(_map_baker)
+	_map_baker.relief_ready.connect(func() -> void: ground_changed.emit())
 	_map_baker.setup(_map_shader_material)
 
 	PlayerSingleton.province_selected.connect(_on_province_selected)
@@ -180,13 +183,29 @@ func _map_to_world_coords(pos: Vector2) -> Vector3:
 	return Vector3(pos.x, 0, pos.y)
 
 
+## Position on the ground (on the displaced relief) of a map position
+func _map_to_ground_coords(pos: Vector2) -> Vector3:
+	var world: Vector3 = _map_to_world_coords(pos)
+	if _map_baker != null:
+		world.y = _map_baker.get_ground_height(pos)
+	return world
+
+
 func _viewport_to_world_coords(pos_viewport: Vector2) -> Vector3:
 	var ray_origin := _camera.project_ray_origin(pos_viewport)
 	var ray_normal := _camera.project_ray_normal(pos_viewport)
 	# Plane with normal (0,1,0) facing upwards, at a distance 0 from the origin
 	var intersection: Variant = Plane(0, 1, 0, 0).intersects_ray(ray_origin, ray_normal)
 	if typeof(intersection) == TYPE_VECTOR3:
-		return intersection
+		var point: Vector3 = intersection
+		# The ground is not flat: intersect with the plane at the height of the ground under the cursor
+		if _map_baker != null and _map_baker.has_relief():
+			for i: int in 2:
+				var ground_height: float = _map_baker.get_ground_height(_world_to_map_coords(point))
+				var hit: Variant = Plane(0, 1, 0, ground_height).intersects_ray(ray_origin, ray_normal)
+				if typeof(hit) == TYPE_VECTOR3:
+					point = hit
+		return point
 	else:
 		# Normals parallel to the xz-plane could cause null intersections,
 		# but the camera's orientation should prevent such normals
@@ -309,13 +328,13 @@ func _unhandled_input(event: InputEvent) -> void:
 					var port_pos: Vector2 = MapItemSingleton.get_port_position_by_province_number(port_province_number)
 					selectionMarkers.toggle_id_selected(
 						5000 + port_province_number,
-						_map_to_world_coords(port_pos),
+						_map_to_ground_coords(port_pos),
 					)
 				else:
 					var unit_position: Vector2 = MapItemSingleton.get_unit_position_by_province_number(province_number)
 					selectionMarkers.toggle_id_selected(
 						province_number,
-						_map_to_world_coords(unit_position),
+						_map_to_ground_coords(unit_position),
 					)
 
 	elif event.is_action_pressed(_action_click):
@@ -491,7 +510,7 @@ func _update_orientation() -> void:
 	if _is_detailed_view:
 		# Zero at the transition point, increases as you zoom further in
 		var delta: float = (_zoom_detailed_threshold - _camera.position.y) / _zoom_detailed_threshold
-		dir.z = -(delta ** 2)
+		dir.z = -(delta ** 2) * 1.5
 	_camera.look_at(_camera.position + dir, up)
 
 

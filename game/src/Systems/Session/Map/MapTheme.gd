@@ -20,9 +20,11 @@ extends Resource
 @export_range(0.3, 4.0) var coast_width: float = 1.1
 
 ## How much darker the colours of the countries are than the original ones (0.2 is 20 percent)
-@export_range(0.0, 0.8) var colour_darken: float = 0.2
+@export_range(0.0, 0.8) var colour_darken: float = 0.1
 
 @export_group("Relief")
+## Height of the highest mountains above the sea in world units: the map mesh is really displaced (0 is flat)
+@export_range(0.0, 0.3) var height_displacement: float = 0.06
 ## How strongly the relief shades the map (0 is flat)
 @export_range(0.0, 2.0) var relief_strength: float = 1.0
 ## Slope strength used when the normal map is baked

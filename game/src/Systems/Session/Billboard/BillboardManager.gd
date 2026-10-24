@@ -116,6 +116,7 @@ func _ready() -> void:
 	multimesh.mesh.surface_set_material(0, material)
 
 	var positions: PackedVector2Array = MapItemSingleton.get_province_positions()
+	_province_positions = positions
 	provinces_size = positions.size()
 	total_capitals_size = MapItemSingleton.get_max_capital_count()
 
@@ -131,8 +132,11 @@ func _ready() -> void:
 	for province_index: int in provinces_size:
 		multimesh.set_instance_transform(
 			province_index + total_capitals_size,
-			Transform3D(Basis(), _map_view._map_to_world_coords(positions[province_index]))
+			Transform3D(Basis(), _map_view._map_to_ground_coords(positions[province_index]))
 		)
+
+	if not _map_view.ground_changed.is_connected(refresh_ground):
+		_map_view.ground_changed.connect(refresh_ground)
 
 	# These signals will trigger and update capitals and province icons right
 	# at the beginning of (as well as later throughout) the game session
@@ -140,7 +144,20 @@ func _ready() -> void:
 	GameSingleton.gamestate_updated.connect(_on_game_state_changed)
 
 
+# Places the billboards on the ground again when the relief is baked
+func refresh_ground() -> void:
+	for province_index: int in _province_positions.size():
+		multimesh.set_instance_transform(
+			province_index + total_capitals_size,
+			Transform3D(Basis(), _map_view._map_to_ground_coords(_province_positions[province_index]))
+		)
+	set_capitals()
+
+
 # Fetch the nation capitals and setup billboards for them
+
+
+var _province_positions: PackedVector2Array
 
 
 func set_capitals() -> void:
@@ -151,7 +168,7 @@ func set_capitals() -> void:
 	for capital_index: int in capitals_size:
 		multimesh.set_instance_transform(
 			capital_index,
-			Transform3D(Basis(), _map_view._map_to_world_coords(capital_positions[capital_index]))
+			Transform3D(Basis(), _map_view._map_to_ground_coords(capital_positions[capital_index]))
 		)
 
 		# capital image, frame=1, 2x unused

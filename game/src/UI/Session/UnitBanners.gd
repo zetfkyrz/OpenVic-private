@@ -176,7 +176,7 @@ func _process(_delta: float) -> void:
 			continue
 
 		# The same position as the unit's model, the icon is then lifted by a few pixels above it
-		var world_position: Vector3 = _map_view._map_to_world_coords(icon[&"position"])
+		var world_position: Vector3 = _map_view._map_to_ground_coords(icon[&"position"])
 		if camera.is_position_behind(world_position):
 			panel.hide()
 			continue
@@ -558,7 +558,7 @@ func _draw_paths() -> void:
 func _draw_path(camera: Camera3D, path: PackedVector2Array, colour: Color) -> void:
 	var points: PackedVector2Array
 	for map_position: Vector2 in path:
-		var world: Vector3 = _map_view._map_to_world_coords(map_position)
+		var world: Vector3 = _map_view._map_to_ground_coords(map_position)
 		if camera.is_position_behind(world):
 			return
 		points.append(camera.unproject_position(world))
@@ -608,7 +608,7 @@ func _sync_selection_markers() -> void:
 		if selected_id < 0:
 			continue
 
-		markers.add_selection_marker(selected_id, _map_view._map_to_world_coords(icon[&"position"]))
+		markers.add_selection_marker(selected_id, _map_view._map_to_ground_coords(icon[&"position"]))
 
 
 func _on_icon_gui_input(event: InputEvent) -> void:

@@ -21,6 +21,12 @@ var _quality: int = -1
 var _viewports: Array[SubViewport] = []
 var _bake_serial: int = 0
 var _watch_timer: Timer
+# The baked heights read back for the objects standing on the map (units, buildings, names...)
+var _height_bytes: PackedByteArray
+var _height_size: Vector2i
+var _displacement: float = 0.0
+
+signal relief_ready
 # Length of the shadows the textures were baked with (rebaked when the setting changes)
 var _baked_shadow_length: float = -1.0
 
@@ -57,7 +63,8 @@ func _apply_shadow_darkness() -> void:
 	var percent: float = float(GameSettings.get_setting(GameSettings.VIDEO_SHADOW_DARKNESS).value())
 	var strength: float = 0.0
 	if enabled:
-		strength = _theme.shadow_strength * clampf(percent, 25.0, 100.0) / 100.0
+		# 25 % is the lightest shadow (0.10), 100 % the theme value
+		strength = lerpf(0.10, _theme.shadow_strength, (clampf(percent, 25.0, 100.0) - 25.0) / 75.0)
 	_material.set_shader_parameter(&"shadow_strength", strength)
 
 
@@ -103,6 +110,11 @@ func _apply_quality(quality: int) -> void:
 	_clear_viewports()
 
 	_material.set_shader_parameter(&"quality", quality)
+	if quality == 0:
+		_height_bytes = PackedByteArray()
+		_displacement = 0.0
+		_material.set_shader_parameter(&"displacement", 0.0)
+		relief_ready.emit()
 	_material.set_shader_parameter(&"border_taps", _BORDER_TAPS[quality])
 	if quality == 0:
 		# Plain map: no baked textures, only the smooth borders
@@ -181,6 +193,16 @@ func _bake(quality: int, serial: int) -> void:
 	_material.set_shader_parameter(&"sea_normal_tex", AssetManager.get_texture(_SEA_NORMAL_PATH))
 	_material.set_shader_parameter(&"relief_amount", 1.0)
 
+	# The mesh of the map is displaced by the heights, objects on the map read them back to stand on the ground
+	var image: Image = height_pass.get_texture().get_image()
+	if image != null:
+		image.convert(Image.FORMAT_RGBA8)
+		_height_size = image.get_size()
+		_height_bytes = image.get_data()
+		_displacement = t.height_displacement
+		_material.set_shader_parameter(&"displacement", _displacement)
+		relief_ready.emit()
+
 
 ## Updates the lighting with the camera: the relief is strongest when zoomed in, fades out towards the parchment map
 ## and the sun moves a little with the camera. `zoom` is 0 far away and 1 close, `camera_uv` the map position (0..1).
@@ -195,3 +217,16 @@ func update_view(zoom: float, camera_uv: Vector2, border_scale: float) -> void:
 	var elevation: float = deg_to_rad(lerpf(t.sun_elevation_far, t.sun_elevation_near, zoom) + (camera_uv.y - 0.5) * t.light_sway * 0.5)
 	var horizontal := Vector2(sin(azimuth), -cos(azimuth)) * cos(elevation)
 	_material.set_shader_parameter(&"sun_vector", Vector3(horizontal.x, horizontal.y, sin(elevation)))
+
+
+func has_relief() -> bool:
+	return not _height_bytes.is_empty()
+
+
+## Height of the ground (world units) at a map position (0..1 on both axes)
+func get_ground_height(uv: Vector2) -> float:
+	if _height_bytes.is_empty():
+		return 0.0
+	var x: int = clampi(int(posmod(uv.x, 1.0) * _height_size.x), 0, _height_size.x - 1)
+	var y: int = clampi(int(uv.y * _height_size.y), 0, _height_size.y - 1)
+	return float(_height_bytes[(y * _height_size.x + x) * 4]) / 255.0 * _displacement

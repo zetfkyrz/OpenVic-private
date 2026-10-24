@@ -49,7 +49,7 @@ uniform float glow_opacity = 0.45;
 uniform float tint_width = 26.0;
 uniform float tint_opacity = 0.0;
 // Darkens the colours of the countries (0.2 is 20 percent darker)
-uniform float colour_darken = 0.2;
+uniform float colour_darken = 0.1;
 uniform vec4 coast_colour = vec4(0.03, 0.04, 0.06, 1.0);
 uniform float coast_opacity = 0.55;
 uniform float coast_width = 1.1;
@@ -60,6 +60,8 @@ uniform sampler2D relief_tex: filter_linear, repeat_enable;
 uniform sampler2D sea_normal_tex: filter_linear, repeat_enable;
 // 1 once the relief is baked
 uniform float relief_amount = 0.0;
+// Height of the highest mountains in world units, the mesh of the map is displaced by the baked heights
+uniform float displacement = 0.0;
 // Strength of the relief for the current zoom (0 far away)
 uniform float relief_zoom = 0.0;
 // Direction towards the sun (u right, v down, z up), moves a little with the camera
@@ -386,6 +388,12 @@ vec3 srgb_to_linear(vec3 srgb) {
 		pow((srgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)), vec3(2.4)),
 		greaterThan(srgb, vec3(0.04045))
 	);
+}
+
+void vertex() {
+	if (displacement > 0.0) {
+		VERTEX.y += textureLod(height_tex, UV, 0.0).r * displacement / length(MODEL_MATRIX[1].xyz);
+	}
 }
 
 void fragment() {

@@ -21,7 +21,14 @@ func _clear_children() -> void:
 		child.queue_free()
 
 
+func _on_ground_changed() -> void:
+	# Names stand on the ground: placed again when the relief is baked
+	generate_map_names()
+
+
 func generate_map_names() -> void:
+	if _map_view and not _map_view.ground_changed.is_connected(_on_ground_changed):
+		_map_view.ground_changed.connect(_on_ground_changed)
 	_clear_children()
 
 	for dict: Dictionary in GameSingleton.get_province_names():
@@ -46,7 +53,7 @@ func _add_province_name(dict: Dictionary) -> void:
 	label.set_name(identifier)
 	label.set_text(GUINode.format_province_name(identifier))
 
-	label.set_position(_map_view._map_to_world_coords(dict[position_key]) + Vector3(0, 0.001, 0))
+	label.set_position(_map_view._map_to_ground_coords(dict[position_key]) + Vector3(0, 0.001, 0))
 
 	label.rotate_x(-PI / 2)
 	label.rotate_y(dict.get(rotation_key, 0.0))
