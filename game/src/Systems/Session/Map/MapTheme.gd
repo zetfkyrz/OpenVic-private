@@ -50,9 +50,15 @@ extends Resource
 @export_group("Water")
 @export var shallow_colour: Color = Color(0.55, 0.85, 0.95)
 @export var deep_colour: Color = Color(0.12, 0.28, 0.5)
-@export_range(0.0, 1.0) var depth_strength: float = 0.55
+@export_range(0.0, 1.0) var depth_strength: float = 0.65
 ## Distance from the coast (in map pixels) over which the water turns deep
 @export_range(4.0, 120.0) var shore_distance: float = 32.0
+## Light shelf of shallow water along the coast, with a darker rim where it meets the deep sea (like in HOI4)
+@export var shelf_colour: Color = Color(0.45, 0.64, 0.88)
+@export_range(0.0, 1.0) var shelf_strength: float = 0.55
+## Where the shelf ends, as the share of land around the water (about 0.5 on the coast, smaller further out): 0.17 is about 17 pixels from a straight coast
+@export_range(0.05, 0.4) var shelf_edge: float = 0.17
+@export_range(0.0, 1.0) var rim_strength: float = 0.35
 ## Width of the surf along the coast in map pixels
 @export_range(2.0, 30.0) var foam_distance: float = 9.0
 ## Colour of the foam, close to the colour of the sea so that it is not too bright
