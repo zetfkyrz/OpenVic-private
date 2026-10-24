@@ -104,6 +104,9 @@ namespace OpenVic {
 		/* Save games are replays of the player's and the simulation's actions: a header (bookmark, country, date, label)
 		   followed by the action history. Loading sets up the bookmark and country, then replays the actions in steps
 		   (see step_pending_replay) so that the interface can show the progress. */
+		// Hash of all the values of the OpenVic defines (after the mods): saves record it, a multiplayer lobby should compare
+		// it between the players in its handshake (there is no multiplayer yet, see docs/PENDING_PLANS.md)
+		godot::String get_defines_hash() const;
 		godot::Error save_game(godot::String const& path, godot::String const& label);
 		godot::Dictionary read_save_header(godot::String const& path) const;
 		// Reads the file and remembers the actions to replay; returns the header (bookmark_index, country, ...)

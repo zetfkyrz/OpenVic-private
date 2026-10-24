@@ -890,7 +890,7 @@ Array PlayerSingleton::get_production_info() const {
 			state_dict["province_index"] = static_cast<int32_t>(type_safe::get(state.get_capital()->index));
 			state_dict["name"] = Utilities::get_state_name(*menu_singleton, state);
 			state_dict["free_slots"] = static_cast<int32_t>(
-			    FactoryInstance::MAX_FACTORIES_PER_STATE - std::min(FactoryInstance::MAX_FACTORIES_PER_STATE, state.get_factories().size())
+			    FactoryInstance::get_max_factories_per_state() - std::min(FactoryInstance::get_max_factories_per_state(), state.get_factories().size())
 			);
 			state_dict["factories"] = std::move(factories);
 			state_dict["buildable"] = std::move(buildable);
@@ -2377,7 +2377,7 @@ namespace {
 		entry["reparations"] = offer.terms.reparations;
 		entry["humiliate"] = offer.terms.humiliate;
 		entry["cost"] = static_cast<float>(war_manager.get_terms_cost(war, *offer.from, offer.terms));
-		entry["days_left"] = WarManager::OFFER_VALID_DAYS - static_cast<int32_t>((today - offer.date).to_int());
+		entry["days_left"] = war_manager.get_peace_defines().offer_valid_days - static_cast<int32_t>((today - offer.date).to_int());
 		return entry;
 	}
 }
@@ -2425,8 +2425,8 @@ Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
 	result["concede"] = draft.concede;
 	result["reparations"] = draft.reparations;
 	result["humiliate"] = draft.humiliate;
-	result["reparations_cost"] = WarManager::REPARATIONS_COST;
-	result["humiliate_cost"] = WarManager::HUMILIATE_COST;
+	result["reparations_cost"] = war_manager.get_peace_defines().reparations_cost;
+	result["humiliate_cost"] = war_manager.get_peace_defines().humiliate_cost;
 
 	const bool winners_are_attackers = draft.concede ? !we_attack : we_attack;
 	Array states;
@@ -2869,7 +2869,7 @@ Dictionary PlayerSingleton::get_colonisation_info() const {
 	ColonisationManager& colonisation = instance_manager->get_colonisation_manager();
 	result["total_points"] = static_cast<float>(colonisation.get_total_points(*instance_manager, *player_country));
 	result["used_points"] = static_cast<float>(colonisation.get_used_points(*instance_manager, *player_country));
-	result["rank_ok"] = player_country->get_total_rank() > 0 && player_country->get_total_rank() <= ColonisationManager::MAX_COLONIAL_RANK;
+	result["rank_ok"] = player_country->get_total_rank() > 0 && player_country->get_total_rank() <= ColonisationManager::get_max_colonial_rank(*instance_manager);
 
 	Array candidates;
 	for (ProvinceInstance* province : colonisation.get_candidates(*instance_manager, *player_country)) {

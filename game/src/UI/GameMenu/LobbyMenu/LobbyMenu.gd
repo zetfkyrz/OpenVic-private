@@ -42,6 +42,10 @@ func _ready() -> void:
 	_update_selected_country_label()
 
 
+# TODO (multiplayer): there is no multiplayer lobby yet. When it appears, its handshake must carry
+# GameSingleton.get_defines_hash() (hash of the openvic_defines values after the mods) and the game must refuse to start
+# when the hashes of the players differ, so that everybody plays with the same parameters.
+
 # Flag and key figures of the selected country, under its name (task G2)
 func _build_country_preview() -> void:
 	if not _selected_country_label:

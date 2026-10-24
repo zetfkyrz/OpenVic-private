@@ -67,6 +67,7 @@ void GameSingleton::_bind_methods() {
 	OV_BIND_METHOD(GameSingleton::is_bookmark_loaded);
 
 	OV_BIND_METHOD(GameSingleton::start_game_session);
+	OV_BIND_METHOD(GameSingleton::get_defines_hash);
 	OV_BIND_METHOD(GameSingleton::save_game, { "path", "label" });
 	OV_BIND_METHOD(GameSingleton::read_save_header, { "path" });
 	OV_BIND_METHOD(GameSingleton::prepare_load_game, { "path" });
@@ -296,7 +297,8 @@ godot::Error GameSingleton::start_game_session() {
 	return ERR(game_manager.start_game_session());
 }
 
-static constexpr const char* SAVE_MAGIC = "OVSAVE 1";
+// The first line of a save is "OVSAVE <format version>", see Replay::FORMAT_VERSION
+static constexpr const char* SAVE_MAGIC_PREFIX = "OVSAVE ";
 
 godot::Error GameSingleton::save_game(godot::String const& path, godot::String const& label) {
 	InstanceManager* instance_manager = get_instance_manager();
@@ -306,7 +308,9 @@ godot::Error GameSingleton::save_game(godot::String const& path, godot::String c
 	CountryInstance const* player_country = PlayerSingleton::get_singleton()->get_player_country();
 	ERR_FAIL_NULL_V_MSG(player_country, FAILED, "Cannot save without a player country!");
 
-	godot::String text = godot::String(SAVE_MAGIC) + "\n";
+	godot::String text = godot::String(SAVE_MAGIC_PREFIX) + godot::String::num_int64(Replay::FORMAT_VERSION) + "\n";
+	text += "#sim_version " + godot::String::num_int64(Replay::SIMULATION_VERSION) + "\n";
+	text += "#defines_hash " + convert_to<godot::String>(Replay::hash_to_string(get_definition_manager().get_define_manager().get_openvic_defines().get_hash())) + "\n";
 	text += "#bookmark " + godot::String::num_int64(type_safe::get(bookmark->index)) + "\n";
 	text += "#country " + convert_to<godot::String>(player_country->get_identifier()) + "\n";
 	text += "#date " + Utilities::date_to_formatted_string(instance_manager->get_today(), false) + "\n";
@@ -326,9 +330,11 @@ godot::Dictionary GameSingleton::read_save_header(godot::String const& path) con
 	if (file.is_null()) {
 		return result;
 	}
-	if (file->get_line() != godot::String(SAVE_MAGIC)) {
+	const godot::String magic = file->get_line();
+	if (!magic.begins_with(SAVE_MAGIC_PREFIX) || !magic.substr(godot::String(SAVE_MAGIC_PREFIX).length()).is_valid_int()) {
 		return result;
 	}
+	result["format"] = magic.substr(godot::String(SAVE_MAGIC_PREFIX).length()).to_int();
 	while (!file->eof_reached()) {
 		const godot::String line = file->get_line();
 		if (!line.begins_with("#")) {
@@ -341,14 +347,34 @@ godot::Dictionary GameSingleton::read_save_header(godot::String const& path) con
 		result[line.substr(1, space - 1)] = line.substr(space + 1);
 	}
 	result["valid"] = true;
+
+	// Compatibility with this build: a message the interface shows (with "open anyway" for warnings)
+	std::uint64_t saved_hash = 0;
+	const bool has_hash = result.has("defines_hash") && Replay::hash_from_string(result["defines_hash"].operator godot::String().utf8().get_data(), saved_hash);
+	const Replay::Compatibility compatibility = Replay::check_header(
+		static_cast<int>(result["format"]), result.has("sim_version") ? static_cast<int>(result["sim_version"].operator godot::String().to_int()) : -1,
+		has_hash, saved_hash, get_definition_manager().get_define_manager().get_openvic_defines().get_hash()
+	);
+	result["loadable"] = compatibility.loadable;
+	result["blocked_reason"] = convert_to<godot::String>(compatibility.blocked_reason);
+	godot::PackedStringArray warnings;
+	for (std::string const& warning : compatibility.warnings) {
+		warnings.push_back(convert_to<godot::String>(warning));
+	}
+	result["warnings"] = warnings;
 	return result;
+}
+
+godot::String GameSingleton::get_defines_hash() const {
+	return convert_to<godot::String>(Replay::hash_to_string(get_definition_manager().get_define_manager().get_openvic_defines().get_hash()));
 }
 
 godot::Dictionary GameSingleton::prepare_load_game(godot::String const& path) {
 	pending_replay.clear();
 	pending_replay_index = 0;
 	godot::Dictionary header = read_save_header(path);
-	if (!header.has("valid")) {
+	if (!header.has("valid") || !static_cast<bool>(header["loadable"])) {
+		// Not a save game, or a format this version cannot read: the interface shows blocked_reason, nothing is loaded
 		return header;
 	}
 	godot::Ref<godot::FileAccess> file = godot::FileAccess::open(path, godot::FileAccess::READ);

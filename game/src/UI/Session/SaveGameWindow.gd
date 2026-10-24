@@ -14,6 +14,9 @@ const _TOGGLE_KEY: Key = KEY_F4
 var _tree: Tree
 var _name_edit: LineEdit
 var _status: Label
+var _warning_dialog: ConfirmationDialog
+var _blocked_dialog: AcceptDialog
+var _pending_path: String = ""
 
 
 func _ready() -> void:
@@ -49,6 +52,17 @@ func _ready() -> void:
 	_status = Label.new()
 	_status.add_theme_color_override(&"font_color", TEXT_COLOUR)
 	root.add_child(_status)
+
+	# Saves of another version / with other defines: the player decides ("open anyway")
+	_warning_dialog = ConfirmationDialog.new()
+	_warning_dialog.title = "Сохранение может не совпасть"
+	_warning_dialog.ok_button_text = "Открыть всё равно"
+	_warning_dialog.cancel_button_text = "Отмена"
+	_warning_dialog.confirmed.connect(_on_warning_confirmed)
+	add_child(_warning_dialog)
+	_blocked_dialog = AcceptDialog.new()
+	_blocked_dialog.title = "Сохранение нельзя открыть"
+	add_child(_blocked_dialog)
 
 
 func _make_button(text: String, callback: Callable) -> Button:
@@ -129,8 +143,28 @@ func _on_load_pressed() -> void:
 	if path.is_empty():
 		_status.text = "Выберите сохранение в списке"
 		return
+	var header: Dictionary = GameSingleton.read_save_header(path)
+	if header.is_empty():
+		_blocked_dialog.dialog_text = "Файл не похож на сохранение игры или повреждён."
+		_blocked_dialog.popup_centered()
+		return
+	if not header.get("loadable", false):
+		_blocked_dialog.dialog_text = header.get("blocked_reason", "Неизвестная причина.")
+		_blocked_dialog.popup_centered()
+		return
+	var warnings: PackedStringArray = header.get("warnings", PackedStringArray())
+	if not warnings.is_empty():
+		_pending_path = path
+		_warning_dialog.dialog_text = "\n\n".join(warnings) + "\n\nОткрыть сохранение всё равно?"
+		_warning_dialog.popup_centered(Vector2i(560, 0))
+		return
 	close()
 	load_requested.emit(path)
+
+
+func _on_warning_confirmed() -> void:
+	close()
+	load_requested.emit(_pending_path)
 
 
 func _on_delete_pressed() -> void:
