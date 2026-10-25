@@ -5,19 +5,21 @@ extends "res://src/UI/Session/Vic2Window.gd"
 signal mode_chosen(mode: int)
 
 const _NAMES: PackedStringArray = [
-	"Субсидировать все предприятия", "Только государственные", "По доле владения",
+	"Субсидировать все", "По доле владения", "Антикризисные субсидии",
 ]
 const _TIPS: PackedStringArray = [
-	"Государство покрывает убытки всех субсидируемых заводов полностью, капиталисты не платят.",
-	"Государство полностью оплачивает убытки заводов, в которых ему принадлежит хоть какая-то доля. Частные заводы государство не субсидирует: их покрывают капиталисты.",
+	"Государство полностью оплачивает убытки всех отмеченных предприятий, капиталисты не платят.",
 	"Государство платит долю убытков, равную его доле владения, остальное покрывают капиталисты.",
+	"Работает как «по доле владения», пока у капиталистов есть деньги. Когда их деньги заканчиваются, государство берёт на себя и их часть убытков, какой бы ни была его доля владения, чтобы поддержать экономику.",
 ]
 
 var _buttons: Array[Button] = []
+var _tip: Label
+const _DEFAULT_TIP: String = "Наведите на режим, чтобы прочитать, как он работает. Выбранный режим подсвечен."
 
 
 func _ready() -> void:
-	setup(Vector2(430, 250), "Субсидии промышленности")
+	setup(Vector2(470, 330), "Субсидии промышленности")
 
 	var root := VBoxContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -31,14 +33,18 @@ func _ready() -> void:
 		button.toggle_mode = true
 		button.custom_minimum_size = Vector2(0, 30)
 		button.pressed.connect(_choose.bind(i))
+		# The description of the mode under the cursor is written below
+		button.mouse_entered.connect(func() -> void: _tip.text = _TIPS[i])
+		button.mouse_exited.connect(func() -> void: _tip.text = _DEFAULT_TIP)
 		root.add_child(button)
 		_buttons.append(button)
 
-	var tip := Label.new()
-	tip.text = "Выберите, убытки каких предприятий оплачивает государство. Остальное покрывают капиталисты."
-	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tip.add_theme_color_override(&"font_color", MUTED_TEXT_COLOUR)
-	root.add_child(tip)
+	_tip = Label.new()
+	_tip.text = _DEFAULT_TIP
+	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tip.custom_minimum_size = Vector2(0, 90)
+	_tip.add_theme_color_override(&"font_color", MUTED_TEXT_COLOUR)
+	root.add_child(_tip)
 
 	hide()
 

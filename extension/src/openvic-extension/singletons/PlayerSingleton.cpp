@@ -842,7 +842,7 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["state_share"] = static_cast<float>(factory.get_state_share());
 				factory_dict["subsidised"] = factory.is_subsidised();
 				// Subsidised and the state really pays for it (a private factory is not helped in the modes that need a state share)
-				factory_dict["subsidy_active"] = factory.receives_state_subsidy(state.get_owner());
+				factory_dict["subsidy_active"] = factory.receives_state_subsidy(state.get_owner(), state);
 				factory_dict["built_by_state"] = factory.was_built_by_state();
 				factory_dict["expansion_fund"] = static_cast<float>(factory.get_expansion_fund());
 				factory_dict["expansion_cost"] =
