@@ -66,8 +66,8 @@ var _ownership_dialog: Control
 class _OwnerPie extends Control:
 	signal pressed
 
-	const STATE_COLOUR: Color = Color(0.3, 0.45, 0.75)
-	const INVESTOR_COLOUR: Color = Color(0.85, 0.55, 0.15)
+	const STATE_COLOUR: Color = Color(0.72, 0.34, 0.27)
+	const INVESTOR_COLOUR: Color = Color(0.45, 0.72, 0.86)
 
 	var state_share: float = 1.0
 
@@ -76,11 +76,19 @@ class _OwnerPie extends Control:
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 	func _draw() -> void:
+		# Victoria 2 style pie: light blue private owners, terracotta state wedge, dark rim and a soft gloss
 		var centre: Vector2 = size / 2.0
 		var radius: float = minf(size.x, size.y) / 2.0 - 1.5
+		draw_circle(centre + Vector2(1, 1), radius + 0.5, Color(0, 0, 0, 0.35))
 		_slice(centre, radius, 0.0, state_share, STATE_COLOUR)
 		_slice(centre, radius, state_share, 1.0, INVESTOR_COLOUR)
-		draw_arc(centre, radius, 0.0, TAU, 32, Color(0.05, 0.05, 0.05), 1.5)
+		draw_circle(centre + Vector2(-radius * 0.25, -radius * 0.3), radius * 0.55, Color(1, 1, 1, 0.12))
+		draw_arc(centre, radius, 0.0, TAU, 40, Color(0.1, 0.17, 0.22), 1.2)
+		# The edges of the wedge
+		if state_share > 0.01 and state_share < 0.99:
+			var angle: float = -PI / 2.0 + state_share * TAU
+			draw_line(centre, centre + Vector2(cos(angle), sin(angle)) * radius, Color(0.1, 0.17, 0.22), 1.0)
+			draw_line(centre, centre + Vector2(0, -radius), Color(0.1, 0.17, 0.22), 1.0)
 
 	func _slice(centre: Vector2, radius: float, from_share: float, to_share: float, colour: Color) -> void:
 		if to_share - from_share <= 0.002:
@@ -338,18 +346,10 @@ func _setup_mass_buttons() -> void:
 
 func _setup_factory_panel(panel: Panel) -> void:
 	# Features that do not exist yet
-	# Hiring priority: a click goes through low, normal and high
-	var priority_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./priority")
-	if priority_button:
-		priority_button.pressed.connect(
-			func() -> void:
-				if not panel.has_meta(&"building_type_index"):
-					return
-				var next_priority: int = (int(panel.get_meta(&"priority", 1)) + 1) % 3
-				PlayerSingleton.set_factory_priority(
-					panel.get_meta(&"province_index"), panel.get_meta(&"building_type_index"), next_priority
-				)
-		)
+	# The hiring priority is chosen in the window of the owners (the pie chart), not with a button on the plate
+	var priority_node: Node = panel.get_node_or_null(^"./priority")
+	if priority_node is CanvasItem:
+		priority_node.hide()
 
 	# Deleting a factory (or cancelling its construction) asks for a second click
 	for delete_name: NodePath in [^"./delete_factory", ^"./prod_cancel_progress"]:
@@ -388,8 +388,9 @@ func _setup_factory_panel(panel: Panel) -> void:
 	# Owners of the factory: a small pie chart (state / investors), a click opens the window with the shares
 	var owner_button := _OwnerPie.new()
 	owner_button.name = "owner_button"
-	owner_button.position = Vector2(76, 58)
-	owner_button.size = Vector2(18, 18)
+	# Between the number of the level and the icon of the type of the factory
+	owner_button.position = Vector2(53, 13)
+	owner_button.size = Vector2(22, 22)
 	owner_button.pressed.connect(
 		func() -> void:
 			if panel.has_meta(&"factory"):
@@ -535,12 +536,6 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 
 	panel.set_meta(&"priority", int(factory.get(&"priority", 1)))
 	panel.set_meta(&"constructing", constructing)
-	var priority_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./priority")
-	if priority_button:
-		priority_button.visible = level > 0
-		# Frames of the sprite: 0 is the lowest priority
-		priority_button.set_icon_index(clampi(int(factory.get(&"priority", 1)), 0, 3))
-		priority_button.tooltip_string = "Приоритет найма: %s\nНажмите, чтобы сменить" % _PRIORITY_NAMES[clampi(int(factory.get(&"priority", 1)), 0, 2)]
 	var delete_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./delete_factory")
 	if delete_button:
 		delete_button.visible = level > 0 and not constructing

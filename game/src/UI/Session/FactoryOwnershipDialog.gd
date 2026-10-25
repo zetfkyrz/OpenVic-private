@@ -12,11 +12,13 @@ var _pie: _Pie
 var _info: Label
 var _buy_buttons: Array[Button] = []
 var _sell_buttons: Array[Button] = []
+var _priority_buttons: Array[Button] = []
+const _PRIORITY_NAMES: PackedStringArray = ["Низкий", "Обычный", "Высокий"]
 
 
 class _Pie extends Control:
-	const STATE_COLOUR: Color = Color(0.3, 0.45, 0.75)
-	const INVESTOR_COLOUR: Color = Color(0.85, 0.55, 0.15)
+	const STATE_COLOUR: Color = Color(0.72, 0.34, 0.27)
+	const INVESTOR_COLOUR: Color = Color(0.45, 0.72, 0.86)
 
 	var state_share: float = 1.0
 
@@ -27,9 +29,11 @@ class _Pie extends Control:
 	func _draw() -> void:
 		var centre: Vector2 = size / 2.0
 		var radius: float = minf(size.x, size.y) / 2.0 - 4.0
+		draw_circle(centre + Vector2(2, 2), radius + 1.0, Color(0, 0, 0, 0.3))
 		_draw_slice(centre, radius, 0.0, state_share, STATE_COLOUR)
 		_draw_slice(centre, radius, state_share, 1.0, INVESTOR_COLOUR)
-		draw_arc(centre, radius, 0.0, TAU, 64, Color.BLACK, 2.0)
+		draw_circle(centre + Vector2(-radius * 0.25, -radius * 0.3), radius * 0.55, Color(1, 1, 1, 0.12))
+		draw_arc(centre, radius, 0.0, TAU, 64, Color(0.1, 0.17, 0.22), 2.0)
 
 	func _draw_slice(centre: Vector2, radius: float, from_share: float, to_share: float, colour: Color) -> void:
 		if to_share - from_share <= 0.0005:
@@ -72,6 +76,22 @@ func _ready() -> void:
 	_info.custom_minimum_size = Vector2(300, 0)
 	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(_info)
+
+	# Hiring priority: factories with a higher priority hire workers first
+	var priority_row := HBoxContainer.new()
+	priority_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(priority_row)
+	var priority_label := Label.new()
+	priority_label.text = "Приоритет найма:"
+	priority_row.add_child(priority_label)
+	for level: int in _PRIORITY_NAMES.size():
+		var priority_button := Button.new()
+		priority_button.text = _PRIORITY_NAMES[level]
+		priority_button.toggle_mode = true
+		priority_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		priority_button.pressed.connect(_on_priority_pressed.bind(level))
+		priority_row.add_child(priority_button)
+		_priority_buttons.append(priority_button)
 
 	var buy_row := HBoxContainer.new()
 	buy_row.add_theme_constant_override(&"separation", 6)
@@ -140,10 +160,19 @@ func update_factory(factory: Dictionary) -> void:
 		"Накопления капиталистов штата: %s" % GUINode.float_to_string_dp(factory[&"capitalist_fund"], 0),
 	])
 
+	var priority: int = int(factory.get(&"priority", 1))
+	for i: int in _priority_buttons.size():
+		_priority_buttons[i].set_pressed_no_signal(i == priority)
+
 	for button in _buy_buttons:
 		button.disabled = state_share >= 0.999
 	for button in _sell_buttons:
 		button.disabled = state_share <= 0.001
+
+
+func _on_priority_pressed(level: int) -> void:
+	if _province_index >= 0 and _building_type_index >= 0:
+		PlayerSingleton.set_factory_priority(_province_index, _building_type_index, level)
 
 
 func _on_trade_pressed(percent: int, buy: bool) -> void:

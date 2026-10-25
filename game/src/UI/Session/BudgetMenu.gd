@@ -17,6 +17,7 @@ var _ind_sub_val_label: GUILabel
 var _subsidy_mode_button: Button
 var _subsidy_dialog: Control
 var _subsidy_mode: int = 0
+const _Vic2WindowScript: GDScript = preload("res://src/UI/Session/Vic2Window.gd")
 const _SubsidyDialog: GDScript = preload("res://src/UI/Session/SubsidyModeDialog.gd")
 const _CreditPanel: GDScript = preload("res://src/UI/Session/CreditPanel.gd")
 var _credit_panel: Control
@@ -33,7 +34,7 @@ const _SUBSIDY_MODE_NAMES: PackedStringArray = [
 ]
 const _SUBSIDY_MODE_TIPS: PackedStringArray = [
 	"Государство покрывает убытки всех субсидируемых заводов полностью, капиталисты не платят.",
-	"Заводы, целиком принадлежащие государству, государство субсидирует полностью, остальные считаются по доле владения.",
+	"Государство полностью оплачивает убытки заводов, в которых ему принадлежит хоть какая-то доля. Частные заводы государство не субсидирует: их покрывают капиталисты.",
 	"Государство платит долю убытков, равную его доле владения, остальное покрывают капиталисты.",
 ]
 var _lower_class_chart: GUIPieChart
@@ -74,9 +75,15 @@ func _ready() -> void:
 	if budget_window:
 		# Between the text and the value of the industrial subsidies, opens the Victoria 2 style choice
 		_subsidy_mode_button = Button.new()
-		_subsidy_mode_button.text = "▼"
-		_subsidy_mode_button.position = Vector2(850, 52)
-		_subsidy_mode_button.size = Vector2(42, 22)
+		_subsidy_mode_button.text = "Субсидии"
+		# The look of the buttons of the other Victoria 2 style windows
+		var themer := Control.new()
+		themer.set_script(_Vic2WindowScript)
+		_subsidy_mode_button.theme = themer.create_theme()
+		themer.free()
+		_subsidy_mode_button.add_theme_font_size_override(&"font_size", 13)
+		_subsidy_mode_button.position = Vector2(784, 46)
+		_subsidy_mode_button.size = Vector2(116, 21)
 		_subsidy_mode_button.pressed.connect(
 			func() -> void: _subsidy_dialog.open(_subsidy_mode)
 		)
