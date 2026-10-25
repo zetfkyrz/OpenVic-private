@@ -3,15 +3,18 @@ extends "res://src/UI/Session/Vic2Window.gd"
 ## the finances of the factory and buttons to buy shares from the capitalists or sell shares to them.
 ## A Victoria 2 style window (frame, close button, dragging), opened from the ownership button of a factory.
 
-const _PERCENTS: PackedInt32Array = [10, 25, 100]
 
 var _province_index: int = -1
 var _building_type_index: int = -1
 
 var _pie: _Pie
 var _info: Label
-var _buy_buttons: Array[Button] = []
-var _sell_buttons: Array[Button] = []
+var _percent_slider: HSlider
+var _percent_spin: SpinBox
+var _buy_button: Button
+var _sell_button: Button
+var _quote_label: Label
+var _last_factory: Dictionary = {}
 var _priority_buttons: Array[Button] = []
 const _PRIORITY_NAMES: PackedStringArray = ["Низкий", "Обычный", "Высокий"]
 
@@ -59,7 +62,7 @@ class _Pie extends Control:
 
 
 func _ready() -> void:
-	setup(Vector2(520, 430), "")
+	setup(Vector2(540, 560), "")
 
 	var root := VBoxContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -93,27 +96,46 @@ func _ready() -> void:
 		priority_row.add_child(priority_button)
 		_priority_buttons.append(priority_button)
 
-	var buy_row := HBoxContainer.new()
-	buy_row.add_theme_constant_override(&"separation", 6)
-	root.add_child(buy_row)
-	for percent: int in _PERCENTS:
-		var button := Button.new()
-		button.text = "Выкупить %d%%" % percent if percent < 100 else "Выкупить всё"
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.pressed.connect(_on_trade_pressed.bind(percent, true))
-		buy_row.add_child(button)
-		_buy_buttons.append(button)
+	# The share to trade is chosen in percent (1..100), the price is shown for it
+	var percent_row := HBoxContainer.new()
+	percent_row.add_theme_constant_override(&"separation", 8)
+	root.add_child(percent_row)
+	var percent_label := Label.new()
+	percent_label.text = "Доля, %:"
+	percent_row.add_child(percent_label)
+	_percent_slider = HSlider.new()
+	_percent_slider.min_value = 1.0
+	_percent_slider.max_value = 100.0
+	_percent_slider.step = 1.0
+	_percent_slider.value = 10.0
+	_percent_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_percent_slider.value_changed.connect(_on_percent_changed)
+	percent_row.add_child(_percent_slider)
+	_percent_spin = SpinBox.new()
+	_percent_spin.min_value = 1.0
+	_percent_spin.max_value = 100.0
+	_percent_spin.step = 1.0
+	_percent_spin.value = 10.0
+	_percent_spin.suffix = "%"
+	_percent_spin.value_changed.connect(_on_percent_changed)
+	percent_row.add_child(_percent_spin)
 
-	var sell_row := HBoxContainer.new()
-	sell_row.add_theme_constant_override(&"separation", 6)
-	root.add_child(sell_row)
-	for percent: int in _PERCENTS:
-		var button := Button.new()
-		button.text = "Продать %d%%" % percent if percent < 100 else "Продать всё"
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.pressed.connect(_on_trade_pressed.bind(percent, false))
-		sell_row.add_child(button)
-		_sell_buttons.append(button)
+	var trade_row := HBoxContainer.new()
+	trade_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(trade_row)
+	_buy_button = Button.new()
+	_buy_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_buy_button.pressed.connect(_on_trade_pressed.bind(true))
+	trade_row.add_child(_buy_button)
+	_sell_button = Button.new()
+	_sell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sell_button.pressed.connect(_on_trade_pressed.bind(false))
+	trade_row.add_child(_sell_button)
+
+	_quote_label = Label.new()
+	_quote_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_quote_label.add_theme_font_size_override(&"font_size", 13)
+	root.add_child(_quote_label)
 
 
 ## Opens the dialog for the factory (a dictionary of PlayerSingleton.get_production_info)
@@ -164,10 +186,8 @@ func update_factory(factory: Dictionary) -> void:
 	for i: int in _priority_buttons.size():
 		_priority_buttons[i].set_pressed_no_signal(i == priority)
 
-	for button in _buy_buttons:
-		button.disabled = state_share >= 0.999
-	for button in _sell_buttons:
-		button.disabled = state_share <= 0.001
+	_last_factory = factory
+	_refresh_quotes()
 
 
 func _on_priority_pressed(level: int) -> void:
@@ -175,9 +195,51 @@ func _on_priority_pressed(level: int) -> void:
 		PlayerSingleton.set_factory_priority(_province_index, _building_type_index, level)
 
 
-func _on_trade_pressed(percent: int, buy: bool) -> void:
+func _on_percent_changed(value: float) -> void:
+	# The slider and the number box show the same value
+	if not is_equal_approx(_percent_slider.value, value):
+		_percent_slider.set_value_no_signal(value)
+	if not is_equal_approx(_percent_spin.value, value):
+		_percent_spin.set_value_no_signal(value)
+	_refresh_quotes()
+
+
+# Price (or the reason why it cannot be done) of buying and of selling the chosen share
+func _refresh_quotes() -> void:
+	if _province_index < 0 or _building_type_index < 0 or _buy_button == null:
+		return
+	var percent: float = _percent_slider.value
+	var lines: PackedStringArray = []
+	for buy: bool in [true, false]:
+		var quote: Dictionary = PlayerSingleton.get_factory_trade_quote(_province_index, _building_type_index, percent, buy)
+		var button: Button = _buy_button if buy else _sell_button
+		var title: String = "Выкупить" if buy else "Продать"
+		var done_percent: float = float(quote.get("percent", 0.0))
+		var possible: bool = quote.get("possible", false)
+		button.disabled = not possible
+		if possible:
+			button.text = "%s %s%% — %s ¤" % [title, _format_percent(done_percent), GUINode.float_to_string_dp(float(quote["price"]), 0)]
+			if absf(done_percent - percent) > 0.5:
+				lines.append("%s: можно только %s%% из %s%% (по средствам)" % [title, _format_percent(done_percent), _format_percent(percent)])
+		else:
+			button.text = "%s %s%%" % [title, _format_percent(percent)]
+			lines.append("%s: %s%s" % [
+				title, quote.get("reason", ""),
+				" (нужно %s ¤, в казне %s ¤)" % [GUINode.float_to_string_dp(float(quote.get("price", 0.0)), 0), GUINode.float_to_string_dp(float(quote.get("cash", 0.0)), 0)]
+				if buy and float(quote.get("price", 0.0)) > 0.0 else "",
+			])
+	_quote_label.text = "\n".join(lines)
+	_quote_label.add_theme_color_override(&"font_color", Color(0.55, 0.1, 0.1) if not lines.is_empty() else MUTED_TEXT_COLOUR)
+
+
+func _format_percent(value: float) -> String:
+	return str(roundi(value)) if absf(value - roundf(value)) < 0.05 else "%.1f" % value
+
+
+func _on_trade_pressed(buy: bool) -> void:
 	if _province_index < 0 or _building_type_index < 0:
 		return
+	var percent: int = int(_percent_slider.value)
 	if buy:
 		PlayerSingleton.buy_factory_share(_province_index, _building_type_index, percent)
 	else:

@@ -101,6 +101,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_subsidy_info);
 	OV_BIND_METHOD(PlayerSingleton::buy_factory_share, { "province_index", "building_type_index", "percent" });
 	OV_BIND_METHOD(PlayerSingleton::sell_factory_share, { "province_index", "building_type_index", "percent" });
+	OV_BIND_METHOD(PlayerSingleton::get_factory_trade_quote, { "province_index", "building_type_index", "percent", "buy" });
 	OV_BIND_METHOD(PlayerSingleton::set_factory_open, { "province_index", "building_type_index", "open" });
 	OV_BIND_METHOD(PlayerSingleton::set_factory_priority, { "province_index", "building_type_index", "priority" });
 	OV_BIND_METHOD(PlayerSingleton::delete_factory, { "province_index", "building_type_index" });
@@ -840,6 +841,8 @@ Array PlayerSingleton::get_production_info() const {
 				// Ownership, treasury and subsidies
 				factory_dict["state_share"] = static_cast<float>(factory.get_state_share());
 				factory_dict["subsidised"] = factory.is_subsidised();
+				// Subsidised and the state really pays for it (a private factory is not helped in the modes that need a state share)
+				factory_dict["subsidy_active"] = factory.receives_state_subsidy(state.get_owner());
 				factory_dict["built_by_state"] = factory.was_built_by_state();
 				factory_dict["expansion_fund"] = static_cast<float>(factory.get_expansion_fund());
 				factory_dict["expansion_cost"] =
@@ -996,6 +999,58 @@ bool PlayerSingleton::buy_factory_share(int32_t province_index, int32_t building
 	    building_type_index_t(static_cast<uint32_t>(building_type_index)),
 	    static_cast<uint32_t>(percent)
 	);
+}
+
+Dictionary PlayerSingleton::get_factory_trade_quote(
+	int32_t province_index, int32_t building_type_index, float percent, bool buy
+) const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	result["possible"] = false;
+	result["percent"] = 0.0f;
+	result["price"] = 0.0f;
+	result["cash"] = static_cast<float>(player_country->get_cash_stockpile().load());
+	result["reason"] = String::utf8("Завод не найден");
+
+	ProvinceInstance* province = instance_manager->get_map_instance().get_province_instance_by_index(
+	    province_index_t(static_cast<uint32_t>(std::max(province_index, 0)))
+	);
+	if (province == nullptr || province->get_state() == nullptr) {
+		return result;
+	}
+	State const& state = *province->get_state();
+	result["capitalist_fund"] = static_cast<float>(state.get_capitalist_fund());
+
+	for (FactoryInstance const& factory : state.get_factories()) {
+		if (static_cast<int32_t>(type_safe::get(factory.building_type.index)) != building_type_index) {
+			continue;
+		}
+		const FactoryInstance::TradeQuote quote = factory.quote_trade(
+			state, *player_country, instance_manager->get_market_instance(),
+			fixed_point_t::parse_unsafe(percent / 100.0f), buy
+		);
+		result["possible"] = quote.possible;
+		result["percent"] = static_cast<float>(quote.share) * 100.0f;
+		result["price"] = static_cast<float>(quote.price);
+		String reason;
+		switch (quote.reason) {
+			using enum FactoryInstance::TradeQuote::reason_t;
+		case OK: break;
+		case NOT_BUILT: reason = String::utf8("Завод ещё не построен"); break;
+		case NOTHING_TO_TRADE:
+			reason = String::utf8(buy ? "Государство уже владеет всем заводом" : "У государства нет доли в заводе");
+			break;
+		case NO_CASH: reason = String::utf8("В казне не хватает денег"); break;
+		case NO_PROFIT: reason = String::utf8("Капиталисты покупают только прибыльные заводы"); break;
+		case NO_CAPITAL: reason = String::utf8("У капиталистов штата не хватает накоплений"); break;
+		}
+		result["reason"] = reason;
+		return result;
+	}
+	return result;
 }
 
 bool PlayerSingleton::sell_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const {

@@ -441,9 +441,14 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 			check.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			subsidise_button.add_child(check)
 		check.visible = factory[&"subsidised"]
+		var active: bool = factory.get(&"subsidy_active", factory[&"subsidised"])
+		# Grey when the factory is marked but the state does not pay for it in the chosen subsidy mode (a private factory)
+		check.modulate = Color.WHITE if active else Color(0.6, 0.6, 0.6, 0.7)
 		subsidise_button.modulate = Color.WHITE
 		subsidise_button.tooltip_string = "%s\n%s: %s, %s: %s" % [
-			tr("Subsidise") if not factory[&"subsidised"] else tr("Remove the subsidy"),
+			tr("Subsidise") if not factory[&"subsidised"] else (
+				tr("Remove the subsidy") if factory.get(&"subsidy_active", true) else "Снять отметку (государство не платит за частный завод в этом режиме)"
+			),
 			tr("State paid"), GUINode.float_to_string_dp(factory[&"subsidy"], 1),
 			tr("Capitalists paid"), GUINode.float_to_string_dp(factory[&"private_cover"], 1),
 		]

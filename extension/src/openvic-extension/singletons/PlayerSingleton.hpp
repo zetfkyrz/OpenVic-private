@@ -99,6 +99,10 @@ namespace OpenVic {
 		// The state buys / sells a part (in percent) of a factory from / to the capitalists
 		bool buy_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
 		bool sell_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
+		// What buying (buy = true) or selling a share of a factory of the player would cost / bring right now:
+		// { possible, reason (Russian text, empty if possible), percent (the share that would be traded, can be less than
+		//   asked when the capitalists cannot afford more), price, cash (treasury of the player), capitalist_fund }
+		godot::Dictionary get_factory_trade_quote(int32_t province_index, int32_t building_type_index, float percent, bool buy) const;
 		bool set_factory_open(int32_t province_index, int32_t building_type_index, bool open) const;
 		// Hiring priority inside the state: 0 low, 1 normal, 2 high (factories with a higher priority hire first)
 		bool set_factory_priority(int32_t province_index, int32_t building_type_index, int32_t priority) const;
