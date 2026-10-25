@@ -78,6 +78,7 @@ void GUILabel::_bind_methods() {
 	OV_BIND_SMETHOD(get_flag_marker);
 
 	OV_BIND_METHOD(GUILabel::clear);
+	OV_BIND_METHOD(GUILabel::clone_label);
 	OV_BIND_METHOD(GUILabel::get_gui_text_name);
 
 	OV_BIND_METHOD(GUILabel::force_update_lines);
@@ -309,6 +310,27 @@ godot::Error GUILabel::set_gui_text(GUI::Text const* new_gui_text, GFX::Font::co
 	_queue_line_update();
 
 	return err;
+}
+
+GUILabel* GUILabel::clone_label() const {
+	ERR_FAIL_NULL_V(gui_text, nullptr);
+
+	GUILabel* result = memnew(GUILabel);
+	ERR_FAIL_NULL_V(result, nullptr);
+	result->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
+
+	GameSingleton const* game_singleton = GameSingleton::get_singleton();
+	GFX::Font::colour_codes_t const* override_colour_codes =
+	    game_singleton != nullptr
+	        ? &game_singleton->get_definition_manager().get_ui_manager().get_universal_colour_codes()
+	        : nullptr;
+	if (result->set_gui_text(gui_text, override_colour_codes) != OK) {
+		UtilityFunctions::push_error("Error initializing the clone of the GUILabel ", get_name());
+	}
+
+	result->set_position(get_position());
+	result->set_size(get_size());
+	return result;
 }
 
 void GUILabel::force_update_lines() {

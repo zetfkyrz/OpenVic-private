@@ -96,6 +96,12 @@ namespace OpenVic {
 		bool set_subsidy_mode(int32_t mode) const;
 		// { mode, state_paid, capitalists_paid } the subsidies of yesterday
 		godot::Dictionary get_subsidy_info() const;
+		// The investment fund of the player: { fund, deposit_yesterday, spent_total, income, allocation (per day), slider (0..1), share,
+		//   projects: [{ date, kind (0 new factory, 1 expansion, 2 railroad), name, state, cost, builder }] (newest first) }
+		godot::Dictionary get_investment_info() const;
+		// The statistics of a factory of the player: { found, name, state_name, level, key figures of the day, inputs, owners,
+		//   months: { labels, revenue, costs, wages, profit, employees, output } for the last ten years }
+		godot::Dictionary get_factory_details(int32_t province_index, int32_t building_type_index) const;
 		// The state buys / sells a part (in percent) of a factory from / to the capitalists
 		bool buy_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;
 		bool sell_factory_share(int32_t province_index, int32_t building_type_index, int32_t percent) const;

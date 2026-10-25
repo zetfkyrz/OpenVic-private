@@ -15,6 +15,11 @@ BudgetOverview::BudgetOverview(GUINode const& parent) :
     funds_label { *parent.get_gui_label_from_nodepath("./topbar/budget_funds") },
     history_chart { *parent.get_gui_line_chart_from_nodepath("./topbar/budget_linechart") } {
 	godot::Control* node = parent.get_node<godot::Control>("./topbar/topbarbutton_budget");
+	// The background of the graph is drawn after the button and everything in it, so it would cover the line of the graph:
+	// it moves into the button first, the line goes over it
+	if (godot::Node* background = parent.get_node_or_null("./topbar/budget_linechart_bg")) {
+		background->reparent(node);
+	}
 	funds_label.reparent(node);
 	history_chart.reparent(node);
 }

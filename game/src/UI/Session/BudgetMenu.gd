@@ -38,6 +38,24 @@ const _SUBSIDY_MODE_TIPS: PackedStringArray = [
 	"Как «по доле владения», пока у капиталистов есть деньги; когда их деньги заканчиваются, государство платит и их часть.",
 	"Как антикризисные, но государство каждый месяц забирает долю завода за деньги, заплаченные вместо капиталистов.",
 ]
+# Investment fund: the second box under the sum of the expenses of the national stockpile (the slider of the construction is the
+# allocation to the fund, see CountryInstance::investment_fund)
+const _BG_TEXTURE_PATH: String = "gfx/interface/bg_budget.dds"
+# Position of the picture bg_budget inside the window
+const _BG_OFFSET: Vector2 = Vector2(18, 9)
+# The box of the sum as it is drawn in the picture (it cannot be moved), the plain background next to it, and where it was
+const _SUM_BOX_SOURCE: Rect2 = Rect2(893, 99, 70, 28)
+const _COVER_SOURCE: Rect2 = Rect2(813, 96, 77, 35)
+const _COVER_TARGET: Vector2 = Vector2(890, 96)
+# New places of the boxes (window coordinates): the sum a little higher, the fund under it
+const _BOX_X: float = 911.0
+const _SUM_BOX_Y: float = 99.0
+const _FUND_BOX_Y: float = 127.0
+const _BOX_SIZE: Vector2 = Vector2(70, 25)
+const _SUM_LABEL_Y: float = 102.0
+const _FUND_LABEL_Y: float = 130.0
+const _PROJECT_KINDS: PackedStringArray = ["новое предприятие", "расширение", "железная дорога"]
+var _fund_label: GUILabel
 var _lower_class_chart: GUIPieChart
 var _middle_class_chart: GUIPieChart
 var _upper_class_chart: GUIPieChart
@@ -102,6 +120,8 @@ func _ready() -> void:
 	_credit_panel = Control.new()
 	_credit_panel.set_script(_CreditPanel)
 	add_child(_credit_panel)
+
+	_setup_investment_fund_box()
 
 	_debt_listbox = GUINode.get_gui_listbox_from_node(get_node_or_null(^"./country_budget/debt_listbox"))
 
@@ -186,6 +206,8 @@ func _update_info() -> void:
 				GUINode.float_to_string_dp(subsidies["state_paid"], 1),
 				GUINode.float_to_string_dp(subsidies["capitalists_paid"], 1),
 			]
+
+		_update_investment_fund()
 
 		# TODO - set strata tax and debt charts
 		# TODO - update loans taken/given list and enable/disable take/give loan buttons
@@ -275,3 +297,86 @@ func _update_loans(credit: Dictionary) -> void:
 					_selected_loan_id = loan_id
 					_update_info()
 		)
+
+
+# The sum of the expenses of the national stockpile is a little higher now and a box with the balance of the investment fund is
+# under it. The boxes of the original window are part of its background picture, so the old box is covered with the plain
+# background next to it and the new boxes are cut out of the picture.
+func _setup_investment_fund_box() -> void:
+	var window: Control = get_node_or_null(^"./country_budget")
+	var sum_label: GUILabel = get_gui_label_from_nodepath(^"./country_budget/nat_stock_est")
+	var background: Node = get_node_or_null(^"./country_budget/bg_budget")
+	var texture: Texture2D = AssetManager.get_texture(_BG_TEXTURE_PATH)
+	if window == null or sum_label == null or background == null or texture == null:
+		return
+
+	var insert_at: int = background.get_index() + 1
+
+	var cover_texture := AtlasTexture.new()
+	cover_texture.atlas = texture
+	cover_texture.region = _COVER_SOURCE
+	var cover := TextureRect.new()
+	cover.texture = cover_texture
+	cover.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	cover.stretch_mode = TextureRect.STRETCH_SCALE
+	cover.position = _COVER_TARGET + _BG_OFFSET
+	cover.size = _COVER_SOURCE.size
+	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	window.add_child(cover)
+	window.move_child(cover, insert_at)
+
+	var box_texture := AtlasTexture.new()
+	box_texture.atlas = texture
+	box_texture.region = _SUM_BOX_SOURCE
+	for i: int in 2:
+		var box := NinePatchRect.new()
+		box.texture = box_texture
+		box.patch_margin_left = 4
+		box.patch_margin_right = 4
+		box.patch_margin_top = 4
+		box.patch_margin_bottom = 4
+		box.position = Vector2(_BOX_X, _SUM_BOX_Y if i == 0 else _FUND_BOX_Y)
+		box.size = _BOX_SIZE
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		window.add_child(box)
+		window.move_child(box, insert_at + 1 + i)
+
+	_fund_label = sum_label.clone_label()
+	if _fund_label:
+		_fund_label.position = Vector2(sum_label.position.x, _FUND_LABEL_Y)
+		_fund_label.mouse_filter = Control.MOUSE_FILTER_PASS
+		window.add_child(_fund_label)
+	sum_label.position = Vector2(sum_label.position.x, _SUM_LABEL_Y)
+
+
+func _update_investment_fund() -> void:
+	if _fund_label == null:
+		return
+	var info: Dictionary = PlayerSingleton.get_investment_info()
+	if info.is_empty():
+		return
+
+	var fund: float = info["fund"]
+	_fund_label.set_text("%s¤" % (GUINode.float_to_string_suffixed(fund) if fund >= 100000.0 else GUINode.float_to_string_dp_dynamic(fund)))
+
+	var lines: PackedStringArray = ["Инвестиционный фонд"]
+	lines.append("В фонде: §Y%s¤§!" % GUINode.float_to_string_dp(fund, 1))
+	lines.append("Шкала строительства %s%%: выделяется §Y%s¤§! в день (%s%% бюджета)" % [
+		GUINode.float_to_string_dp(float(info["slider"]) * 100.0, 0),
+		GUINode.float_to_string_dp(float(info["allocation"]), 1),
+		GUINode.float_to_string_dp(float(info["slider"]) * float(info["share"]) * 100.0, 1),
+	])
+	lines.append("Пополнение вчера: §Y%s¤§!" % GUINode.float_to_string_dp(float(info["deposit_yesterday"]), 1))
+	lines.append("Выдано на постройки за всё время: §Y%s¤§!" % GUINode.float_to_string_dp(float(info["spent_total"]), 0))
+	var projects: Array = info["projects"]
+	if not projects.is_empty():
+		lines.append("")
+		lines.append("Последние проекты:")
+		for project: Dictionary in projects.slice(0, 5):
+			lines.append("%s: %s (%s), %s, %s¤%s" % [
+				project.get("date", ""), project.get("name", ""), _PROJECT_KINDS[clampi(int(project.get("kind", 0)), 0, 2)],
+				project.get("state", ""), GUINode.float_to_string_dp(float(project.get("cost", 0.0)), 0),
+				" — строит: %s" % project["builder"] if project.has("builder") else "",
+			])
+	_fund_label.set_tooltip_string("
+".join(lines))

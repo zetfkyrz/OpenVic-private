@@ -95,6 +95,10 @@ namespace OpenVic {
 		    GUI::Text const* new_gui_text, GFX::Font::colour_codes_t const* override_colour_codes = nullptr
 		);
 
+		/* A new label that looks like this one (the same GUI text: font, colour, size, alignment) with the same position and
+		 * size, e.g. for a second value box next to a value of the original window. Nullptr if this label has no GUI text. */
+		GUILabel* clone_label() const;
+
 		void force_update_lines();
 
 		void set_text(godot::String const& new_text);

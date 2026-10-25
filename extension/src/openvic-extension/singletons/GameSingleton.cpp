@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <climits>
 #include <cstdint>
 #include <functional>
+#include <unordered_map>
 
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/node.hpp>
@@ -96,6 +98,7 @@ void GameSingleton::_bind_methods() {
 	OV_BIND_METHOD(GameSingleton::get_province_shape_image_subdivisions);
 	OV_BIND_METHOD(GameSingleton::get_province_shape_texture);
 	OV_BIND_METHOD(GameSingleton::get_province_colour_texture);
+	OV_BIND_METHOD(GameSingleton::get_province_region_texture);
 
 	OV_BIND_METHOD(GameSingleton::get_province_names);
 
@@ -765,6 +768,46 @@ Ref<Texture2DArray> GameSingleton::get_province_shape_texture() const {
 
 Ref<ImageTexture> GameSingleton::get_province_colour_texture() const {
 	return province_colour_texture;
+}
+
+Ref<ImageTexture> GameSingleton::get_province_region_texture() {
+	if (province_region_texture.is_valid()) {
+		return province_region_texture;
+	}
+
+	MapDefinition const& map_definition = get_definition_manager().get_map_definition();
+	ERR_FAIL_COND_V_MSG(
+	    !map_definition.province_definitions_are_locked(), {},
+	    "Cannot generate the province region texture before provinces are locked!"
+	);
+
+	// The layout of the province colour image, without the pairs of colours: one texel per province number
+	static constexpr int32_t PROVINCE_INDEX_SQRT = 1 << (sizeof(ProvinceDefinition::index_t) * CHAR_BIT / 2);
+	const int32_t height = (map_definition.get_province_definition_count() + PROVINCE_INDEX_SQRT) / PROVINCE_INDEX_SQRT;
+
+	PackedByteArray data;
+	ERR_FAIL_COND_V(data.resize(static_cast<int64_t>(PROVINCE_INDEX_SQRT) * height * 4) != OK, {});
+	data.fill(0);
+	uint8_t* const bytes = data.ptrw();
+
+	std::unordered_map<Region const*, uint16_t> region_ids;
+	for (ProvinceDefinition const& province : map_definition.get_province_definitions()) {
+		Region const* const region = province.get_region();
+		if (region == nullptr) {
+			continue;
+		}
+		const auto [it, inserted] = region_ids.try_emplace(region, static_cast<uint16_t>(region_ids.size() + 1));
+		const size_t offset = static_cast<size_t>(province.get_province_number()) * 4;
+		bytes[offset] = static_cast<uint8_t>(it->second & 0xFF);
+		bytes[offset + 1] = static_cast<uint8_t>(it->second >> 8);
+		bytes[offset + 3] = 255;
+	}
+
+	Ref<Image> image = Image::create_from_data(PROVINCE_INDEX_SQRT, height, false, Image::FORMAT_RGBA8, data);
+	ERR_FAIL_NULL_V_MSG(image, {}, "Failed to create the province region image");
+	province_region_texture = ImageTexture::create_from_image(image);
+	ERR_FAIL_NULL_V_MSG(province_region_texture, {}, "Failed to create the province region texture");
+	return province_region_texture;
 }
 
 godot::Error GameSingleton::_update_colour_image() {

@@ -4,6 +4,7 @@
 
 #include "openvic-extension/classes/GUIScrollbar.hpp"
 #include "openvic-extension/singletons/PlayerSingleton.hpp"
+#include "openvic-extension/utility/Utilities.hpp"
 
 using namespace OpenVic;
 
@@ -23,11 +24,29 @@ fixed_point_t ConstructionStockpileBudget::get_expenses() const {
 fixed_point_t ConstructionStockpileBudget::calculate_budget_and_update_custom(
     CountryInstance& country, const fixed_point_t scaled_value
 ) {
-	return scaled_value * 3; // TODO connect with sim once sim has this
+	// The slider is the allocation to the investment fund: 100 percent of it is half of the income (the budget) of the country
+	return country.get_investment_allocation(scaled_value);
 }
 
 ReadOnlyClampedValue& ConstructionStockpileBudget::get_clamped_value(CountryInstance& country) const {
 	return country.get_construction_spending_slider_value();
+}
+
+void ConstructionStockpileBudget::update_slider_tooltip(CountryInstance& country, const fixed_point_t scaled_value) {
+	const fixed_point_t allocation = country.get_investment_allocation(scaled_value);
+	slider.set_tooltip_string(
+	    Utilities::format(
+	        godot::String::utf8(
+	            "Инвестиционный фонд (деньги на новое строительство)\nШкала: §Y%s§! — это §Y%s§! бюджета, §Y%s§! в день\n"
+	            "В фонде сейчас: §Y%s§!\n\nРаз в неделю деньги получают те, кто построит прибыльное предприятие "
+	            "или железную дорогу (прибыль за полгода не меньше 10%% стоимости постройки)."
+	        ),
+	        Utilities::percentage_to_string_dp(scaled_value, 1),
+	        Utilities::percentage_to_string_dp(scaled_value * CountryInstance::get_investment_budget_share(), 1),
+	        Utilities::cash_to_string_dp_dynamic(allocation),
+	        Utilities::cash_to_string_dp_dynamic(country.get_investment_fund())
+	    )
+	);
 }
 
 void ConstructionStockpileBudget::on_slider_value_changed(const fixed_point_t scaled_value) {

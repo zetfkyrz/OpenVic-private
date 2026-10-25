@@ -164,6 +164,7 @@ func update_factory(factory: Dictionary) -> void:
 	_info.text = "\n".join([
 		"Государство: %d%%" % roundi(state_share * 100.0),
 		"Инвесторы: %d%%" % roundi((1.0 - state_share) * 100.0),
+		"Частные владельцы: %s" % factory.get(&"owner_pop_type", "капиталисты"),
 		"Построено: %s" % ("государством" if factory[&"built_by_state"] else "частными инвесторами"),
 		"",
 		"Стоимость завода: %s" % GUINode.float_to_string_dp(value, 0),

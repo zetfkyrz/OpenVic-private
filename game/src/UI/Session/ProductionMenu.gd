@@ -15,6 +15,7 @@ const _TAB_BUTTONS: PackedStringArray = ["tab_factories", "tab_invest", "tab_goo
 var _tab: int = 0
 var _tabs_view: Control
 const _OwnershipDialog: GDScript = preload("res://src/UI/Session/FactoryOwnershipDialog.gd")
+const _StatsWindow: GDScript = preload("res://src/UI/Session/FactoryStatsWindow.gd")
 # Elements of the "factory_buttons" window that belong to features that do not exist yet
 const _HIDDEN_BUTTONS: PackedStringArray = [
 	"select_all", "deselect_all", "show_empty_states", "sort_by_name", "sort_by_factories", "sort_by_infra", "filter_bounds",
@@ -60,6 +61,7 @@ var _build_selected: int = -1
 
 var _states_by_province: Dictionary[int, Dictionary] = {}
 var _ownership_dialog: Control
+var _stats_window: Control
 
 
 # Small pie chart of the owners of a factory that works as a button
@@ -148,6 +150,10 @@ func _ready() -> void:
 	_ownership_dialog = Control.new()
 	_ownership_dialog.set_script(_OwnershipDialog)
 	add_child(_ownership_dialog)
+
+	_stats_window = Control.new()
+	_stats_window.set_script(_StatsWindow)
+	add_child(_stats_window)
 
 	_update_info()
 
@@ -357,20 +363,29 @@ func _setup_factory_panel(panel: Panel) -> void:
 		if delete_button:
 			delete_button.pressed.connect(_on_delete_pressed.bind(panel, delete_button))
 
-	# Clicking the factory or the open/close button opens or closes it
-	var toggle_open: Callable = func() -> void:
-		if not panel.has_meta(&"building_type_index"):
-			return
-		PlayerSingleton.set_factory_open(
-			panel.get_meta(&"province_index"),
-			panel.get_meta(&"building_type_index"),
-			not panel.get_meta(&"open", true)
+	# The open/close button opens or closes the factory
+	var open_close_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./open_close")
+	if open_close_button:
+		open_close_button.pressed.connect(
+			func() -> void:
+				if not panel.has_meta(&"building_type_index"):
+					return
+				PlayerSingleton.set_factory_open(
+					panel.get_meta(&"province_index"),
+					panel.get_meta(&"building_type_index"),
+					not panel.get_meta(&"open", true)
+				)
 		)
+		open_close_button.tooltip_string = "Открыть или закрыть завод"
 
-	for button_name: NodePath in [^"./output", ^"./open_close"]:
-		var toggle_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, button_name)
-		if toggle_button:
-			toggle_button.pressed.connect(toggle_open)
+	# A click on the factory shows its statistics: the productivity of the last ten years
+	var output_click_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./output")
+	if output_click_button:
+		output_click_button.pressed.connect(
+			func() -> void:
+				if panel.has_meta(&"building_type_index"):
+					_stats_window.open(panel.get_meta(&"province_index"), panel.get_meta(&"building_type_index"))
+		)
 
 	var subsidise_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./subsidise")
 	if subsidise_button:
@@ -479,7 +494,7 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 	var output_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./output")
 	if output_button:
 		output_button.set_icon_index(int(factory[&"output_good_index"]) + _GOODS_ICON_OFFSET)
-		output_button.tooltip_string = "%s\n%s" % [factory[&"name"], tr("Click to open or close the factory")]
+		output_button.tooltip_string = "%s\n%s" % [factory[&"name"], "Нажмите, чтобы открыть статистику завода"]
 
 	# Inputs of the factory and which of them are running out
 	var inputs: Array = factory[&"inputs"]

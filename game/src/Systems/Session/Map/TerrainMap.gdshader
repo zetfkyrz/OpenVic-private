@@ -34,6 +34,9 @@ uniform sampler2D colormap_water_tex: repeat_enable, filter_linear;
 // Overlay map tint
 uniform sampler2D colormap_overlay_tex: repeat_enable, filter_linear;
 
+// Region (state) of every province: red and green bytes of the id, one texel per province number
+uniform sampler2D province_region_tex: filter_nearest;
+
 // ---- Look of the map (values come from the map theme, see MapBaker.gd) ----
 
 // 0 low, 1 medium, 2 high: the number of samples of the borders and the layers of the relief and the water
@@ -50,6 +53,14 @@ uniform float tint_width = 26.0;
 uniform float tint_opacity = 0.0;
 // Darkens the colours of the countries (0.2 is 20 percent darker)
 uniform float colour_darken = 0.1;
+// Lines inside a country: one between its provinces and a wider one, a little more opaque, between its states (regions). The widths
+// are in pixels of the screen, they do not change with the zoom.
+uniform vec4 province_border_colour = vec4(0.1, 0.07, 0.05, 1.0);
+uniform float province_border_opacity = 0.4;
+uniform float province_border_width = 3.0;
+uniform vec4 region_border_colour = vec4(0.1, 0.07, 0.05, 1.0);
+uniform float region_border_opacity = 0.5;
+uniform float region_border_width = 5.0;
 uniform vec4 coast_colour = vec4(0.03, 0.04, 0.06, 1.0);
 uniform float coast_opacity = 0.55;
 uniform float coast_width = 1.1;
@@ -254,6 +265,69 @@ vec3 apply_borders(vec3 colour, vec2 uv, vec2 pixel_uv) {
 	return colour;
 }
 
+// Region (state) id of a province, 0 if it has none
+uint region_of(uvec2 province_xy) {
+	uvec2 id = uvec2(texelFetch(province_region_tex, ivec2(province_xy), 0).rg * 255.0 + 0.5);
+	return (id.y << 8u) | id.x;
+}
+
+// The lines inside a country as in the original game: a line between its provinces and a wider, more opaque one between its states
+// (regions). They are drawn under the outlines of the countries. A line of the width W pixels of the screen is found with a ring of
+// samples around the pixel whose radius is about W / 1.9: the pixel is on the line when the samples on the ring reach the next
+// province. Pixels far from every border take only the first ring.
+vec3 apply_inner_borders(vec3 colour, vec2 uv, vec2 pixel_uv) {
+	if (province_border_opacity <= 0.0 && region_border_opacity <= 0.0) {
+		return colour;
+	}
+	uvec3 centre = read_uvec3(uv);
+	if (centre.z == 0u) {
+		return colour;
+	}
+	uint centre_province = uvec2_to_uint(centre.xy);
+	uint centre_region = region_of(centre.xy);
+
+	// Map pixels in one pixel of the screen: the lines keep their width on the screen at every zoom
+	vec2 per_screen = fwidth(uv / pixel_uv);
+	float screen_px = max(max(per_screen.x, per_screen.y), 0.05);
+	float province_radius = province_border_width * screen_px / 1.9;
+	float region_radius = region_border_width * screen_px / 1.9;
+	float outer_radius = max(province_radius, region_radius);
+
+	const int TAPS = 12;
+	const float TAP_ANGLE = 6.2831853 / float(TAPS);
+
+	// Is any border (of a province) within the widest line?
+	float near_border = 0.0;
+	for (int i = 0; i < TAPS; i++) {
+		float a = float(i) * TAP_ANGLE;
+		uvec3 other = read_uvec3(uv + vec2(cos(a), sin(a)) * pixel_uv * outer_radius);
+		near_border += float(other.z != 0u && uvec2_to_uint(other.xy) != centre_province);
+	}
+	if (near_border <= 0.0) {
+		return colour;
+	}
+
+	float province_edge = 0.0;
+	float region_edge = 0.0;
+	for (int i = 0; i < TAPS; i++) {
+		float a = float(i) * TAP_ANGLE;
+		vec2 direction = vec2(cos(a), sin(a)) * pixel_uv;
+		uvec3 province_sample = read_uvec3(uv + direction * province_radius);
+		province_edge += float(province_sample.z != 0u && uvec2_to_uint(province_sample.xy) != centre_province);
+		uvec3 region_sample = read_uvec3(uv + direction * region_radius);
+		region_edge += float(region_sample.z != 0u && uvec2_to_uint(region_sample.xy) != centre_province && region_of(region_sample.xy) != centre_region);
+	}
+	province_edge /= float(TAPS);
+	region_edge /= float(TAPS);
+
+	// The thin lines fade out when the map is far away, the wider ones stay. Where both are present the stronger one is used
+	// (they do not add up, so the lines have the opacity that was asked for).
+	float province_line = smoothstep(0.02, 0.2, province_edge) * province_border_opacity * (1.0 - parchment_mix);
+	float region_line = smoothstep(0.02, 0.2, region_edge) * region_border_opacity * (1.0 - 0.4 * parchment_mix);
+	vec3 line_colour = region_line >= province_line ? region_border_colour.rgb : province_border_colour.rgb;
+	return mix(colour, line_colour, max(province_line, region_line));
+}
+
 // Thin outline of a province (the hovered or the selected one): black, about one pixel of the screen wide
 vec3 apply_province_outline(vec3 colour, vec2 uv, vec2 pixel_uv, uint province, float opacity) {
 	if (province == 0u) {
@@ -392,6 +466,7 @@ vec3 get_map_colour(vec2 uv) {
 
 	// Relief light and water layers, then the smooth dark outlines on top
 	final_colour = apply_relief_and_water(final_colour, uv);
+	final_colour = apply_inner_borders(final_colour, uv, 1.0 / map_size);
 	final_colour = apply_borders(final_colour, uv, 1.0 / map_size);
 	// Outline of the hovered province (half opaque) and of the selected one (three quarters opaque)
 	if (hover_index != selected_index) {

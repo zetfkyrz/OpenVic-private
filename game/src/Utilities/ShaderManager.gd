@@ -4,6 +4,7 @@ extends RefCounted
 const param_province_shape_tex: StringName = &"province_shape_tex"
 const param_province_shape_subdivisions: StringName = &"province_shape_subdivisions"
 const param_province_colour_tex: StringName = &"province_colour_tex"
+const param_province_region_tex: StringName = &"province_region_tex"
 const param_hover_index: StringName = &"hover_index"
 const param_selected_index: StringName = &"selected_index"
 const param_parchment_mix: StringName = &"parchment_mix"
@@ -92,6 +93,15 @@ func set_up_shader(material: Material, add_cosmetic_textures: bool) -> Error:
 			GameSingleton.get_province_colour_texture(),
 		) != OK:
 			push_error("Failed to set province colour shader texture!")
+			ret = FAILED
+
+		# Region (state) of every province, for the lines between the states
+		if _set_shader_texture(
+			shader_material,
+			param_province_region_tex,
+			GameSingleton.get_province_region_texture(),
+		) != OK:
+			push_error("Failed to set province region shader texture!")
 			ret = FAILED
 
 		# Terrain texture

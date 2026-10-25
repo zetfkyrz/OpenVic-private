@@ -99,6 +99,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::expand_all_factories);
 	OV_BIND_METHOD(PlayerSingleton::set_subsidy_mode, { "mode" });
 	OV_BIND_METHOD(PlayerSingleton::get_subsidy_info);
+	OV_BIND_METHOD(PlayerSingleton::get_investment_info);
+	OV_BIND_METHOD(PlayerSingleton::get_factory_details, { "province_index", "building_type_index" });
 	OV_BIND_METHOD(PlayerSingleton::buy_factory_share, { "province_index", "building_type_index", "percent" });
 	OV_BIND_METHOD(PlayerSingleton::sell_factory_share, { "province_index", "building_type_index", "percent" });
 	OV_BIND_METHOD(PlayerSingleton::get_factory_trade_quote, { "province_index", "building_type_index", "percent", "buy" });
@@ -856,6 +858,12 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["state_dividends"] = static_cast<float>(factory.get_state_income_yesterday());
 				factory_dict["owner_dividends"] = static_cast<float>(factory.get_owner_income_yesterday());
 				factory_dict["capitalist_fund"] = static_cast<float>(state.get_capitalist_fund());
+				// The class that owns the private share (the one that was given the money of the investment fund to build it)
+				if (const std::optional<pop_type_index_t> owner_type = factory.get_effective_owner_pop_type_index(); owner_type.has_value()) {
+					factory_dict["owner_pop_type"] = menu_singleton->tr(
+					    convert_to<String>(GameSingleton::get_singleton()->get_pop_type(*owner_type).get_identifier())
+					);
+				}
 				factories.push_back(std::move(factory_dict));
 			}
 
@@ -969,6 +977,151 @@ bool PlayerSingleton::set_subsidy_mode(int32_t mode) const {
 	ERR_FAIL_NULL_V(instance_manager, false);
 	ERR_FAIL_COND_V(mode < 0 || mode > 3, false);
 	return instance_manager->queue_game_action<set_subsidy_mode_argument_t>(player_country->index, static_cast<uint32_t>(mode));
+}
+
+Dictionary PlayerSingleton::get_investment_info() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+
+	result["fund"] = static_cast<float>(player_country->get_investment_fund());
+	result["deposit_yesterday"] = static_cast<float>(player_country->get_investment_deposit_yesterday());
+	result["spent_total"] = static_cast<float>(player_country->get_investment_spent_total());
+	result["income"] = static_cast<float>(player_country->get_income_yesterday());
+	result["allocation"] = static_cast<float>(player_country->get_investment_allocation());
+	result["slider"] = static_cast<float>(player_country->get_construction_spending_slider_value().get_value_untracked());
+	result["share"] = static_cast<float>(CountryInstance::get_investment_budget_share());
+
+	Array projects;
+	memory::vector<CountryInstance::InvestmentRecord> const& records = player_country->get_recent_investments();
+	for (auto it = records.rbegin(); it != records.rend(); ++it) {
+		CountryInstance::InvestmentRecord const& record = *it;
+		Dictionary project;
+		project["date"] = Utilities::date_to_formatted_string(record.date, false);
+		project["kind"] = static_cast<int32_t>(record.kind);
+		project["deficit"] = record.deficit;
+		if (record.building_type != nullptr) {
+			project["name"] = menu_singleton->tr(convert_to<String>(record.building_type->get_identifier()));
+		}
+		if (record.state != nullptr) {
+			project["state"] = Utilities::get_state_name(*menu_singleton, *record.state);
+		}
+		project["cost"] = static_cast<float>(record.cost);
+		if (record.builder != nullptr) {
+			project["builder"] = menu_singleton->tr(convert_to<String>(record.builder->get_identifier()));
+		}
+		projects.push_back(std::move(project));
+	}
+	result["projects"] = std::move(projects);
+	return result;
+}
+
+Dictionary PlayerSingleton::get_factory_details(int32_t province_index, int32_t building_type_index) const {
+	Dictionary result;
+	result["found"] = false;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0, result);
+
+	ProvinceInstance* province = instance_manager->get_map_instance().get_province_instance_by_index(
+	    province_index_t(static_cast<uint32_t>(province_index))
+	);
+	if (province == nullptr || province->get_state() == nullptr) {
+		return result;
+	}
+	State const& state = *province->get_state();
+	MarketInstance const& market_instance = instance_manager->get_market_instance();
+
+	for (FactoryInstance const& factory : state.get_factories()) {
+		if (static_cast<int32_t>(type_safe::get(factory.building_type.index)) != building_type_index) {
+			continue;
+		}
+		ProductionType const& production_type = factory.production_type;
+		const String identifier = convert_to<String>(factory.building_type.get_identifier());
+		const int32_t level = static_cast<int32_t>(type_safe::get(factory.get_level()));
+
+		result["found"] = true;
+		result["name"] = menu_singleton->tr(identifier);
+		result["state_name"] = Utilities::get_state_name(*menu_singleton, state);
+		result["level"] = level;
+		result["max_level"] = static_cast<int32_t>(type_safe::get(factory.building_type.max_level));
+		result["open"] = factory.is_open();
+		result["constructing"] = factory.is_under_construction();
+		result["output_good"] = menu_singleton->tr(convert_to<String>(production_type.output_good.get_identifier()));
+		result["output_good_index"] = static_cast<int32_t>(type_safe::get(production_type.output_good.index));
+
+		// The figures of the tooltip of the original game
+		const fixed_point_t base_output = production_type.base_output_quantity * std::max(level, 1);
+		result["output_per_day"] = static_cast<float>(factory.get_output_quantity_yesterday());
+		result["base_output"] = static_cast<float>(base_output);
+		result["max_output"] = static_cast<float>(base_output * factory.get_efficiency());
+		result["efficiency"] = static_cast<float>(factory.get_efficiency());
+		result["throttle"] = static_cast<float>(factory.get_throttle());
+		const int32_t max_employees = static_cast<int32_t>(type_safe::get(factory.get_max_employee_count()));
+		const int32_t employees = static_cast<int32_t>(type_safe::get(factory.get_employee_count()));
+		result["employees"] = employees;
+		result["max_employees"] = max_employees;
+		result["employment_ratio"] = max_employees > 0 ? static_cast<float>(employees) / static_cast<float>(max_employees) : 0.0f;
+		result["revenue"] = static_cast<float>(factory.get_revenue_yesterday());
+		result["input_cost"] = static_cast<float>(factory.get_input_cost_yesterday());
+		result["wages"] = static_cast<float>(factory.get_wages_yesterday());
+		result["profit"] = static_cast<float>(factory.get_profit_yesterday());
+		result["average_profit"] = static_cast<float>(factory.get_average_profit());
+		result["value"] = static_cast<float>(factory.calculate_value(market_instance));
+		result["budget"] = static_cast<float>(factory.get_budget());
+		result["state_share"] = static_cast<float>(factory.get_state_share());
+		if (const std::optional<pop_type_index_t> owner_type = factory.get_effective_owner_pop_type_index(); owner_type.has_value()) {
+			result["owner_pop_type"] = menu_singleton->tr(convert_to<String>(game_singleton->get_pop_type(*owner_type).get_identifier()));
+		}
+
+		Array inputs;
+		for (FactoryInstance::Input const& input : factory.get_inputs()) {
+			Dictionary input_dict;
+			input_dict["good_index"] = static_cast<int32_t>(type_safe::get(input.good.index));
+			input_dict["name"] = menu_singleton->tr(convert_to<String>(input.good.get_identifier()));
+			input_dict["quantity"] = static_cast<float>(input.quantity_per_level * std::max(level, 1));
+			input_dict["stockpile"] = static_cast<float>(input.stockpile);
+			input_dict["price"] = static_cast<float>(market_instance.get_good_instance(input.good.index).get_price());
+			inputs.push_back(std::move(input_dict));
+		}
+		result["inputs"] = std::move(inputs);
+		result["output_price"] =
+		    static_cast<float>(market_instance.get_good_instance(production_type.output_good.index).get_price());
+
+		// Ten years by months, oldest first
+		PackedStringArray labels;
+		PackedFloat32Array revenue, costs, wages, profit, employees_series, output;
+		for (FactoryInstance::MonthRecord const& record : factory.get_history()) {
+			labels.push_back(
+			    String::num_int64(static_cast<int64_t>(record.date.get_year())) + String(".") +
+			    String::num_int64(static_cast<int64_t>(record.date.get_month())).lpad(2, "0")
+			);
+			const float month_revenue = static_cast<float>(record.revenue);
+			const float month_costs = static_cast<float>(record.input_costs + record.wages);
+			revenue.push_back(month_revenue);
+			costs.push_back(month_costs);
+			wages.push_back(static_cast<float>(record.wages));
+			profit.push_back(month_revenue - month_costs);
+			employees_series.push_back(static_cast<float>(record.employees));
+			output.push_back(static_cast<float>(record.output));
+		}
+		Dictionary months;
+		months["labels"] = labels;
+		months["revenue"] = revenue;
+		months["costs"] = costs;
+		months["wages"] = wages;
+		months["profit"] = profit;
+		months["employees"] = employees_series;
+		months["output"] = output;
+		result["months"] = std::move(months);
+		return result;
+	}
+	return result;
 }
 
 Dictionary PlayerSingleton::get_subsidy_info() const {

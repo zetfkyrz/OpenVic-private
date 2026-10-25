@@ -14,6 +14,14 @@ extends Resource
 ## Wide glow in the colour of the country that fades towards the inside of the country
 @export_range(0.0, 80.0) var tint_width: float = 26.0
 @export_range(0.0, 1.0) var tint_opacity: float = 0.0
+## Lines inside a country: one between its provinces and a wider one, 10 percent more opaque, between its states (regions).
+## The widths are in pixels of the screen.
+@export var province_border_colour: Color = Color(0.1, 0.07, 0.05)
+@export_range(0.0, 1.0) var province_border_opacity: float = 0.4
+@export_range(0.5, 12.0) var province_border_width: float = 3.0
+@export var region_border_colour: Color = Color(0.1, 0.07, 0.05)
+@export_range(0.0, 1.0) var region_border_opacity: float = 0.5
+@export_range(0.5, 16.0) var region_border_width: float = 5.0
 ## Line along the coasts
 @export var coast_colour: Color = Color(0.03, 0.04, 0.06)
 @export_range(0.0, 1.0) var coast_opacity: float = 0.55

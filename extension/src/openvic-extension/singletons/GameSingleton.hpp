@@ -34,6 +34,7 @@ namespace OpenVic {
 		godot::Ref<godot::Texture2DArray> province_shape_texture;
 		godot::Ref<godot::Image> province_colour_image;
 		godot::Ref<godot::ImageTexture> province_colour_texture;
+		godot::Ref<godot::ImageTexture> province_region_texture;
 		Mapmode const* mapmode = &Mapmode::ERROR_MAPMODE; // This should never be null, if no mapmode is set then it'll point to
 		                                                  // Mapmode::ERROR_MAPMODE
 		godot::Ref<godot::Texture2DArray> terrain_texture;
@@ -173,6 +174,10 @@ namespace OpenVic {
 
 		/* The base and stripe colours for each province. */
 		godot::Ref<godot::ImageTexture> get_province_colour_texture() const;
+		/* The region (state) of every province for the shader of the map, one texel per province number in the layout of the
+		 * province colour texture: red and green are the low and high byte of the id of the region (0 for none).
+		 * Made when it is asked for the first time. */
+		godot::Ref<godot::ImageTexture> get_province_region_texture();
 
 		godot::TypedArray<godot::Dictionary> get_province_names() const;
 
