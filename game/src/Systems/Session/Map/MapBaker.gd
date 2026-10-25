@@ -56,17 +56,17 @@ func setup(material: ShaderMaterial) -> void:
 
 ## Shadow settings of the options: on / off and two sliders (25..100 %, the maximum is the look of the theme)
 func _get_shadow_length() -> float:
-	var percent: float = float(GameSettings.get_setting(GameSettings.VIDEO_SHADOW_DISTANCE).value())
-	return _theme.shadow_length * clampf(percent, 25.0, 100.0) / 100.0
+	var level: float = float(GameSettings.get_setting(GameSettings.VIDEO_SHADOW_DISTANCE).value())
+	return _theme.shadow_length * clampf(level, 0.1, 1.0)
 
 
 func _apply_shadow_darkness() -> void:
 	var enabled: bool = GameSettings.get_setting(GameSettings.VIDEO_MAP_SHADOWS).value()
-	var percent: float = float(GameSettings.get_setting(GameSettings.VIDEO_SHADOW_DARKNESS).value())
+	var level: float = float(GameSettings.get_setting(GameSettings.VIDEO_SHADOW_DARKNESS).value())
 	var strength: float = 0.0
 	if enabled:
-		# 25 % is the lightest shadow (0.10), 100 % the theme value
-		strength = lerpf(0.10, _theme.shadow_strength, (clampf(percent, 25.0, 100.0) - 25.0) / 75.0)
+		# 1 is the darkest shadow (the value of the theme), 0.1 the lightest
+		strength = _theme.shadow_strength * clampf(level, 0.1, 1.0)
 	_material.set_shader_parameter(&"shadow_strength", strength)
 
 

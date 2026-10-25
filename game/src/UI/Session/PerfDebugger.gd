@@ -862,7 +862,7 @@ func _text_render() -> String:
 	lines.append("  окно %dx%d   масштаб содержимого %s   режим окна %d" % [
 		window_size.x, window_size.y, str(get_window().content_scale_size), int(get_window().mode),
 	])
-	lines.append("  качество карты %s, тени: %s, расстояние %s %%, тёмность %s %%" % [
+	lines.append("  качество карты %s, тени: %s, размер %s, тёмность %s" % [
 		str(GameSettings.get_setting(GameSettings.VIDEO_MAP_QUALITY).value()),
 		"вкл" if GameSettings.get_setting(GameSettings.VIDEO_MAP_SHADOWS).value() else "выкл",
 		str(GameSettings.get_setting(GameSettings.VIDEO_SHADOW_DISTANCE).value()),
