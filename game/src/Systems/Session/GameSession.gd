@@ -13,6 +13,7 @@ const _FleetPanel: GDScript = preload("res://src/UI/Session/FleetPanel.gd")
 const _RecruitmentWindow: GDScript = preload("res://src/UI/Session/RecruitmentWindow.gd")
 const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
 const _PerfDebugger := preload("res://src/UI/Session/PerfDebugger.gd")
+const _EconomyDebugger := preload("res://src/UI/Session/EconomyDebugger.gd")
 const _RECRUITMENT_KEY: Key = KEY_F7
 const _SaveGameWindow := preload("res://src/UI/Session/SaveGameWindow.gd")
 const _ReplayLoader := preload("res://src/Systems/Startup/ReplayLoader.gd")
@@ -105,6 +106,11 @@ func _ready() -> void:
 	var perf_debugger := CanvasLayer.new()
 	perf_debugger.set_script(_PerfDebugger)
 	add_child(perf_debugger)
+
+	# Economy debugger (X + Ъ): writes the economy of the game to files
+	var economy_debugger := CanvasLayer.new()
+	economy_debugger.set_script(_EconomyDebugger)
+	add_child(economy_debugger)
 
 	_model_manager.generate_units()
 	_model_manager.generate_buildings()

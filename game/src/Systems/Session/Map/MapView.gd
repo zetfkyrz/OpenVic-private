@@ -517,7 +517,11 @@ func _update_map_lighting() -> void:
 	var camera_uv: Vector2 = (Vector2(_camera.position.x, _camera.position.z) - _map_mesh_corner) / _map_mesh_dims
 	var zoom: float = 1.0 - smoothstep(_zoom_detailed_threshold * 0.4, _zoom_parchment_threshold, height)
 	var border_scale: float = clampf(height / _zoom_detailed_threshold, 0.7, 2.2)
-	_map_baker.update_view(zoom, camera_uv, border_scale)
+	# The lines inside the countries fade out when the camera moves away: the lines of the provinces from 0.4 to 1 of the height of
+	# the parchment map, the lines of the regions from 0.8 to 1.4
+	var province_fade: float = 1.0 - smoothstep(_zoom_detailed_threshold * 0.8, _zoom_parchment_threshold, height)
+	var region_fade: float = 1.0 - smoothstep(_zoom_parchment_threshold * 0.8, _zoom_parchment_threshold * 1.4, height)
+	_map_baker.update_view(zoom, camera_uv, border_scale, province_fade, region_fade)
 
 
 func _update_orientation() -> void:

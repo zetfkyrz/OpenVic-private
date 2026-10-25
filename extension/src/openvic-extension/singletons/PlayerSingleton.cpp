@@ -772,6 +772,36 @@ Array PlayerSingleton::get_production_info() const {
 		}
 	}
 
+	// The cost of a building: the money part (paid at once), the goods (taken from the national stockpile day by day while it is
+	// built) with their prices at the market, the total at the prices of the market and the cost of the goods the stockpile lacks
+	const auto describe_cost = [this, &market_instance, &menu_singleton](Dictionary& target, BuildingType const& building_type) -> void {
+		Array goods;
+		fixed_point_t goods_total = 0;
+		fixed_point_t lacking_total = 0;
+		for (auto const& [good, quantity] : building_type.goods_cost) {
+			GoodInstance const& good_instance = market_instance.get_good_instance(good->index);
+			const fixed_point_t price = good_instance.get_price();
+			const fixed_point_t stockpile = player_country->get_good_data(good_instance).stockpile_amount;
+			goods_total += quantity * price;
+			if (stockpile < quantity) {
+				lacking_total += (quantity - stockpile) * price;
+			}
+
+			Dictionary good_dict;
+			good_dict["good_index"] = static_cast<int32_t>(type_safe::get(good->index));
+			good_dict["name"] = menu_singleton->tr(convert_to<String>(good->get_identifier()));
+			good_dict["quantity"] = static_cast<float>(quantity);
+			good_dict["price"] = static_cast<float>(price);
+			good_dict["stockpile"] = static_cast<float>(stockpile);
+			goods.push_back(std::move(good_dict));
+		}
+		target["money_cost"] = static_cast<float>(building_type.cost);
+		target["goods_cost"] = std::move(goods);
+		target["goods_cost_total"] = static_cast<float>(goods_total);
+		target["total_cost"] = static_cast<float>(building_type.cost + goods_total);
+		target["lacking_cost"] = static_cast<float>(lacking_total);
+	};
+
 	for (StateSet const& state_set : instance_manager->get_map_instance().get_state_manager().get_state_sets()) {
 		for (State const& state : state_set.get_states()) {
 			if (state.get_owner() != player_country || state.get_capital() == nullptr) {
@@ -837,8 +867,9 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["input_cost"] = static_cast<float>(factory.get_input_cost_yesterday());
 				factory_dict["wages"] = static_cast<float>(factory.get_wages_yesterday());
 				factory_dict["profit"] = static_cast<float>(factory.get_profit_yesterday());
-				factory_dict["upgrade_cost"] =
-				    static_cast<float>(building_type.cost);
+				// The cost of one more level: the money part and the goods, in total at the prices of the market
+				describe_cost(factory_dict, building_type);
+				factory_dict["upgrade_cost"] = factory_dict["total_cost"];
 				factory_dict["can_expand"] = factory.can_be_expanded();
 				// Ownership, treasury and subsidies
 				factory_dict["state_share"] = static_cast<float>(factory.get_state_share());
@@ -902,7 +933,11 @@ Array PlayerSingleton::get_production_info() const {
 				}
 				buildable_dict["inputs"] = std::move(buildable_inputs);
 
-				buildable_dict["cost"] = static_cast<float>(info.cost);
+				// The price tag: the total at the prices of the market (the money part is only a part of it, the goods are taken from
+				// the national stockpile while the factory is built)
+				describe_cost(buildable_dict, *info.building_type);
+				buildable_dict["cost"] = buildable_dict["total_cost"];
+				buildable_dict["cash"] = static_cast<float>(cash);
 				buildable_dict["can_build"] = has_free_slot && cash >= info.cost &&
 				    info.building_type->production_type->is_valid_for_factory_in(state);
 				buildable.push_back(std::move(buildable_dict));

@@ -61,6 +61,9 @@ uniform float province_border_width = 3.0;
 uniform vec4 region_border_colour = vec4(0.1, 0.07, 0.05, 1.0);
 uniform float region_border_opacity = 0.5;
 uniform float region_border_width = 5.0;
+// How visible the lines are for the current zoom (1 close, 0 far away: the lines of the provinces go first, then those of the regions)
+uniform float province_border_fade = 1.0;
+uniform float region_border_fade = 1.0;
 uniform vec4 coast_colour = vec4(0.03, 0.04, 0.06, 1.0);
 uniform float coast_opacity = 0.55;
 uniform float coast_width = 1.1;
@@ -276,7 +279,7 @@ uint region_of(uvec2 province_xy) {
 // samples around the pixel whose radius is about W / 1.9: the pixel is on the line when the samples on the ring reach the next
 // province. Pixels far from every border take only the first ring.
 vec3 apply_inner_borders(vec3 colour, vec2 uv, vec2 pixel_uv) {
-	if (province_border_opacity <= 0.0 && region_border_opacity <= 0.0) {
+	if ((province_border_opacity <= 0.0 || province_border_fade <= 0.002) && (region_border_opacity <= 0.0 || region_border_fade <= 0.002)) {
 		return colour;
 	}
 	uvec3 centre = read_uvec3(uv);
@@ -320,10 +323,10 @@ vec3 apply_inner_borders(vec3 colour, vec2 uv, vec2 pixel_uv) {
 	province_edge /= float(TAPS);
 	region_edge /= float(TAPS);
 
-	// The thin lines fade out when the map is far away, the wider ones stay. Where both are present the stronger one is used
-	// (they do not add up, so the lines have the opacity that was asked for).
-	float province_line = smoothstep(0.02, 0.2, province_edge) * province_border_opacity * (1.0 - parchment_mix);
-	float region_line = smoothstep(0.02, 0.2, region_edge) * region_border_opacity * (1.0 - 0.4 * parchment_mix);
+	// The lines fade out when the camera moves away. Where both are present the stronger one is used (they do not add up, so the
+	// lines have the opacity that was asked for).
+	float province_line = smoothstep(0.02, 0.2, province_edge) * province_border_opacity * province_border_fade;
+	float region_line = smoothstep(0.02, 0.2, region_edge) * region_border_opacity * region_border_fade;
 	vec3 line_colour = region_line >= province_line ? region_border_colour.rgb : province_border_colour.rgb;
 	return mix(colour, line_colour, max(province_line, region_line));
 }

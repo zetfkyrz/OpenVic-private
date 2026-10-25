@@ -54,6 +54,13 @@ var _build_input_amounts: Array[GUILabel]
 var _build_description: GUILabel
 var _build_workers: GUILabel
 var _build_cost: GUILabel
+# The price tag of the factory: the goods of the cost (icon, amount, what the national stockpile has) and the sums
+var _build_goods_box: Control
+var _build_goods_rows: Array[Panel] = []
+var _build_base_price: GUILabel
+var _build_input_price: GUILabel
+var _build_total_price: GUILabel
+var _build_funds: GUILabel
 var _build_button: GUIIconButton
 var _build_province_index: int = -1
 var _build_options: Array = []
@@ -552,7 +559,7 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 	var upgrade_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./upgrade")
 	if upgrade_button:
 		upgrade_button.visible = factory[&"can_expand"] and not constructing and level > 0
-		upgrade_button.tooltip_string = "%s (%s)" % [tr("Expand"), GUINode.float_to_string_dp(factory[&"upgrade_cost"], 0)]
+		upgrade_button.tooltip_string = _expansion_tooltip(factory)
 
 	panel.set_meta(&"priority", int(factory.get(&"priority", 1)))
 	panel.set_meta(&"constructing", constructing)
@@ -607,10 +614,16 @@ func _setup_build_dialog() -> void:
 
 	_build_dialog.hide()
 
-	for hidden_name: NodePath in [^"./employment_info", ^"./goods_cost_info"]:
+	for hidden_name: NodePath in [^"./employment_info"]:
 		var node: Node = _build_dialog.get_node_or_null(hidden_name)
 		if node is CanvasItem:
 			node.hide()
+
+	_build_goods_box = _build_dialog.get_node_or_null(^"./goods_cost_info")
+	_build_base_price = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./base_price")
+	_build_input_price = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./input_price")
+	_build_total_price = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./total_price")
+	_build_funds = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./you_have")
 
 	_build_state_name = GUINode.get_gui_label_from_node_and_path(_build_dialog, ^"./state_name")
 	_build_option_list = GUINode.get_gui_listbox_from_node(_build_dialog.get_node_or_null(^"./factory_type"))
@@ -719,10 +732,14 @@ func _update_build_details() -> void:
 		_build_workers,
 		GUINode.int_to_string_suffixed(option[&"workforce"]) if has_selection else ""
 	)
-	_set_label_text(
-		_build_cost,
-		GUINode.float_to_string_dp(option[&"cost"], 0) if has_selection else ""
-	)
+	# The price tag: the money that is paid at once, the goods of the cost (taken from the national stockpile while the factory is
+	# built, and bought by the state when the stockpile lacks them), the total at the prices of the market
+	_fill_goods_cost_rows(option.get(&"goods_cost", []))
+	_set_label_text(_build_base_price, "%s¤" % GUINode.float_to_string_dp(option[&"money_cost"], 0) if has_selection else "")
+	_set_label_text(_build_input_price, "%s¤" % GUINode.float_to_string_dp(option[&"goods_cost_total"], 0) if has_selection else "")
+	_set_label_text(_build_total_price, "%s¤" % GUINode.float_to_string_dp(option[&"total_cost"], 0) if has_selection else "")
+	_set_label_text(_build_funds, "%s¤" % GUINode.float_to_string_dp(option[&"cash"], 0) if has_selection else "")
+	_set_label_text(_build_cost, "%s¤" % GUINode.float_to_string_dp(option[&"lacking_cost"], 0) if has_selection else "")
 
 	var inputs: Array = option.get(&"inputs", [])
 	for i: int in _MAX_INPUT_ICONS:
@@ -738,6 +755,54 @@ func _update_build_details() -> void:
 
 	if _build_button:
 		_build_button.disabled = not has_selection or not option[&"can_build"]
+
+
+# One row for each good of the cost: the icon, the amount that is needed and what the national stockpile has (red if it is not enough)
+func _fill_goods_cost_rows(goods: Array) -> void:
+	if _build_goods_box == null:
+		return
+	while _build_goods_rows.size() < goods.size():
+		var row: Panel = GUINode.generate_gui_element(_gui_file, "goods_cost_window")
+		if row == null:
+			break
+		row.position = Vector2(0, _build_goods_rows.size() * 20)
+		_build_goods_box.add_child(row)
+		_build_goods_rows.append(row)
+
+	for i: int in _build_goods_rows.size():
+		var row: Panel = _build_goods_rows[i]
+		row.visible = i < goods.size()
+		if i >= goods.size():
+			continue
+		var good: Dictionary = goods[i]
+		_set_goods_icon(GUINode.get_gui_icon_from_node_and_path(row, ^"./goods_icon"), good[&"good_index"])
+		_set_label_text(GUINode.get_gui_label_from_node_and_path(row, ^"./goods_cost"), GUINode.float_to_string_dp(good[&"quantity"], 0))
+		var lacking: bool = good[&"stockpile"] < good[&"quantity"]
+		_set_label_text(
+			GUINode.get_gui_label_from_node_and_path(row, ^"./you_have"),
+			"§%s%s§!" % ["R" if lacking else "G", GUINode.float_to_string_dp(good[&"stockpile"], 0)]
+		)
+		row.tooltip_text = "%s: нужно %s, на складе %s, цена %s¤ за единицу" % [
+			good[&"name"], GUINode.float_to_string_dp(good[&"quantity"], 1), GUINode.float_to_string_dp(good[&"stockpile"], 1),
+			GUINode.float_to_string_dp(good[&"price"], 2),
+		]
+
+
+# Tooltip of the button that adds a level: what it costs and what the national stockpile lacks
+func _expansion_tooltip(factory: Dictionary) -> String:
+	var lines: PackedStringArray = [
+		"%s: %s¤ по ценам рынка" % [tr("Expand"), GUINode.float_to_string_dp(factory[&"total_cost"], 0)],
+		"Деньги сразу: %s¤, товары со склада: %s¤" % [
+			GUINode.float_to_string_dp(factory[&"money_cost"], 0), GUINode.float_to_string_dp(factory[&"goods_cost_total"], 0),
+		],
+	]
+	for good: Dictionary in factory[&"goods_cost"]:
+		lines.append("  %s: %s (на складе %s)" % [
+			good[&"name"], GUINode.float_to_string_dp(good[&"quantity"], 0), GUINode.float_to_string_dp(good[&"stockpile"], 0),
+		])
+	if float(factory[&"lacking_cost"]) > 0.0:
+		lines.append("Не хватает товаров на %s¤" % GUINode.float_to_string_dp(factory[&"lacking_cost"], 0))
+	return "\n".join(lines)
 
 
 func _on_build_confirmed() -> void:

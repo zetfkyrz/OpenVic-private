@@ -216,12 +216,14 @@ func _bake(quality: int, serial: int) -> void:
 
 ## Updates the lighting with the camera: the relief is strongest when zoomed in, fades out towards the parchment map
 ## and the sun moves a little with the camera. `zoom` is 0 far away and 1 close, `camera_uv` the map position (0..1).
-func update_view(zoom: float, camera_uv: Vector2, border_scale: float) -> void:
+func update_view(zoom: float, camera_uv: Vector2, border_scale: float, province_fade: float = 1.0, region_fade: float = 1.0) -> void:
 	if _material == null or _theme == null:
 		return
 	var t: Resource = _theme
 	_material.set_shader_parameter(&"relief_zoom", zoom * t.relief_strength)
 	_material.set_shader_parameter(&"border_scale", border_scale)
+	_material.set_shader_parameter(&"province_border_fade", province_fade)
+	_material.set_shader_parameter(&"region_border_fade", region_fade)
 
 	var azimuth: float = deg_to_rad(t.sun_azimuth + (camera_uv.x - 0.5) * 2.0 * t.light_sway)
 	var elevation: float = deg_to_rad(lerpf(t.sun_elevation_far, t.sun_elevation_near, zoom) + (camera_uv.y - 0.5) * t.light_sway * 0.5)

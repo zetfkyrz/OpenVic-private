@@ -38,6 +38,7 @@
 #include "openvic-extension/singletons/LoadLocalisation.hpp"
 #include "openvic-extension/singletons/MenuSingleton.hpp"
 #include "openvic-extension/singletons/PlayerSingleton.hpp"
+#include "openvic-extension/utility/EconomyRecorder.hpp"
 #include "openvic-extension/utility/ProcessMemory.hpp"
 #include "openvic-extension/utility/Utilities.hpp"
 
@@ -122,6 +123,10 @@ void GameSingleton::_bind_methods() {
 	OV_BIND_METHOD(GameSingleton::get_process_memory);
 	OV_BIND_METHOD(GameSingleton::get_sim_sizes);
 	OV_BIND_METHOD(GameSingleton::get_clock_info);
+	OV_BIND_METHOD(GameSingleton::start_economy_recording);
+	OV_BIND_METHOD(GameSingleton::stop_economy_recording);
+	OV_BIND_METHOD(GameSingleton::is_economy_recording);
+	OV_BIND_METHOD(GameSingleton::get_economy_recording_info);
 
 	ADD_SIGNAL(MethodInfo(_signal_gamestate_updated()));
 	ADD_SIGNAL(MethodInfo(_signal_mapmode_changed(), PropertyInfo(Variant::INT, "index")));
@@ -132,6 +137,12 @@ GameSingleton* GameSingleton::get_singleton() {
 }
 
 void GameSingleton::_on_gamestate_updated() {
+	if (economy_recorder && economy_recorder->is_running()) {
+		if (InstanceManager* instance_manager = get_instance_manager()) {
+			economy_recorder->update(*instance_manager);
+		}
+	}
+
 	if (!profiling) {
 		_update_colour_image();
 		emit_signal(_signal_gamestate_updated());
@@ -631,7 +642,37 @@ int32_t GameSingleton::step_pending_replay(int32_t batch_count) {
 	return static_cast<int32_t>(pending_replay_index * 1000 / pending_replay.size());
 }
 
+String GameSingleton::start_economy_recording() {
+	InstanceManager* instance_manager = get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, String());
+	if (!economy_recorder) {
+		economy_recorder = std::make_unique<EconomyRecorder>();
+	}
+	return economy_recorder->start(*instance_manager, PlayerSingleton::get_singleton()->get_player_country_identifier());
+}
+
+String GameSingleton::stop_economy_recording() {
+	if (!economy_recorder || !economy_recorder->is_running()) {
+		return String();
+	}
+	const String folder = economy_recorder->get_info()["folder"];
+	economy_recorder->stop();
+	return folder;
+}
+
+bool GameSingleton::is_economy_recording() const {
+	return economy_recorder && economy_recorder->is_running();
+}
+
+Dictionary GameSingleton::get_economy_recording_info() const {
+	return economy_recorder ? economy_recorder->get_info() : Dictionary();
+}
+
 godot::Error GameSingleton::end_game_session() {
+	// The recording belongs to the game that ends
+	if (economy_recorder) {
+		economy_recorder->stop();
+	}
 	PlayerSingleton::get_singleton()->reset_player_singleton();
 	return ERR(game_manager.end_game_session());
 }

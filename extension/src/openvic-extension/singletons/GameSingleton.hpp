@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <vector>
 
 #include <openvic-simulation/misc/Replay.hpp>
@@ -16,6 +18,7 @@
 #include <openvic-simulation/types/TypedIndices.hpp>
 
 namespace OpenVic {
+	class EconomyRecorder;
 	struct Ideology;
 	struct PartyPolicy;
 	struct PopType;
@@ -65,6 +68,11 @@ namespace OpenVic {
 
 		GameSingleton();
 		~GameSingleton();
+
+	private:
+		std::unique_ptr<EconomyRecorder> economy_recorder;
+
+	public:
 
 	private:
 		bool profiling = false;
@@ -135,6 +143,14 @@ namespace OpenVic {
 		// Replays up to batch_count batches of the pending replay, returns the progress from 0 to 1000 (1000 = done)
 		int32_t step_pending_replay(int32_t batch_count);
 		godot::Error end_game_session();
+
+		/* The economy debugger (keys X + Ъ in the game): writes the economy of the whole game to CSV files in
+		 * user://economy_debug/, see utility/EconomyRecorder.hpp. start returns the folder (a path of the operating system, empty
+		 * if it could not be started), stop returns the folder that was written. */
+		godot::String start_economy_recording();
+		godot::String stop_economy_recording();
+		bool is_economy_recording() const;
+		godot::Dictionary get_economy_recording_info() const;
 		bool is_game_session_active() const;
 
 		int32_t get_province_number_from_uv_coords(godot::Vector2 const& coords) const;
