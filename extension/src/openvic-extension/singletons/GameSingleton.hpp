@@ -4,6 +4,9 @@
 
 #include <openvic-simulation/misc/Replay.hpp>
 
+#include <map>
+#include <string>
+
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/texture2d_array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
@@ -61,6 +64,22 @@ namespace OpenVic {
 
 		GameSingleton();
 		~GameSingleton();
+
+	private:
+		bool profiling = false;
+		struct HandlerStat {
+			godot::String name;
+			uint64_t calls = 0;
+			double last_ms = 0.0, average_ms = 0.0, max_ms = 0.0, total_ms = 0.0;
+		};
+		std::map<std::string, HandlerStat> handler_stats;
+		double colours_ms = 0.0, signal_ms = 0.0, signal_average_ms = 0.0, signal_max_ms = 0.0;
+		double clock_ms = 0.0, clock_average_ms = 0.0, clock_max_ms = 0.0;
+		uint64_t profiled_updates = 0;
+		void _emit_gamestate_updated_profiled();
+		void _sync_profiling();
+
+	public:
 
 		static void setup_logger();
 
@@ -165,6 +184,30 @@ namespace OpenVic {
 		bool is_parchment_mapmode_allowed() const;
 
 		godot::Error update_clock();
+
+		/* Performance debugger (F3 in the game). Profiling is off by default and costs nothing then. */
+		void set_profiling(bool enabled);
+		bool is_profiling() const;
+		void reset_profiling();
+		/* The parts of the ticks and updates of the simulation, parents before their children:
+		 * [{ path, name, depth, last_ms, average_ms, max_ms, total_ms, calls }] */
+		godot::Array get_sim_profile();
+		/* Duration of the last ticks / updates in milliseconds, newest last (up to 600) */
+		godot::PackedFloat32Array get_tick_history();
+		godot::PackedFloat32Array get_update_history();
+		/* What the last frames spent on the simulation: { clock_ms (the whole update_clock call), clock_average_ms,
+		 * clock_max_ms, colours_ms (map colour texture), signal_ms (all handlers of gamestate_updated), signal_average_ms,
+		 * signal_max_ms, ticks (ticks done since the reset), updates } */
+		godot::Dictionary get_frame_profile() const;
+		/* What every handler of the signal gamestate_updated took (the interface and others):
+		 * [{ name, calls, last_ms, average_ms, max_ms, total_ms }], only filled while profiling */
+		godot::Array get_ui_profile() const;
+		/* Memory of the process from the operating system: { valid, working_set, peak_working_set, private_bytes } */
+		godot::Dictionary get_process_memory() const;
+		/* Sizes of the things that can grow without end in a leak: { action_history, wars, loans, armies, navies, ... } */
+		godot::Dictionary get_sim_sizes() const;
+		/* The speed of the game: { speed (0..4), speeds (interval of every speed in ms), paused, interval_ms } */
+		godot::Dictionary get_clock_info() const;
 		/* Generate the province_colour_texture from the current mapmode. */
 		godot::Error _update_colour_image();
 		void _on_gamestate_updated();

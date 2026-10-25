@@ -75,6 +75,13 @@ func _load_compatibility_mode() -> void:
 	if GameSingleton.load_defines_compatibility_mode(ModSettings.get_load_list()) != OK:
 		push_error("Errors loading game defines!")
 
+	# Texts of the credit window. They are Russian: the game language of this fork is the language of the Victoria 2 data
+	# (the locale en_GB holds the texts of the installed game, which is the Russian edition)
+	for locale: String in ["en_GB", "en_US"]:
+		var credit_file: String = "res://assets/localisation/locales/" + locale + "/credit.csv"
+		if FileAccess.file_exists(credit_file):
+			LoadLocalisation.load_file(credit_file, locale)
+
 	SoundSingleton.load_sounds()
 	SoundSingleton.load_music()
 	MusicManager.add_compat_songs()

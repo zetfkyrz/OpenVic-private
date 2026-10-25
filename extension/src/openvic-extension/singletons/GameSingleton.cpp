@@ -1,9 +1,13 @@
 #include "GameSingleton.hpp"
 
+#include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 
 #include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/node.hpp>
+#include <godot_cpp/classes/script.hpp>
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/core/error_macros.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
@@ -32,6 +36,7 @@
 #include "openvic-extension/singletons/LoadLocalisation.hpp"
 #include "openvic-extension/singletons/MenuSingleton.hpp"
 #include "openvic-extension/singletons/PlayerSingleton.hpp"
+#include "openvic-extension/utility/ProcessMemory.hpp"
 #include "openvic-extension/utility/Utilities.hpp"
 
 using namespace godot;
@@ -103,6 +108,18 @@ void GameSingleton::_bind_methods() {
 
 	OV_BIND_METHOD(GameSingleton::update_clock);
 
+	OV_BIND_METHOD(GameSingleton::set_profiling, { "enabled" });
+	OV_BIND_METHOD(GameSingleton::is_profiling);
+	OV_BIND_METHOD(GameSingleton::reset_profiling);
+	OV_BIND_METHOD(GameSingleton::get_sim_profile);
+	OV_BIND_METHOD(GameSingleton::get_tick_history);
+	OV_BIND_METHOD(GameSingleton::get_update_history);
+	OV_BIND_METHOD(GameSingleton::get_frame_profile);
+	OV_BIND_METHOD(GameSingleton::get_ui_profile);
+	OV_BIND_METHOD(GameSingleton::get_process_memory);
+	OV_BIND_METHOD(GameSingleton::get_sim_sizes);
+	OV_BIND_METHOD(GameSingleton::get_clock_info);
+
 	ADD_SIGNAL(MethodInfo(_signal_gamestate_updated()));
 	ADD_SIGNAL(MethodInfo(_signal_mapmode_changed(), PropertyInfo(Variant::INT, "index")));
 }
@@ -112,9 +129,198 @@ GameSingleton* GameSingleton::get_singleton() {
 }
 
 void GameSingleton::_on_gamestate_updated() {
+	if (!profiling) {
+		_update_colour_image();
+		emit_signal(_signal_gamestate_updated());
+		gamestate_updated();
+		return;
+	}
+
+	const uint64_t start = Time::get_singleton()->get_ticks_usec();
 	_update_colour_image();
-	emit_signal(_signal_gamestate_updated());
+	const uint64_t after_colours = Time::get_singleton()->get_ticks_usec();
+	_emit_gamestate_updated_profiled();
+	const uint64_t after_signal = Time::get_singleton()->get_ticks_usec();
 	gamestate_updated();
+
+	colours_ms = static_cast<double>(after_colours - start) / 1000.0;
+	signal_ms = static_cast<double>(after_signal - after_colours) / 1000.0;
+	signal_average_ms = profiled_updates == 0 ? signal_ms : signal_average_ms * 0.9 + signal_ms * 0.1;
+	signal_max_ms = std::max(signal_max_ms, signal_ms);
+	profiled_updates++;
+}
+
+// Calls the handlers of gamestate_updated one by one so that the time of each of them is known
+void GameSingleton::_emit_gamestate_updated_profiled() {
+	const TypedArray<Dictionary> connections = get_signal_connection_list(_signal_gamestate_updated());
+	for (int64_t i = 0; i < connections.size(); i++) {
+		const Dictionary connection = connections[i];
+		const Callable callable = connection["callable"];
+		if (!callable.is_valid()) {
+			continue;
+		}
+
+		String name = callable.get_method();
+		if (Object* object = callable.get_object()) {
+			String owner = object->get_class();
+			const Ref<godot::Script> script = object->get_script();
+			if (script.is_valid() && !script->get_path().is_empty()) {
+				owner = script->get_path().get_file();
+			}
+			if (Node* node = Object::cast_to<Node>(object)) {
+				owner += " (" + String(node->get_name()) + ")";
+			}
+			name = owner + " :: " + name;
+		}
+
+		const uint64_t start = Time::get_singleton()->get_ticks_usec();
+		callable.call();
+		const double ms = static_cast<double>(Time::get_singleton()->get_ticks_usec() - start) / 1000.0;
+
+		HandlerStat& stat = handler_stats[std::string(name.utf8().get_data())];
+		stat.name = name;
+		stat.last_ms = ms;
+		stat.average_ms = stat.calls == 0 ? ms : stat.average_ms * 0.9 + ms * 0.1;
+		stat.max_ms = std::max(stat.max_ms, ms);
+		stat.total_ms += ms;
+		stat.calls++;
+	}
+}
+
+void GameSingleton::_sync_profiling() {
+	if (InstanceManager* instance_manager = get_instance_manager()) {
+		if (instance_manager->get_tick_profiler().is_enabled() != profiling) {
+			instance_manager->get_tick_profiler().set_enabled(profiling);
+		}
+	}
+}
+
+void GameSingleton::set_profiling(const bool enabled) {
+	profiling = enabled;
+	_sync_profiling();
+}
+
+bool GameSingleton::is_profiling() const {
+	return profiling;
+}
+
+void GameSingleton::reset_profiling() {
+	handler_stats.clear();
+	colours_ms = signal_ms = signal_average_ms = signal_max_ms = 0.0;
+	clock_ms = clock_average_ms = clock_max_ms = 0.0;
+	profiled_updates = 0;
+	if (InstanceManager* instance_manager = get_instance_manager()) {
+		instance_manager->get_tick_profiler().reset();
+	}
+}
+
+Array GameSingleton::get_sim_profile() {
+	Array result;
+	InstanceManager* instance_manager = get_instance_manager();
+	if (instance_manager == nullptr) {
+		return result;
+	}
+	_sync_profiling();
+	for (TickProfiler::Entry const& entry : instance_manager->get_tick_profiler().get_entries()) {
+		Dictionary dict;
+		dict["path"] = String(entry.path.c_str());
+		dict["name"] = String(entry.name.c_str());
+		dict["depth"] = entry.depth;
+		dict["last_ms"] = static_cast<double>(entry.last_ns) / 1.0e6;
+		dict["average_ms"] = entry.average_ns / 1.0e6;
+		dict["max_ms"] = static_cast<double>(entry.max_ns) / 1.0e6;
+		dict["total_ms"] = static_cast<double>(entry.total_ns) / 1.0e6;
+		dict["calls"] = static_cast<int64_t>(entry.calls);
+		result.push_back(dict);
+	}
+	return result;
+}
+
+PackedFloat32Array GameSingleton::get_tick_history() {
+	PackedFloat32Array result;
+	if (InstanceManager* instance_manager = get_instance_manager()) {
+		for (const float value : instance_manager->get_tick_profiler().get_tick_history()) {
+			result.push_back(value);
+		}
+	}
+	return result;
+}
+
+PackedFloat32Array GameSingleton::get_update_history() {
+	PackedFloat32Array result;
+	if (InstanceManager* instance_manager = get_instance_manager()) {
+		for (const float value : instance_manager->get_tick_profiler().get_update_history()) {
+			result.push_back(value);
+		}
+	}
+	return result;
+}
+
+Dictionary GameSingleton::get_frame_profile() const {
+	Dictionary result;
+	result["clock_ms"] = clock_ms;
+	result["clock_average_ms"] = clock_average_ms;
+	result["clock_max_ms"] = clock_max_ms;
+	result["colours_ms"] = colours_ms;
+	result["signal_ms"] = signal_ms;
+	result["signal_average_ms"] = signal_average_ms;
+	result["signal_max_ms"] = signal_max_ms;
+	result["updates"] = static_cast<int64_t>(profiled_updates);
+	return result;
+}
+
+Array GameSingleton::get_ui_profile() const {
+	Array result;
+	for (auto const& [key, stat] : handler_stats) {
+		Dictionary dict;
+		dict["name"] = stat.name;
+		dict["calls"] = static_cast<int64_t>(stat.calls);
+		dict["last_ms"] = stat.last_ms;
+		dict["average_ms"] = stat.average_ms;
+		dict["max_ms"] = stat.max_ms;
+		dict["total_ms"] = stat.total_ms;
+		result.push_back(dict);
+	}
+	return result;
+}
+
+Dictionary GameSingleton::get_process_memory() const {
+	const ProcessMemory memory = OpenVic::get_process_memory();
+	Dictionary result;
+	result["valid"] = memory.valid;
+	result["working_set"] = static_cast<int64_t>(memory.working_set);
+	result["peak_working_set"] = static_cast<int64_t>(memory.peak_working_set);
+	result["private_bytes"] = static_cast<int64_t>(memory.private_bytes);
+	return result;
+}
+
+Dictionary GameSingleton::get_sim_sizes() const {
+	Dictionary result;
+	InstanceManager const* instance_manager = get_instance_manager();
+	if (instance_manager == nullptr) {
+		return result;
+	}
+	result["action_history"] = static_cast<int64_t>(instance_manager->get_action_history().size());
+	result["wars"] = static_cast<int64_t>(instance_manager->get_war_manager().get_wars().size());
+	result["loans"] = static_cast<int64_t>(instance_manager->get_credit_manager().get_loans().size());
+	return result;
+}
+
+Dictionary GameSingleton::get_clock_info() const {
+	Dictionary result;
+	Array speeds;
+	for (auto const& duration : SimulationClock::GAME_SPEEDS) {
+		speeds.push_back(std::chrono::duration<double, std::milli>(duration).count());
+	}
+	result["speeds"] = speeds;
+	InstanceManager const* instance_manager = get_instance_manager();
+	if (instance_manager != nullptr) {
+		SimulationClock const& clock = instance_manager->get_simulation_clock();
+		result["speed"] = static_cast<int32_t>(clock.get_simulation_speed());
+		result["paused"] = clock.is_paused();
+		result["interval_ms"] = std::chrono::duration<double, std::milli>(SimulationClock::GAME_SPEEDS[clock.get_simulation_speed()]).count();
+	}
+	return result;
 }
 
 /* REQUIREMENTS:
@@ -688,7 +894,16 @@ bool GameSingleton::is_parchment_mapmode_allowed() const {
 }
 
 godot::Error GameSingleton::update_clock() {
-	return ERR(game_manager.update_clock());
+	if (!profiling) {
+		return ERR(game_manager.update_clock());
+	}
+	_sync_profiling();
+	const uint64_t start = Time::get_singleton()->get_ticks_usec();
+	const godot::Error result = ERR(game_manager.update_clock());
+	clock_ms = static_cast<double>(Time::get_singleton()->get_ticks_usec() - start) / 1000.0;
+	clock_average_ms = clock_average_ms * 0.95 + clock_ms * 0.05;
+	clock_max_ms = std::max(clock_max_ms, clock_ms);
+	return result;
 }
 
 godot::Error GameSingleton::_load_map_images() {

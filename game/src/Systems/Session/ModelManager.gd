@@ -1,6 +1,8 @@
 class_name ModelManager
 extends Node3D
 
+const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
+
 const MODEL_SCALE: float = 1.0 / 256.0
 
 @export var _map_view: MapView
@@ -58,6 +60,12 @@ func _get_unit_signature(unit: Dictionary) -> int:
 
 
 func _sync_units() -> void:
+	PerfProbe.begin("ModelManager._sync_units")
+	_sync_units_body()
+	PerfProbe.end("ModelManager._sync_units")
+
+
+func _sync_units_body() -> void:
 	var present: Dictionary[int, bool] = {}
 
 	for unit: Dictionary in ModelSingleton.get_units():

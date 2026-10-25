@@ -11,6 +11,8 @@ const _MarketWindow: GDScript = preload("res://src/UI/Session/MarketWindow.gd")
 const _PeaceWindow: GDScript = preload("res://src/UI/Session/PeaceWindow.gd")
 const _FleetPanel: GDScript = preload("res://src/UI/Session/FleetPanel.gd")
 const _RecruitmentWindow: GDScript = preload("res://src/UI/Session/RecruitmentWindow.gd")
+const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
+const _PerfDebugger := preload("res://src/UI/Session/PerfDebugger.gd")
 const _RECRUITMENT_KEY: Key = KEY_F7
 const _SaveGameWindow := preload("res://src/UI/Session/SaveGameWindow.gd")
 const _ReplayLoader := preload("res://src/Systems/Startup/ReplayLoader.gd")
@@ -99,6 +101,11 @@ func _ready() -> void:
 	_fleet_panel.set_recruitment_window(_recruitment_window)
 	_unit_banners.selection_changed.connect(_on_units_selected)
 
+	# Performance debugger (F12)
+	var perf_debugger := CanvasLayer.new()
+	perf_debugger.set_script(_PerfDebugger)
+	add_child(perf_debugger)
+
 	_model_manager.generate_units()
 	_model_manager.generate_buildings()
 	MusicManager.generate_playlist()
@@ -119,7 +126,9 @@ func _notification(what: int) -> void:
 
 func _process(_delta: float) -> void:
 	if not _replaying:
+		PerfProbe.begin("GameSession.update_clock")
 		GameSingleton.update_clock()
+		PerfProbe.end("GameSession.update_clock")
 
 
 ## Loads a save game: the game is set up again from the bookmark and the player country of the save, then the scene is

@@ -1,55 +1,55 @@
 ;; Credit window (CreditPanel.gd), docs/CREDITS.md
-CREDIT_TITLE;Credits
-CREDIT_TAB_MAIN;Overview
-CREDIT_TAB_ISSUE_INTERNAL;Issue an internal credit
-CREDIT_TAB_ISSUE_EXTERNAL;Issue an external credit
-CREDIT_TAB_TAKE;Take a credit
-CREDIT_INTERNAL_HEADER;Internal credits (issued to capitalists)
-CREDIT_EXTERNAL_HEADER;External credits
-CREDIT_COL_AMOUNT;Amount
-CREDIT_COL_ISSUED;Issued
-CREDIT_COL_TAKEN;Taken
-CREDIT_COL_RATE;Interest
-CREDIT_COL_PAID;Paid
-CREDIT_COL_DELAY;Until payments
-CREDIT_COL_REGIONS;Regions
-CREDIT_COL_TAG;Tag
-CREDIT_COL_WHO;Who
-CREDIT_COL_REGION;Region
-CREDIT_COL_CAPITALISTS;Capitalists
-CREDIT_COL_CAPITALIST_MONEY;Their money
-CREDIT_COL_COUNTRY;Country
-CREDIT_COL_RELATIONS;Relations
-CREDIT_COL_LENDER;Lender
-CREDIT_COL_TYPE;Type
-CREDIT_REPAY_TIP;Early repayment amount, 0 = pay everything back
-CREDIT_REPAY_BUTTON;Repay early the selected credit (taken by you)
-CREDIT_WITHDRAW_BUTTON;Withdraw the offer (not taken yet)
-CREDIT_INTERNAL_INFO;The capitalists get the credit: they take it themselves when they need money for a factory. The money is held when the credit is issued.
-CREDIT_ALL_REGIONS;Whole country (all regions with capitalists)
-CREDIT_AMOUNT;Amount:
-CREDIT_RATE_ONCE;Interest (set once):
-CREDIT_PER_YEAR; % per year
-CREDIT_TYPE;Type:
-CREDIT_ISSUE_BUTTON;Issue the credit
-CREDIT_EXTERNAL_INFO;All countries get the offer, or only the chosen ones: if a tag is named, the others cannot take the credit.
-CREDIT_ALL_COUNTRIES;All countries
-CREDIT_SEARCH;Search country...
-CREDIT_TAKE_INFO;Offers of other countries addressed to you or to everybody. The lender set the interest and it does not change.
-CREDIT_TAKE_BUTTON;Take
-CREDIT_SHORT;Short-term
-CREDIT_MEDIUM;Medium-term
-CREDIT_LONG;Long-term
-CREDIT_NOT_TAKEN;not taken
-CREDIT_PAYING;paying
-CREDIT_DAYS_SUFFIX;days
-CREDIT_WHOLE_COUNTRY;whole country
-CREDIT_GIVEN_TO;issued to: 
-CREDIT_TAKEN_FROM;taken from: 
-CREDIT_OFFERED_TO;offered to: 
-CREDIT_EVERYBODY;everybody
-CREDIT_YEARS_UNIT;years
-CREDIT_TERM_TEXT;%s years, payments start after %s years
-CREDIT_TERM_SHORT_LIMIT;, the money can only be spent on constructions of up to %d days
-CREDIT_SUMMARY;Treasury: %s    Debt: %s (limit %s)    Payments per month: %s    AI interest: %s to %s
-CREDIT_TERM_TYPE_YEARS;%s (%s years)
+CREDIT_TITLE;Кредиты
+CREDIT_TAB_MAIN;Главная
+CREDIT_TAB_ISSUE_INTERNAL;Выдать внутренний кредит
+CREDIT_TAB_ISSUE_EXTERNAL;Выдать внешний кредит
+CREDIT_TAB_TAKE;Взять кредит
+CREDIT_INTERNAL_HEADER;Внутренние кредиты (вы выдали капиталистам)
+CREDIT_EXTERNAL_HEADER;Внешние кредиты
+CREDIT_COL_AMOUNT;Сумма
+CREDIT_COL_ISSUED;Дата выдачи
+CREDIT_COL_TAKEN;Дата взятия
+CREDIT_COL_RATE;Процент
+CREDIT_COL_PAID;Выплачено
+CREDIT_COL_DELAY;До начала выплат
+CREDIT_COL_REGIONS;Регионы
+CREDIT_COL_TAG;Тег
+CREDIT_COL_WHO;Кто
+CREDIT_COL_REGION;Регион
+CREDIT_COL_CAPITALISTS;Капиталистов
+CREDIT_COL_CAPITALIST_MONEY;Их деньги
+CREDIT_COL_COUNTRY;Страна
+CREDIT_COL_RELATIONS;Отношения
+CREDIT_COL_LENDER;Кредитор
+CREDIT_COL_TYPE;Тип
+CREDIT_REPAY_TIP;Сумма досрочного погашения, 0 = погасить весь кредит
+CREDIT_REPAY_BUTTON;Погасить досрочно выбранный (взятый вами)
+CREDIT_WITHDRAW_BUTTON;Отозвать предложение (пока не взято)
+CREDIT_INTERNAL_INFO;Кредит получают капиталисты: они берут его сами, когда им нужны деньги на завод. Деньги резервируются при выдаче.
+CREDIT_ALL_REGIONS;Вся страна (все регионы с капиталистами)
+CREDIT_AMOUNT;Сумма:
+CREDIT_RATE_ONCE;Процент (задаётся один раз):
+CREDIT_PER_YEAR; % в год
+CREDIT_TYPE;Тип:
+CREDIT_ISSUE_BUTTON;Выдать кредит
+CREDIT_EXTERNAL_INFO;Предложение получают все страны или только выбранные: если указан тег, остальные не могут взять этот кредит.
+CREDIT_ALL_COUNTRIES;Все страны
+CREDIT_SEARCH;Поиск страны...
+CREDIT_TAKE_INFO;Предложения других стран, адресованные вам или всем. Процент задал кредитор и он не меняется.
+CREDIT_TAKE_BUTTON;Взять
+CREDIT_SHORT;Краткосрочный
+CREDIT_MEDIUM;Среднесрочный
+CREDIT_LONG;Долгосрочный
+CREDIT_NOT_TAKEN;не взят
+CREDIT_PAYING;выплаты идут
+CREDIT_DAYS_SUFFIX;дн.
+CREDIT_WHOLE_COUNTRY;вся страна
+CREDIT_GIVEN_TO;выдан: 
+CREDIT_TAKEN_FROM;взят у: 
+CREDIT_OFFERED_TO;предложен: 
+CREDIT_EVERYBODY;всем
+CREDIT_YEARS_UNIT;лет
+CREDIT_TERM_TEXT;%s лет, выплаты начинаются через %s
+CREDIT_TERM_SHORT_LIMIT;, деньги можно тратить только на стройки до %d дней
+CREDIT_SUMMARY;Казна: %s    Долг: %s (лимит %s)    Платежи в месяц: %s    Процент ИИ: от %s до %s
+CREDIT_TERM_TYPE_YEARS;%s (%s лет)

@@ -1,5 +1,7 @@
 extends Control
 
+const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
+
 # Icons over the armies on the map, built from the original mapicons.gui templates: unit_mapicon (flag, number of
 # regiments, organisation), combat_mapicon (both sides of a battle) and siege_mapicon (progress of a siege).
 # The icons of the player's armies can be selected by clicking on them, a right click on a province of the map then
@@ -154,6 +156,15 @@ func order_move(province_number: int, queued: bool = false) -> void:
 
 
 func _process(_delta: float) -> void:
+	PerfProbe.begin("UnitBanners._process")
+	_process_body(_delta)
+	PerfProbe.end("UnitBanners._process")
+
+
+func _process_body(_delta: float) -> void:
+	if _icons_dirty and _map_view and not _is_zoomed_out():
+		_refresh()
+
 	if not _map_view or _icons.is_empty():
 		return
 
@@ -192,7 +203,20 @@ func _process(_delta: float) -> void:
 		panel.show()
 
 
+# True while the icons are hidden because the camera is far away
+func _is_zoomed_out() -> bool:
+	return _map_view != null and _map_view._camera.position.y > _get_hide_height()
+
+
+# Set while the icons are out of date because they were not rebuilt when the camera was far away
+var _icons_dirty: bool = false
+
+
 func _refresh() -> void:
+	if _is_zoomed_out():
+		_icons_dirty = true
+		return
+	_icons_dirty = false
 	var units: Array = PlayerSingleton.get_map_units()
 
 	# Group by province
@@ -217,19 +241,31 @@ func _refresh() -> void:
 		if in_combat and group.size() >= 2:
 			var key: String = "%s_combat" % bucket
 			present[key] = true
-			_update_combat_icon(key, group[0], group[1])
+			# Icons whose data did not change are left alone (it is the interface that costs the time)
+			var combat_signature: int = hash([group[0], group[1]])
+			if not (_icons.has(key) and int(_icons[key].get(&"signature", -1)) == combat_signature):
+				_update_combat_icon(key, group[0], group[1])
+				if _icons.has(key):
+					_icons[key][&"signature"] = combat_signature
 			continue
 
 		for slot: int in group.size():
 			var unit: Dictionary = group[slot]
 			var key: String = "%s_c%d" % [bucket, unit[&"country_index"]]
 			present[key] = true
-			_update_unit_icon(key, unit, slot, group.size())
+			var signature: int = hash([unit, slot, group.size()])
+			if not (_icons.has(key) and int(_icons[key].get(&"signature", -1)) == signature):
+				_update_unit_icon(key, unit, slot, group.size())
+				if _icons.has(key):
+					_icons[key][&"signature"] = signature
 
 			if unit[&"siege_progress"] >= 0.0:
 				var siege_key: String = key + "_siege"
 				present[siege_key] = true
-				_update_siege_icon(siege_key, unit, slot, group.size())
+				if not (_icons.has(siege_key) and int(_icons[siege_key].get(&"signature", -1)) == signature):
+					_update_siege_icon(siege_key, unit, slot, group.size())
+					if _icons.has(siege_key):
+						_icons[siege_key][&"signature"] = signature
 
 	for key: String in _icons.keys():
 		if not present.has(key):

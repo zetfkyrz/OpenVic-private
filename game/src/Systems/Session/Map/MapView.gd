@@ -1,6 +1,8 @@
 class_name MapView
 extends Node3D
 
+const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
+
 signal map_view_camera_changed(
 	near_left: Vector2,
 	far_left: Vector2,
@@ -398,6 +400,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	PerfProbe.begin("MapView._process")
+	_process_body(delta)
+	PerfProbe.end("MapView._process")
+
+
+func _process_body(delta: float) -> void:
 	if _cardinal_movement_vector != Vector2.ZERO and get_window().gui_get_focus_owner() != null:
 		_cardinal_movement_vector = Vector2.ZERO
 
