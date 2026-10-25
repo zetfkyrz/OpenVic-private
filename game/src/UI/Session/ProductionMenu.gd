@@ -6,9 +6,14 @@ const _gui_file: String = "country_production"
 # Elements of the original window that are used, the rest belong to features that do not exist yet
 const _KEPT_ELEMENTS: PackedStringArray = [
 	"main_bg", "prod_bg", "headline_production", "close_button", "tab_factories", "tab_factories_text",
+	"tab_invest", "tab_invest_text", "tab_goodsproduction", "tab_goodsproduction_text",
 	"state_listbox", "factory_buttons",
 ]
 
+const _ProductionTabs: GDScript = preload("res://src/UI/Session/ProductionTabs.gd")
+const _TAB_BUTTONS: PackedStringArray = ["tab_factories", "tab_invest", "tab_goodsproduction"]
+var _tab: int = 0
+var _tabs_view: Control
 const _OwnershipDialog: GDScript = preload("res://src/UI/Session/FactoryOwnershipDialog.gd")
 # Elements of the "factory_buttons" window that belong to features that do not exist yet
 const _HIDDEN_BUTTONS: PackedStringArray = [
@@ -23,6 +28,9 @@ const _FACTORY_Y_OFFSET: float = -36.0
 # Width of the "factory_info_bounds" window of the original interface
 const _DEFAULT_BOUNDS_WIDTH: float = 940.0
 const _MAX_INPUT_ICONS: int = 4
+const _PRIORITY_NAMES: PackedStringArray = ["низкий", "обычный", "высокий"]
+# Seconds in which the second click of the delete button confirms the deletion
+const _DELETE_CONFIRM_SECONDS: float = 3.0
 # GFX_resources frames: the first frames are not goods
 const _GOODS_ICON_OFFSET: int = 2
 # GFX_employment_ratio has 11 frames, from 0% to 100%
@@ -118,6 +126,17 @@ func _ready() -> void:
 	_setup_build_dialog()
 	_setup_mass_buttons()
 
+	# Tabs: factories (the list of the states), investments and goods production (tables)
+	_tabs_view = Control.new()
+	_tabs_view.set_script(_ProductionTabs)
+	_main_window.add_child(_tabs_view)
+	for i: int in _TAB_BUTTONS.size():
+		var tab_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(
+			_main_window, NodePath("./" + _TAB_BUTTONS[i])
+		)
+		if tab_button:
+			tab_button.pressed.connect(_set_tab.bind(i))
+
 	_ownership_dialog = Control.new()
 	_ownership_dialog.set_script(_OwnershipDialog)
 	add_child(_ownership_dialog)
@@ -136,6 +155,25 @@ func _on_update_active_nation_management_screen(active_screen: NationManagement.
 	if not _active and _build_dialog:
 		_build_dialog.hide()
 	_update_info()
+
+
+func _set_tab(tab: int) -> void:
+	_tab = tab
+	if _build_dialog:
+		_build_dialog.hide()
+	_update_tab_visibility()
+	_tabs_view.show_page(_tab)
+	if _tab == 0:
+		_update_info()
+
+
+func _update_tab_visibility() -> void:
+	var factories: bool = _tab == 0
+	if _state_listbox:
+		_state_listbox.visible = factories
+	var buttons: Node = _main_window.get_node_or_null(^"./factory_buttons")
+	if buttons is CanvasItem:
+		(buttons as CanvasItem).visible = factories
 
 
 func _set_label_text(label: GUILabel, text: String) -> void:
@@ -157,6 +195,11 @@ func _update_info() -> void:
 	show()
 
 	if not _state_listbox:
+		return
+
+	if _tab > 0 and _tabs_view:
+		_update_tab_visibility()
+		_tabs_view.refresh(_tab)
 		return
 
 	var states: Array = PlayerSingleton.get_production_info()
@@ -295,10 +338,24 @@ func _setup_mass_buttons() -> void:
 
 func _setup_factory_panel(panel: Panel) -> void:
 	# Features that do not exist yet
-	for hidden_name: NodePath in [^"./priority", ^"./prod_cancel_progress", ^"./delete_factory"]:
-		var node: Node = panel.get_node_or_null(hidden_name)
-		if node is CanvasItem:
-			node.hide()
+	# Hiring priority: a click goes through low, normal and high
+	var priority_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./priority")
+	if priority_button:
+		priority_button.pressed.connect(
+			func() -> void:
+				if not panel.has_meta(&"building_type_index"):
+					return
+				var next_priority: int = (int(panel.get_meta(&"priority", 1)) + 1) % 3
+				PlayerSingleton.set_factory_priority(
+					panel.get_meta(&"province_index"), panel.get_meta(&"building_type_index"), next_priority
+				)
+		)
+
+	# Deleting a factory (or cancelling its construction) asks for a second click
+	for delete_name: NodePath in [^"./delete_factory", ^"./prod_cancel_progress"]:
+		var delete_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, delete_name)
+		if delete_button:
+			delete_button.pressed.connect(_on_delete_pressed.bind(panel, delete_button))
 
 	# Clicking the factory or the open/close button opens or closes it
 	var toggle_open: Callable = func() -> void:
@@ -476,6 +533,23 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 		upgrade_button.visible = factory[&"can_expand"] and not constructing and level > 0
 		upgrade_button.tooltip_string = "%s (%s)" % [tr("Expand"), GUINode.float_to_string_dp(factory[&"upgrade_cost"], 0)]
 
+	panel.set_meta(&"priority", int(factory.get(&"priority", 1)))
+	panel.set_meta(&"constructing", constructing)
+	var priority_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./priority")
+	if priority_button:
+		priority_button.visible = level > 0
+		# Frames of the sprite: 0 is the lowest priority
+		priority_button.set_icon_index(clampi(int(factory.get(&"priority", 1)), 0, 3))
+		priority_button.tooltip_string = "Приоритет найма: %s\nНажмите, чтобы сменить" % _PRIORITY_NAMES[clampi(int(factory.get(&"priority", 1)), 0, 2)]
+	var delete_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./delete_factory")
+	if delete_button:
+		delete_button.visible = level > 0 and not constructing
+		delete_button.tooltip_string = "Снести завод (бюджет вернётся владельцам)"
+	var cancel_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./prod_cancel_progress")
+	if cancel_button:
+		cancel_button.visible = constructing
+		cancel_button.tooltip_string = "Отменить строительство"
+
 	var is_closed: bool = not factory[&"open"] and level > 0
 	for closed_name: NodePath in [^"./closed_overlay", ^"./factory_closed_text"]:
 		var closed_node: Node = panel.get_node_or_null(closed_name)
@@ -486,6 +560,25 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 	var open_close: Node = panel.get_node_or_null(^"./open_close")
 	if open_close is CanvasItem:
 		open_close.visible = level > 0
+
+
+# A click on the delete button arms it, the second one within a few seconds deletes the factory
+func _on_delete_pressed(panel: Panel, button: GUIIconButton) -> void:
+	if not panel.has_meta(&"building_type_index"):
+		return
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now - float(panel.get_meta(&"delete_armed_at", -100.0)) < _DELETE_CONFIRM_SECONDS:
+		panel.set_meta(&"delete_armed_at", -100.0)
+		button.modulate = Color.WHITE
+		PlayerSingleton.delete_factory(panel.get_meta(&"province_index"), panel.get_meta(&"building_type_index"))
+		return
+	panel.set_meta(&"delete_armed_at", now)
+	button.modulate = Color(1.6, 0.5, 0.5)
+	get_tree().create_timer(_DELETE_CONFIRM_SECONDS).timeout.connect(
+		func() -> void:
+			if is_instance_valid(button):
+				button.modulate = Color.WHITE
+	)
 
 
 # ---- Build dialog ----

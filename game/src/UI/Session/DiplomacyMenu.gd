@@ -361,6 +361,16 @@ func _setup_tabs() -> void:
 	_cb_window = _main_window.get_node_or_null(^"./cb_info_win")
 	_crisis_window = _main_window.get_node_or_null(^"./crisis_info_win")
 
+	# Casus belli do not exist in the simulation: the war goal is chosen when the war is declared
+	if _cb_window:
+		var note := Label.new()
+		note.text = "Поводов к войне пока нет.
+Цель войны выбирается при её объявлении."
+		note.position = Vector2(20, 60)
+		note.add_theme_color_override(&"font_color", Color(0.15, 0.1, 0.05))
+		note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_cb_window.add_child(note)
+
 
 func _set_tab(tab: int) -> void:
 	_tab = tab
