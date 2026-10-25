@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://bjfy8hi2rjm6y"
+
+[deps]
+
+files=["res://assets/localisation/locales/en_GB/credit. docs/CREDITS.md.translation"]
+
+source_file="res://assets/localisation/locales/en_GB/credit.csv"
+dest_files=["res://assets/localisation/locales/en_GB/credit. docs/CREDITS.md.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
