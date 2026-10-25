@@ -180,7 +180,14 @@ func update_factory(factory: Dictionary) -> void:
 			GUINode.float_to_string_dp(factory[&"owner_dividends"], 1),
 		],
 		"Накопления капиталистов штата: %s" % GUINode.float_to_string_dp(factory[&"capitalist_fund"], 0),
-	])
+	] + (
+		[
+			"",
+			"Государство заплатило за капиталистов в этом месяце: %s ¤" % GUINode.float_to_string_dp(float(factory[&"crisis_covered"]), 0),
+			"В начале месяца оно заберёт долю завода: %d%%" % int(factory[&"takeover_percent"]),
+		]
+		if float(factory.get(&"crisis_covered", 0.0)) > 0.0 else []
+	))
 
 	var priority: int = int(factory.get(&"priority", 1))
 	for i: int in _priority_buttons.size():

@@ -842,6 +842,8 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["state_share"] = static_cast<float>(factory.get_state_share());
 				factory_dict["subsidised"] = factory.is_subsidised();
 				// Subsidised and the state really pays for it (a private factory is not helped in the modes that need a state share)
+				factory_dict["crisis_covered"] = static_cast<float>(factory.get_crisis_covered());
+				factory_dict["takeover_percent"] = factory.get_pending_takeover_percent(market_instance);
 				factory_dict["subsidy_active"] = factory.receives_state_subsidy(state.get_owner(), state);
 				factory_dict["built_by_state"] = factory.was_built_by_state();
 				factory_dict["expansion_fund"] = static_cast<float>(factory.get_expansion_fund());
@@ -965,7 +967,7 @@ bool PlayerSingleton::set_subsidy_mode(int32_t mode) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
-	ERR_FAIL_COND_V(mode < 0 || mode > 2, false);
+	ERR_FAIL_COND_V(mode < 0 || mode > 3, false);
 	return instance_manager->queue_game_action<set_subsidy_mode_argument_t>(player_country->index, static_cast<uint32_t>(mode));
 }
 
