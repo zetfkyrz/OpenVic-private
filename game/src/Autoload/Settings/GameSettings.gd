@@ -144,6 +144,7 @@ const VIDEO_MAP_QUALITY := &"video/map_quality"
 const VIDEO_MAP_SHADOWS := &"video/map_shadows"
 const VIDEO_SHADOW_DISTANCE := &"video/shadow_size"
 const VIDEO_SHADOW_DARKNESS := &"video/shadow_level"
+const VIDEO_MAP_TEXT_SIZE := &"video/map_text_size"
 const VIDEO_DRAW_DISTANCE := &"video/draw_distance"
 const VIDEO_UNIT_ICON_SIZE := &"video/unit_icon_size"
 #
@@ -280,6 +281,16 @@ func _init() -> void:
 		.add_meta(&"hint", PROPERTY_HINT_RANGE)
 		.add_meta(&"min", 0.1)
 		.add_meta(&"max", 1.0)
+		.add_meta(&"step", 0.05))
+
+	self.add_setting(Setting.new(VIDEO_MAP_TEXT_SIZE, 1.0)
+		.set_description("Size of the names of the provinces and other texts on the map, from 0.5 to 2 times.")
+		.set_validate_fn(_map_text_size_validate)
+		.add_meta(&"display_name", "Map Text Size")
+		.add_meta(&"type", TYPE_FLOAT)
+		.add_meta(&"hint", PROPERTY_HINT_RANGE)
+		.add_meta(&"min", 0.5)
+		.add_meta(&"max", 2.0)
 		.add_meta(&"step", 0.05))
 
 	self.add_setting(Setting.new(VIDEO_DRAW_DISTANCE, 0)
@@ -473,6 +484,10 @@ func _refresh_rate_apply(stg: Setting) -> void:
 func _volume_apply(stg: Setting, bus_index: int) -> void:
 	const RATIO_FOR_LINEAR: float = 100
 	AudioServer.set_bus_volume_db(bus_index, linear_to_db(stg.value() / RATIO_FOR_LINEAR))
+
+
+func _map_text_size_validate(stg: Setting, val: Variant) -> bool:
+	return val >= stg.get_meta(&"min", 0.5) and val <= stg.get_meta(&"max", 2.0)
 
 
 func _shadow_level_validate(stg: Setting, val: Variant) -> bool:

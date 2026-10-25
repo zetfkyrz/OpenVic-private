@@ -254,25 +254,24 @@ vec3 apply_borders(vec3 colour, vec2 uv, vec2 pixel_uv) {
 	return colour;
 }
 
-// Thin outline of the selected province: black with half opacity, about one pixel of the screen wide
-vec3 apply_selection_outline(vec3 colour, vec2 uv, vec2 pixel_uv) {
-	if (selected_index == 0u) {
+// Thin outline of a province (the hovered or the selected one): black, about one pixel of the screen wide
+vec3 apply_province_outline(vec3 colour, vec2 uv, vec2 pixel_uv, uint province, float opacity) {
+	if (province == 0u) {
 		return colour;
 	}
-	const float OUTLINE_OPACITY = 0.5;
 	const int TAPS = 8;
-	bool inside = uvec2_to_uint(read_uvec3(uv).xy) == selected_index;
+	bool inside = uvec2_to_uint(read_uvec3(uv).xy) == province;
 	// Map pixels per pixel of the screen: the outline is half of that wide on each side of the border
 	vec2 per_screen = fwidth(uv / pixel_uv);
 	float radius = clamp(max(per_screen.x, per_screen.y) * 0.5, 0.6, 8.0);
 	float edge = 0.0;
 	for (int i = 0; i < TAPS; i++) {
 		float a = float(i) * 6.2831853 / float(TAPS);
-		bool other_inside = uvec2_to_uint(read_uvec3(uv + vec2(cos(a), sin(a)) * radius * pixel_uv).xy) == selected_index;
+		bool other_inside = uvec2_to_uint(read_uvec3(uv + vec2(cos(a), sin(a)) * radius * pixel_uv).xy) == province;
 		edge += float(inside != other_inside);
 	}
 	edge /= float(TAPS);
-	return mix(colour, vec3(0.0), smoothstep(0.05, 0.45, edge) * OUTLINE_OPACITY);
+	return mix(colour, vec3(0.0), smoothstep(0.05, 0.45, edge) * opacity);
 }
 
 // Light and shade of the relief on land, depth, foam and glints on the water
@@ -394,7 +393,11 @@ vec3 get_map_colour(vec2 uv) {
 	// Relief light and water layers, then the smooth dark outlines on top
 	final_colour = apply_relief_and_water(final_colour, uv);
 	final_colour = apply_borders(final_colour, uv, 1.0 / map_size);
-	final_colour = apply_selection_outline(final_colour, uv, 1.0 / map_size);
+	// Outline of the hovered province (half opaque) and of the selected one (three quarters opaque)
+	if (hover_index != selected_index) {
+		final_colour = apply_province_outline(final_colour, uv, 1.0 / map_size, hover_index, 0.5);
+	}
+	final_colour = apply_province_outline(final_colour, uv, 1.0 / map_size, selected_index, 0.75);
 
 	// Significantly brighted the colour if it is hovered over and/or selected, but not if it has province index 0 (all invalid pixels)
 	const vec3 highlight_colour = vec3(1.0);
