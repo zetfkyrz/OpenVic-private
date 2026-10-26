@@ -19,6 +19,15 @@ var _building_nodes: Array[Node3D] = []
 const _MOVE_TWEEN_TIME: float = 0.6
 
 
+# The animations (skeletons and animation players of every unit and building) are what the models cost: Godot plays them for
+# every model every frame, also for hidden ones and for ones outside of the screen (≈17 ms of the main thread for the units of
+# the start of the game). So they only run while the models are shown, and only for the models that the camera sees (this is
+# checked every few frames); the rest keeps its pose.
+const _CULL_INTERVAL: int = 3
+var _animating: bool = true
+var _cull_frame: int = 0
+
+
 func _process(_delta: float) -> void:
 	if not _map_view:
 		return
@@ -31,6 +40,38 @@ func _process(_delta: float) -> void:
 	var models_visible: bool = height <= model_range
 	if visible != models_visible:
 		visible = models_visible
+
+	if models_visible != _animating:
+		_animating = models_visible
+		for node: Node3D in _unit_nodes.values():
+			_set_animated(node, models_visible)
+		for node: Node3D in _building_nodes:
+			_set_animated(node, models_visible)
+	if models_visible:
+		_cull_frame += 1
+		if _cull_frame % _CULL_INTERVAL == 0:
+			_cull_animation()
+
+
+func _set_animated(node: Node3D, animated: bool) -> void:
+	if not is_instance_valid(node):
+		return
+	var mode: Node.ProcessMode = Node.PROCESS_MODE_INHERIT if animated else Node.PROCESS_MODE_DISABLED
+	if node.process_mode != mode:
+		node.process_mode = mode
+
+
+# Models in the view of the camera are animated, the others are stopped
+func _cull_animation() -> void:
+	var camera: Camera3D = _map_view._camera
+	if camera == null:
+		return
+	for node: Node3D in _unit_nodes.values():
+		if is_instance_valid(node):
+			_set_animated(node, camera.is_position_in_frustum(node.global_position))
+	for node: Node3D in _building_nodes:
+		if is_instance_valid(node):
+			_set_animated(node, camera.is_position_in_frustum(node.global_position))
 
 
 func generate_units() -> void:
@@ -178,6 +219,8 @@ func _generate_unit(unit_dict: Dictionary) -> Node3D:
 		model.tertiary_colour = unit_dict[tertiary_colour_key]
 
 	add_child(model)
+	if not _animating:
+		_set_animated(model, false)
 	return model
 
 
@@ -202,6 +245,8 @@ func _generate_building(building_dict: Dictionary) -> void:
 	_building_nodes.append(model)
 
 	add_child(model)
+	if not _animating:
+		_set_animated(model, false)
 
 
 func _generate_model(model_dict: Dictionary, culture: String = "", is_unit: bool = false) -> Node3D:
