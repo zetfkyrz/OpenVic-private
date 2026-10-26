@@ -133,10 +133,16 @@ void BudgetMenu::update_projected_balance() {
 	tooltip += line("Прочее: стройка, займы, проценты (за вчера)", extras.other_spending, false);
 	tooltip += line("Дипломатия", diplomatic_budget.get_expenses(), false);
 	tooltip += Utilities::format(
-		godot::String::utf8("\n\nПотребность армии и флота в снабжении: §Y%s§! в день (армия §Y%s§!, флот §Y%s§!), казна оплачивает, сколько может."),
+		godot::String::utf8(
+			"\n\nСнабжение войск идёт раз в месяц от даты создания части; в среднем это §Y%s§! в день (армия §Y%s§!, флот §Y%s§!), "
+			"в походе в 1.5 раза больше, на земле врага в 2 раза. Уровень снабжения: армия §Y%d%%§!, флот §Y%d%%§! (боевые "
+			"характеристики пропорциональны ему, он плавно идёт к уровню ползунка)."
+		),
 		Utilities::cash_to_string_dp_dynamic(national_stockpile_budget.get_military_supply_expenses()),
 		Utilities::cash_to_string_dp_dynamic(country.calculate_army_supply_cost_per_day()),
-		Utilities::cash_to_string_dp_dynamic(country.calculate_navy_supply_cost_per_day())
+		Utilities::cash_to_string_dp_dynamic(country.calculate_navy_supply_cost_per_day()),
+		static_cast<int32_t>((country.get_army_supply_level() * 100).round<int32_t>()),
+		static_cast<int32_t>((country.get_navy_supply_level() * 100).round<int32_t>())
 	);
 	tooltip += godot::String::utf8(
 		"\n\nКазна — «Гос. банк»: деньги страны. График вверху показывает фактическое изменение казны за день, сальдо — расчёт по "
