@@ -36,6 +36,12 @@ defines = {
 		MIGRATION_LIFE_NEEDS_THRESHOLD = 0.5, -- fraction 0 to 1
 		SCORE_UNEMPLOYMENT_WEIGHT = 0.5, -- fraction 0 to 1
 		SCORE_LIFE_NEEDS_WEIGHT = 0.5, -- fraction 0 to 1
+		HUNGER_LIFE_NEEDS_THRESHOLD = 0.5, -- fraction 0 to 1
+		HUNGER_DAYS_BEFORE_DEATH = 28, -- whole number 1 to 31
+		EMIGRATION_SHARE = 0.01, -- fraction 0 to 1
+		SURPLUS_DEATH_SHARE = 0.99, -- fraction 0 to 1
+		IMMIGRATION_FILL_SHARE = 0.5, -- fraction 0 to 1
+		STARVATION_MIN_SURPLUS = 1, -- whole number 0 to 1000000
 	},
 	ov_politics = {
 		LEANING_ARISTOCRATS_REACTIONARY = 0.45, -- number 0 to 1
@@ -288,5 +294,30 @@ defines = {
 		AI_EARLY_REPAY_MARGIN = 3000, -- whole number 0 to 100000000
 		INVESTMENT_MAX_PAYBACK_YEARS = 12, -- whole number 1 to 1000
 		INVESTMENT_MIN_MONEY = 500, -- whole number 0 to 100000000
+	},
+	ov_trade = {
+		ENABLED = 1, -- whole number 0 to 1
+		INTERNAL_FREIGHT_MAX = 0.015, -- fraction 0 to 1
+		INTERNAL_FREIGHT_MIN = 0.003, -- fraction 0 to 1
+		LAND_COST_BASE = 0.01, -- fraction 0 to 1
+		LAND_RAIL_COST_RELIEF = 0.6, -- fraction 0 to 1
+		LAND_CAPACITY_BASE = 400, -- whole number 0 to 100000000
+		LAND_CAPACITY_PER_RAIL_LEVEL = 200, -- whole number 0 to 100000000
+		SEA_COST_BASE = 0.01, -- fraction 0 to 1
+		SEA_COST_PER_MAP_WIDTH = 0.06, -- fraction 0 to 10
+		SEA_NAVAL_BASE_COST_RELIEF = 0.4, -- fraction 0 to 1
+		SEA_NAVAL_BASE_RELIEF_LEVELS = 4, -- whole number 1 to 100
+		SEA_PORT_BASE_CAPACITY = 400, -- whole number 0 to 100000000
+		SEA_CAPACITY_PER_NAVAL_BASE_LEVEL = 400, -- whole number 0 to 100000000
+		SEA_PAIR_SHARE = 0.5, -- fraction 0 to 1
+		MAX_ROUTE_HOPS = 3, -- whole number 1 to 10
+		TRANSIT_COST_PER_HOP = 0.005, -- fraction 0 to 1
+		MAX_ROUTE_COST = 0.25, -- fraction 0 to 1
+		OUTSIDE_COST = 0.04, -- fraction 0 to 1
+		SPOT_COST = 0.05, -- fraction 0 to 1
+		FREIGHT_FUND_SHARE = 0.7, -- fraction 0 to 1
+		SUBSISTENCE_SHARE = 0.35, -- fraction 0 to 1
+		SUBSISTENCE_RAIL_RELIEF = 0.7, -- fraction 0 to 1
+		SUBSISTENCE_NEED_MULTIPLIER = 2, -- whole number 1 to 100
 	},
 }

@@ -62,6 +62,7 @@ namespace {
 		double rgo_owner = 0, rgo_worker = 0, factory_worker = 0, factory_owner = 0, unemployment_subsidies = 0, pensions = 0;
 		double salary_administration = 0, salary_education = 0, salary_military = 0, events = 0, loan_interest = 0;
 		double life_expense = 0, everyday_expense = 0, luxury_expense = 0, artisan_inputs = 0;
+		double starved = 0, emigrated_internal = 0, emigrated_external = 0, hungry_days = 0;
 	};
 
 	struct GoodTotals {
@@ -147,7 +148,8 @@ String EconomyRecorder::start(InstanceManager& instance_manager, String const& p
 		"construction_slider,income_yesterday,balance_yesterday,balance_avg_before_investment,tax_income,tariff_income,"
 		"gold_income,spend_administration,spend_education,spend_military,spend_pensions,spend_unemployment,import_subsidies,"
 		"stockpile_spending,stockpile_income,subsidy_mode,factories,factories_open,factories_building,factory_levels,"
-		"factory_revenue,factory_profit,industrial_power");
+		"factory_revenue,factory_profit,industrial_power,transport_income,trade_export_value,trade_import_value,trade_land_export,"
+		"trade_sea_export,trade_internal_fees,trade_export_fees,sea_capacity,land_crossings");
 	ok &= open_table(COUNTRY_GOODS, "country_goods.csv",
 		"date,tag,good,produced,produced_rgo,produced_factory,produced_artisan,pop_demand,factory_demand,army_needs,navy_needs,"
 		"government_needs,consumed_pops,consumed_inputs,stockpile,stockpile_change,exported_net,stockpile_trade_money");
@@ -158,7 +160,8 @@ String EconomyRecorder::start(InstanceManager& instance_manager, String const& p
 	ok &= open_table(STATE_CLASSES, "state_classes.csv",
 		"date,state,owner,class,pops,size,unemployed,cash,income,expenses,life_needs,everyday_needs,luxury_needs,rgo_owner_income,"
 		"rgo_worker_income,factory_worker_income,factory_owner_income,unemployment_subsidies,pensions,salary_administration,"
-		"salary_education,salary_military,event_income,loan_interest,life_expense,everyday_expense,luxury_expense,artisan_inputs");
+		"salary_education,salary_military,event_income,loan_interest,life_expense,everyday_expense,luxury_expense,artisan_inputs,"
+		"starved,emigrated_internal,emigrated_external,hungry_days");
 	ok &= open_table(FACTORIES, "factories.csv",
 		"date,state,owner,type,level,open,constructing,construction_progress,state_share,owner_class,subsidised,budget,"
 		"expansion_fund,efficiency,throttle,employees,max_employees,output_yesterday,sold_yesterday,revenue,input_cost,wages,"
@@ -167,6 +170,7 @@ String EconomyRecorder::start(InstanceManager& instance_manager, String const& p
 		"date,province,state,owner,good,production_type,size_multiplier,employees,max_employees,output,unsold,revenue,price");
 	ok &= open_table(MONEY_FLOWS, "money_flows.csv", "date,label,category,change_in_period,total_since_start");
 	ok &= open_table(INVESTMENTS, "investments.csv", "date,tag,kind,building,state,builder_class,cost,for_deficit");
+	ok &= open_table(TRADE_FLOWS, "trade_flows.csv", "date,from,to,value_per_day,route_cost,route_mode,route_hops,capacity_value");
 	if (!ok) {
 		stop();
 		return {};
@@ -277,6 +281,8 @@ void EconomyRecorder::write_readme() {
 		"                     start); the last rows (__measured_change, __explained_by_hooks) must be equal: otherwise money appears or\n"
 		"                     disappears without a payment.\n"
 		"investments.csv      the projects paid from the investment funds.\n"
+		"trade_flows.csv      every month: the cargo value that went from one country to another yesterday, with the cost, mode (1 land,\n"
+		"                     2 sea, 3 both) and capacity of the route (docs/TRADE.md). countries.csv has the trade columns of every country.\n"
 	));
 	file->flush();
 }
@@ -430,6 +436,9 @@ void EconomyRecorder::record_monthly(InstanceManager& instance_manager, std::str
 				profit += num(factory.get_profit_yesterday());
 			}
 		}
+		TradeNetwork const& trade_network = instance_manager.get_trade_network();
+		const bool trade_ready = trade_network.is_ready();
+		TradeNetwork::country_stats_t const trade_stats = trade_ready ? trade_network.get_stats_yesterday(country.index) : TradeNetwork::country_stats_t {};
 		const bool has_balance = !country.get_balance_history().empty();
 		double unemployed_total = 0;
 		for (auto const& unemployed_of_type : country.get_unemployed_pops_by_type()) {
@@ -440,7 +449,7 @@ void EconomyRecorder::record_monthly(InstanceManager& instance_manager, std::str
 			country.get_gold_income_untracked() - country.get_actual_national_stockpile_income().load();
 		add(countries_table.buffer,
 			"{},{},{},{},{},{},{:.0f},{:.0f},{:.2f},{:.2f},{:.2f},{:.3f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},"
-			"{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{},{},{},{},{:.0f},{:.2f},{:.2f},{:.2f}\n",
+			"{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{},{},{},{},{:.0f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{}\n",
 			date, country.get_identifier(), country.is_ai() ? 1 : 0, country.get_total_rank(), country.get_owned_provinces().size(),
 			country.get_states().size(), static_cast<double>(type_safe::get(country.get_total_population())), unemployed_total,
 			num(country.get_cash_stockpile().load()), num(country.get_investment_fund()),
@@ -453,7 +462,11 @@ void EconomyRecorder::record_monthly(InstanceManager& instance_manager, std::str
 			num(country.get_actual_unemployment_subsidies_spending().load()), num(country.get_import_subsidies_spending()),
 			num(country.get_actual_national_stockpile_spending().load()), num(country.get_actual_national_stockpile_income().load()),
 			static_cast<int>(country.get_subsidy_mode()), factories, open, building, levels, revenue, profit,
-			num(country.get_industrial_power_untracked())
+			num(country.get_industrial_power_untracked()),
+			num(country.get_transport_income()), num(trade_stats.export_value), num(trade_stats.import_value),
+			num(trade_stats.land_export_value), num(trade_stats.sea_export_value), num(trade_stats.internal_fees),
+			num(trade_stats.export_fees), trade_ready ? num(trade_network.get_sea_capacity(country.index)) : 0.0,
+			trade_ready ? trade_network.get_land_crossings(country.index) : 0
 		);
 		countries_table.rows++;
 
@@ -514,6 +527,30 @@ void EconomyRecorder::record_monthly(InstanceManager& instance_manager, std::str
 	flush(country_goods_table);
 	flush(investments_table);
 
+	// ---- the flows of the world trade between the countries (yesterday)
+	{
+		TradeNetwork const& trade_network = instance_manager.get_trade_network();
+		if (trade_network.is_ready()) {
+			Table& flows_table = tables[TRADE_FLOWS];
+			CountryInstanceManager const& country_manager = instance_manager.get_country_instance_manager();
+			const std::size_t country_count = trade_network.get_node_count() - 1;
+			for (std::size_t from = 0; from < country_count; ++from) {
+				for (std::size_t to = 0; to < country_count; ++to) {
+					const fixed_point_t value = trade_network.get_pair_flow_yesterday(country_index_t(from), country_index_t(to));
+					if (value <= fixed_point_t::_0) {
+						continue;
+					}
+					TradeNetwork::route_t const& route = trade_network.get_route(country_index_t(from), country_index_t(to));
+					add(flows_table.buffer, "{},{},{},{:.2f},{:.4f},{},{},{:.1f}\n",
+						date, country_manager.get_country_instance_by_index(country_index_t(from)).get_identifier(),
+						country_manager.get_country_instance_by_index(country_index_t(to)).get_identifier(), num(value), num(route.cost),
+						static_cast<int>(route.mode), static_cast<int>(route.hops), num(route.capacity_value));
+					flows_table.rows++;
+				}
+			}
+		}
+	}
+
 	// ---- regions, classes, factories
 	Table& states_table = tables[STATES];
 	Table& classes_table = tables[STATE_CLASSES];
@@ -543,6 +580,10 @@ void EconomyRecorder::record_monthly(InstanceManager& instance_manager, std::str
 					c.life += num(pop.get_life_needs_fulfilled()) * size;
 					c.everyday += num(pop.get_everyday_needs_fulfilled()) * size;
 					c.luxury += num(pop.get_luxury_needs_fulfilled()) * size;
+					c.starved += pop_num(pop.get_num_starved());
+					c.emigrated_internal += pop_num(pop.get_num_migrated_internal());
+					c.emigrated_external += pop_num(pop.get_num_migrated_external());
+					c.hungry_days += static_cast<double>(pop.hungry_days) * size;
 					c.rgo_owner += num(pop.get_rgo_owner_income());
 					c.rgo_worker += num(pop.get_rgo_worker_income());
 					c.factory_worker += num(pop.get_factory_worker_income());
@@ -594,11 +635,12 @@ void EconomyRecorder::record_monthly(InstanceManager& instance_manager, std::str
 				const double size = std::max(c.size, 1.0);
 				add(classes_table.buffer,
 					"{},{},{},{},{},{:.0f},{:.0f},{:.2f},{:.2f},{:.2f},{:.4f},{:.4f},{:.4f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},"
-					"{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n",
+					"{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.0f},{:.0f},{:.0f},{:.1f}\n",
 					date, state_name, owner_tag, pop_type.get_identifier(), c.pops, c.size, c.unemployed, c.cash, c.income, c.expenses,
 					c.life / size, c.everyday / size, c.luxury / size, c.rgo_owner, c.rgo_worker, c.factory_worker, c.factory_owner,
 					c.unemployment_subsidies, c.pensions, c.salary_administration, c.salary_education, c.salary_military, c.events,
-					c.loan_interest, c.life_expense, c.everyday_expense, c.luxury_expense, c.artisan_inputs
+					c.loan_interest, c.life_expense, c.everyday_expense, c.luxury_expense, c.artisan_inputs,
+					c.starved, c.emigrated_internal, c.emigrated_external, c.hungry_days / size
 				);
 				classes_table.rows++;
 			}
