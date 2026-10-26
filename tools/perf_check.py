@@ -66,7 +66,9 @@ def main():
     parser.add_argument("--vic2")
     parser.add_argument("--save-baseline", action="store_true")
     parser.add_argument("--profile", action="store_true")
+    parser.add_argument("--baseline", help="file with the baseline checksums (the checksums depend on the platform and the compiler: use one file per platform, e.g. docs/perf/baseline_checksums_linux.json)")
     args = parser.parse_args()
+    baseline_path = args.baseline or BASELINE
     exe = find_exe(args.exe)
     vic2 = find_vic2(args.vic2)
 
@@ -88,16 +90,16 @@ def main():
             return 1
 
     if args.save_baseline:
-        os.makedirs(os.path.dirname(BASELINE), exist_ok=True)
-        with open(BASELINE, "w", encoding="utf8") as file:
+        os.makedirs(os.path.dirname(baseline_path), exist_ok=True)
+        with open(baseline_path, "w", encoding="utf8") as file:
             json.dump({key: value["sha256"] for key, value in results.items()}, file, indent=2)
-        print("Baseline written:", BASELINE)
+        print("Baseline written:", baseline_path)
         return 0
 
-    if not os.path.isfile(BASELINE):
+    if not os.path.isfile(baseline_path):
         print("No baseline yet: run with --save-baseline on the commit before your changes")
         return 1
-    with open(BASELINE, encoding="utf8") as file:
+    with open(baseline_path, encoding="utf8") as file:
         baseline = json.load(file)
     failed = [key for key, value in results.items() if baseline.get(key) != value["sha256"]]
     if failed:
