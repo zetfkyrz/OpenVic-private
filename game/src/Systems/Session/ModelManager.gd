@@ -19,16 +19,26 @@ var _building_nodes: Array[Node3D] = []
 const _MOVE_TWEEN_TIME: float = 0.6
 
 
-# The animations (skeletons and animation players of every unit and building) are what the models cost: Godot plays them for
-# every model every frame, also for hidden ones and for ones outside of the screen (≈17 ms of the main thread for the units of
-# the start of the game). So they only run while the models are shown, and only for the models that the camera sees (this is
-# checked every few frames); the rest keeps its pose.
+# The animations (skeletons and animation players of every unit and building) are what the models cost: Godot plays them on the
+# processor for every model every frame (the skinning itself is done by the video card), also for hidden ones and for ones outside of
+# the screen (≈17 ms of the main thread for the units of the start of the game). So:
+#  - they only run while the models are shown, and only for the models that the camera sees (checked every few frames);
+#  - the animation players are not left to Godot: this node advances them itself, and the further the camera is the less often
+#    (a model on a far view is a few pixels, nobody sees that it moves at 6 steps a second); the models are advanced in groups, one
+#    group per frame, so that the cost does not come in lumps.
 const _CULL_INTERVAL: int = 3
+# (height of the camera / the distance at which models are drawn up to, steps of animation per second)
+const _ANIMATION_RATES: Array[Vector2] = [Vector2(0.25, 30.0), Vector2(0.5, 15.0), Vector2(0.75, 8.0), Vector2(1.01, 5.0)]
+const _MAX_ANIMATION_GROUPS: int = 24
 var _animating: bool = true
 var _cull_frame: int = 0
+var _frame_counter: int = 0
+# Models that the camera sees (they are animated), and the time that every group of them has waited for its next step
+var _in_view: Array[Node3D] = []
+var _group_time: PackedFloat32Array = PackedFloat32Array()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _map_view:
 		return
 
@@ -47,10 +57,13 @@ func _process(_delta: float) -> void:
 			_set_animated(node, models_visible)
 		for node: Node3D in _building_nodes:
 			_set_animated(node, models_visible)
+		if not models_visible:
+			_in_view.clear()
 	if models_visible:
 		_cull_frame += 1
 		if _cull_frame % _CULL_INTERVAL == 0:
 			_cull_animation()
+		_advance_animations(delta, model_range if model_range > 0.0 else 1.0, height)
 
 
 func _set_animated(node: Node3D, animated: bool) -> void:
@@ -61,17 +74,63 @@ func _set_animated(node: Node3D, animated: bool) -> void:
 		node.process_mode = mode
 
 
+# The animation players of a model (with the ones of the models that are attached to it: the rider, the flag) do not play by themselves
+func _take_over_animation(model: Node3D) -> void:
+	var players: Array[AnimationPlayer] = []
+	for player: Node in model.find_children("*", "AnimationPlayer", true, false):
+		var animation_player: AnimationPlayer = player as AnimationPlayer
+		animation_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+		players.append(animation_player)
+	model.set_meta(&"animation_players", players)
+
+
+func _advance_animations(delta: float, model_range: float, height: float) -> void:
+	var steps_per_second: float = _ANIMATION_RATES[_ANIMATION_RATES.size() - 1].y
+	for rate: Vector2 in _ANIMATION_RATES:
+		if height / model_range <= rate.x:
+			steps_per_second = rate.y
+			break
+	# One group of the models steps in a frame: as many groups as the frames between two steps of a model
+	var groups: int = clampi(roundi(1.0 / (maxf(delta, 0.0001) * steps_per_second)), 1, _MAX_ANIMATION_GROUPS)
+	if _group_time.size() != _MAX_ANIMATION_GROUPS:
+		_group_time.resize(_MAX_ANIMATION_GROUPS)
+	for g: int in _MAX_ANIMATION_GROUPS:
+		_group_time[g] += delta
+	_frame_counter += 1
+	var group: int = _frame_counter % groups
+	var elapsed: float = _group_time[group]
+	_group_time[group] = 0.0
+	# The groups that are not in use wait from the start when they are needed again
+	for g: int in range(groups, _MAX_ANIMATION_GROUPS):
+		_group_time[g] = 0.0
+	var index: int = group
+	var count: int = _in_view.size()
+	while index < count:
+		var node: Node3D = _in_view[index]
+		if is_instance_valid(node):
+			for player: AnimationPlayer in node.get_meta(&"animation_players", []):
+				player.advance(elapsed)
+		index += groups
+
+
 # Models in the view of the camera are animated, the others are stopped
 func _cull_animation() -> void:
 	var camera: Camera3D = _map_view._camera
 	if camera == null:
 		return
+	_in_view.clear()
 	for node: Node3D in _unit_nodes.values():
 		if is_instance_valid(node):
-			_set_animated(node, camera.is_position_in_frustum(node.global_position))
+			var in_view: bool = camera.is_position_in_frustum(node.global_position)
+			_set_animated(node, in_view)
+			if in_view:
+				_in_view.append(node)
 	for node: Node3D in _building_nodes:
 		if is_instance_valid(node):
-			_set_animated(node, camera.is_position_in_frustum(node.global_position))
+			var in_view: bool = camera.is_position_in_frustum(node.global_position)
+			_set_animated(node, in_view)
+			if in_view:
+				_in_view.append(node)
 
 
 func generate_units() -> void:
@@ -219,6 +278,7 @@ func _generate_unit(unit_dict: Dictionary) -> Node3D:
 		model.tertiary_colour = unit_dict[tertiary_colour_key]
 
 	add_child(model)
+	_take_over_animation(model)
 	if not _animating:
 		_set_animated(model, false)
 	return model
@@ -245,6 +305,7 @@ func _generate_building(building_dict: Dictionary) -> void:
 	_building_nodes.append(model)
 
 	add_child(model)
+	_take_over_animation(model)
 	if not _animating:
 		_set_animated(model, false)
 
