@@ -225,6 +225,8 @@ namespace OpenVic {
 		godot::Array get_ui_profile() const;
 		/* Memory of the process from the operating system: { valid, working_set, peak_working_set, private_bytes } */
 		godot::Dictionary get_process_memory() const;
+		// The load of the processor: the cores, this process, its busiest threads (a sample of the last half second, for the debugger)
+		godot::Dictionary get_cpu_usage();
 		/* Sizes of the things that can grow without end in a leak: { action_history, wars, loans, armies, navies, ... } */
 		godot::Dictionary get_sim_sizes() const;
 		/* The speed of the game: { speed (0..4), speeds (interval of every speed in ms), paused, interval_ms } */

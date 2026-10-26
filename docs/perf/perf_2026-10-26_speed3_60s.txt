@@ -1,0 +1,245 @@
+Отчёт отладчика производительности OpenVic, 2026-10-26T11:57:09
+Версия движка: 4.7.2-stable (official)
+
+=== Обзор ===
+Кадры
+  FPS 30   кадр: среднее   30.07 мс, 95%   52.99 мс, 99%  132.97 мс, максимум  147.22 мс
+  процесс (скрипты, UI)  148.15 мс   физика    0.03 мс
+  процессор: игра занимает 0.96 ядер из 16 (6 % всего процессора), занятых потоков 1, вся система 27 %
+
+Скорость игры
+  выбрана 2   интервалы дня: 1: 3000 мс, 2: 1500 мс, 3: 1000 мс, 4: 500 мс, 5: 300 мс
+  тик симуляции: последний   82.38 мс, среднее   63.59 мс, 95%   82.38 мс, максимум  184.20 мс
+  загрузка бюджета скорости: 4 % (среднее время тика / интервал дня)
+  обновление состояния: среднее   39.38 мс, максимум   61.42 мс
+  вызов update_clock за кадр:    0.00 мс (ср.    5.52, макс.  242.19)
+  сигнал gamestate_updated (интерфейс):    6.66 мс (ср.    7.80, макс.   22.81), цвета карты    0.09 мс
+
+Память и объекты
+  процесс: в ОЗУ 1759.5 МБ (пик 3065.7 МБ), выделено 2615.9 МБ
+  Godot: статическая 618.9 МБ, видеопамять 676.6 МБ   узлов 24898, объектов 63650, ресурсов 384, сирот 264
+  симуляция: действий в истории 42, войн 0, кредитов 1
+
+Утечки: возможны: память процесса растёт на 58.7 МБ/мин, узлы +180/мин (подробности на вкладке «Память»)
+
+Подсказка: вкладка «Симуляция» показывает самые тяжёлые части тика, «Интерфейс» — какие окна тормозят при обновлении, «Тест» — замер на скорости.
+
+=== Симуляция ===
+Части тика и обновления (время в мс; доля — от среднего времени родителя верхнего уровня)
+часть                                         послед.  среднее    макс.  вызовов   доля
+update_gamestate                               39.37   41.49   61.42       42   100%
+  modifier_sums                                 3.08    3.34    5.36       42     8%
+  map (provinces, states)                      16.84   17.03   25.19       42    41%
+  countries                                     8.86    9.45   11.95       42    23%
+  units                                         0.02    0.02    0.03       42     0%
+  callback (colours and interface)             10.56   11.64   27.01       42    28%
+tick                                           82.37   73.42  184.20       41   100%
+  money ledger begin                            0.00    0.00    0.01       41     0%
+  trade network                                 0.18    2.00  100.45       41     3%
+  countries before the map                      0.85    0.73    4.30       41     1%
+  money ledger phases                           0.00    0.00    0.00      287     0%
+  map_tick (provinces, pops)                   24.60   23.01   27.21       41    31%
+  factories                                     0.13    0.11    0.13       41     0%
+  market (orders)                              48.72   36.07   49.31       41    49%
+  countries after the map                       7.46    6.91    9.52       41     9%
+  units                                         0.01    0.01    0.01       41     0%
+  wars                                          0.32    0.32    0.48       41     0%
+  credits                                       0.00    0.01    0.22       41     0%
+  colonisation                                  0.00    0.00    0.00       41     0%
+  investment                                    0.08    0.08    0.18       41     0%
+  money ledger (checks)                         0.00    0.00    0.00       41     0%
+  monthly                                     119.21  119.21  119.21        1   162%
+    price history                               0.00    0.00    0.00        1     0%
+    factory takeovers                           0.01    0.01    0.01        1     0%
+    pop dynamics                               12.89   12.89   12.89        1    18%
+    politics                                   92.25   92.25   92.25        1   126%
+    rebels                                      3.62    3.62    3.62        1     5%
+    research                                    0.24    0.24    0.24        1     0%
+    country AI                                 10.19   10.19   10.19        1    14%
+
+Самое тяжёлое по собственному времени (без вложенных частей, по среднему)
+   1. tick/monthly/politics                                   92.25 мс
+   2. tick/market (orders)                                    36.07 мс
+   3. tick/map_tick (provinces, pops)                         23.01 мс
+   4. update_gamestate/map (provinces, states)                17.03 мс
+   5. tick/monthly/pop dynamics                               12.89 мс
+   6. update_gamestate/callback (colours and interface)       11.64 мс
+   7. tick/monthly/country AI                                 10.19 мс
+   8. update_gamestate/countries                               9.45 мс
+   9. tick/countries after the map                             6.91 мс
+  10. tick/monthly/rebels                                      3.62 мс
+
+=== Интерфейс ===
+Обновление интерфейса при каждом обновлении состояния
+  цвета карты    0.09 мс, все обработчики сигнала    6.66 мс (среднее    7.80, максимум   22.81), обновлений: 42
+
+обработчик                                                      среднее  послед.    макс.  вызовов
+UnitBanners.gd (@Control@1303) :: _refresh                        4.45    3.70   16.82       42
+ModelManager.gd (ModelManager) :: _sync_units                     2.33    1.87   11.30       42
+Topbar.gd (Topbar) :: _update_info                                0.60    0.59    1.05       42
+BillboardManager.gd (BillboardManager) :: _on_game_state_chang    0.17    0.26    0.27       42
+ProvinceOverviewPanel.gd (ProvinceOverviewPanel) :: _update_in    0.01    0.01    0.01       42
+PeaceWindow.gd (@Control@1079) :: _refresh                        0.01    0.01    0.01       42
+WarPanel.gd (@PanelContainer@979) :: _refresh                     0.00    0.00    0.01       42
+NotificationFeed.gd (@VBoxContainer@1302) :: _poll                0.00    0.00    0.01       42
+FactoryStatsWindow.gd (@Control@408) :: _on_gamestate_updated     0.00    0.00    0.00       42
+RecruitmentWindow.gd (@Control@1602) :: _refresh                  0.00    0.00    0.00       42
+CreditPanel.gd (@Control@456) :: _refresh                         0.00    0.00    0.00       42
+BudgetMenu.gd (BudgetMenu) :: _update_info                        0.00    0.00    0.00       42
+ProductionMenu.gd (ProductionMenu) :: _update_info                0.00    0.00    0.00       42
+MilitaryMenu.gd (MilitaryMenu) :: _update_info                    0.00    0.00    0.00       42
+FleetPanel.gd (@Control@1730) :: _refresh                         0.00    0.00    0.00       42
+ArmyPanel.gd (@Control@1669) :: _refresh                          0.00    0.00    0.00       42
+TradeMenu.gd (TradeMenu) :: _update_info                          0.00    0.00    0.00       42
+PopulationMenu.gd (PopulationMenu) :: _update_info                0.00    0.00    0.00       42
+MarketWindow.gd (@Control@1129) :: _refresh                       0.00    0.00    0.00       42
+PoliticsMenu.gd (PoliticsMenu) :: _update_info                    0.00    0.00    0.00       42
+TechnologyMenu.gd (TechnologyMenu) :: _update_info                0.00    0.00    0.00       42
+ColonisationWindow.gd (@Control@1197) :: _refresh                 0.00    0.00    0.00       42
+PoliticsWindow.gd (@Control@1151) :: _refresh                     0.00    0.00    0.00       42
+DiplomacyMenu.gd (DiplomacyMenu) :: _update_info                  0.00    0.00    0.00       42
+RankingWindow.gd (@Control@1237) :: _refresh                      0.00    0.00    0.00       42
+
+=== Скрипты ===
+Секундомеры скриптов (PerfProbe.begin / end в тяжёлых местах)
+место                                     среднее  послед.    макс.   вызовов  всего, с
+GameSession.update_clock                    5.53    0.01  242.21      2252      4.33
+ModelManager._sync_units                    2.38    1.86   11.29        42      0.10
+UnitBanners._process                        1.33    1.02    8.00      2252      1.71
+MapView._process                            0.08    0.07    1.30      2252      0.17
+
+=== Память ===
+Память и объекты (замер каждые 0.5 с, наблюдение 61 с)
+показатель                         сейчас     в начале         рост     в минуту
+Память процесса (ОЗУ)           1759.4 МБ    1695.3 МБ      64.2 МБ      58.7 МБ
+Выделено процессом              2615.9 МБ    2537.9 МБ      78.0 МБ      73.0 МБ
+Память Godot (статич.)           618.8 МБ     611.7 МБ       7.1 МБ       8.4 МБ
+Видеопамять всего                676.6 МБ     676.0 МБ       0.7 МБ       0.7 МБ
+  текстуры                       450.3 МБ     450.1 МБ       0.2 МБ       0.2 МБ
+  буферы                         107.4 МБ     106.9 МБ       0.5 МБ       0.5 МБ
+Узлы сцены                          24898        24733         +165       +179.7
+Объекты                             63649        63081         +568       +588.3
+Ресурсы                               384          384           +0         +0.0
+Узлы-сироты                           264          264           +0         -0.0
+
+Утечки: возможны: память процесса растёт на 58.7 МБ/мин, узлы +180/мин (подробности на вкладке «Память»)
+
+Как искать утечку
+  Растут узлы и сироты — окна создают элементы и не удаляют (смотрите, что вы делали в эти минуты).
+  Растёт память процесса при стабильных узлах — данные симуляции или текстуры (ищите по списку «Симуляция» и размерам ниже).
+  Растёт видеопамять — текстуры карты или окна запекания пересоздаются.
+
+Размеры данных симуляции
+  action_history       42
+  wars                 0
+  loans                1
+
+=== Рендер ===
+Рендер
+  вызовов отрисовки 1373   объектов в кадре 3898   примитивов 129485
+  время кадра: CPU    3.06 мс, GPU    5.66 мс (замер Godot)
+  видеопамять: всего 676.6 МБ, текстуры 450.3 МБ, буферы 107.4 МБ
+
+Окно и карта
+  окно 2560x1440   масштаб содержимого (2560, 1080)   режим окна 3
+  качество карты 2, тени: вкл, размер 0.25, тёмность 0.1
+
+Если GPU долго (≥ кадра), снизьте «Качество карты» или тени в настройках; если CPU — смотрите «Скрипты» и «Интерфейс».
+
+=== Журнал ===
+Долгие кадры (> 50 мс или втрое дольше среднего) и долгие тики (дольше интервала дня или 100 мс)
+ время, с что          мс  самые тяжёлые части симуляции в этот момент
+     60.7 кадр    131.21  tick/monthly 119.2; tick/monthly/politics 92.2; tick 82.4; tick/market (orders) 48.7
+     59.2 кадр    139.87  tick/monthly 119.2; tick/monthly/politics 92.2; tick 79.9; tick/market (orders) 49.3
+     57.7 кадр    132.70  tick/monthly 119.2; tick/monthly/politics 92.2; tick 81.5; tick/market (orders) 47.9
+     56.2 кадр    132.97  tick/monthly 119.2; tick/monthly/politics 92.2; tick 76.4; tick/market (orders) 46.5
+     54.6 кадр    137.61  tick/monthly 119.2; tick/monthly/politics 92.2; tick 76.0; tick/market (orders) 45.0
+     53.1 кадр    135.41  tick/monthly 119.2; tick/monthly/politics 92.2; tick 79.9; tick/market (orders) 47.7
+     51.7 кадр    132.09  tick/monthly 119.2; tick/monthly/politics 92.2; tick 72.2; tick/market (orders) 42.4
+     50.1 кадр    121.75  tick/monthly 119.2; tick/monthly/politics 92.2; tick 56.6; update_gamestate 40.0
+     48.6 кадр    115.97  tick/monthly 119.2; tick/monthly/politics 92.2; tick 58.8; update_gamestate 40.9
+     47.1 кадр    135.10  tick/monthly 119.2; tick/monthly/politics 92.2; update_gamestate 61.4; tick 57.6
+     46.0 тик     184.20  tick 184.2; tick/monthly 119.2; tick/monthly/politics 92.2; update_gamestate 57.1
+     45.7 кадр    132.54  tick 184.2; tick/monthly 119.2; tick/monthly/politics 92.2; update_gamestate 57.1
+     44.0 кадр    124.26  tick 54.9; update_gamestate 40.0; tick/market (orders) 23.7; tick/map_tick (provinces, pops) 21.3
+     43.8 кадр    115.91  tick 56.2; update_gamestate 39.6; tick/market (orders) 27.7; tick/map_tick (provinces, pops) 20.5
+     42.5 кадр    111.34  tick 56.2; update_gamestate 39.6; tick/market (orders) 27.7; tick/map_tick (provinces, pops) 20.5
+     41.0 кадр    113.48  tick 52.1; update_gamestate 41.5; tick/market (orders) 24.1; tick/map_tick (provinces, pops) 19.8
+     39.6 кадр    134.02  tick 56.8; update_gamestate 40.5; tick/market (orders) 25.8; tick/map_tick (provinces, pops) 23.2
+     38.0 кадр    114.55  tick 51.8; update_gamestate 37.3; tick/market (orders) 23.9; tick/map_tick (provinces, pops) 19.8
+     36.5 кадр    103.19  tick 55.6; update_gamestate 37.9; tick/market (orders) 27.1; tick/map_tick (provinces, pops) 20.1
+     35.0 кадр    116.54  tick 51.4; update_gamestate 40.7; tick/map_tick (provinces, pops) 22.1; tick/market (orders) 21.9
+     33.5 кадр     97.81  tick 50.1; update_gamestate 37.6; tick/market (orders) 23.3; tick/map_tick (provinces, pops) 19.8
+     32.0 кадр    113.87  tick 53.4; update_gamestate 38.4; tick/market (orders) 24.1; tick/map_tick (provinces, pops) 21.9
+     31.7 кадр    135.37  tick 55.8; update_gamestate 38.3; tick/market (orders) 24.9; tick/map_tick (provinces, pops) 23.1
+     30.5 кадр    103.10  tick 55.8; update_gamestate 38.3; tick/market (orders) 24.9; tick/map_tick (provinces, pops) 23.1
+     29.0 кадр    121.79  tick 55.4; update_gamestate 41.9; tick/market (orders) 24.1; tick/map_tick (provinces, pops) 20.5
+     27.4 кадр    106.64  tick 54.5; update_gamestate 39.0; tick/market (orders) 24.4; tick/map_tick (provinces, pops) 21.4
+     25.9 кадр    122.90  tick 56.3; update_gamestate 38.7; tick/map_tick (provinces, pops) 25.1; tick/market (orders) 24.3
+     24.5 кадр    133.70  tick 54.3; update_gamestate 39.2; tick/market (orders) 24.1; tick/map_tick (provinces, pops) 22.4
+     22.9 кадр    105.71  tick 53.8; update_gamestate 35.6; tick/market (orders) 25.7; tick/map_tick (provinces, pops) 20.0
+     21.4 кадр    147.22  tick 55.8; update_gamestate 36.0; tick/market (orders) 23.6; tick/map_tick (provinces, pops) 23.4
+     19.9 кадр    116.67  tick 59.5; update_gamestate 35.1; tick/market (orders) 24.7; tick/map_tick (provinces, pops) 22.8
+     18.3 кадр    116.67  tick 58.4; update_gamestate 44.7; tick/market (orders) 29.5; update_gamestate/map (provinces, states) 22.9
+     16.8 кадр    105.46  tick 58.2; update_gamestate 35.7; tick/market (orders) 25.9; tick/map_tick (provinces, pops) 23.1
+     15.3 кадр    108.33  tick 51.7; update_gamestate 35.4; tick/market (orders) 24.8; tick/map_tick (provinces, pops) 19.4
+     13.8 кадр    112.08  tick 61.2; update_gamestate 36.6; tick/market (orders) 27.1; tick/map_tick (provinces, pops) 25.3
+     12.2 кадр     98.05  tick 47.7; update_gamestate 35.0; tick/market (orders) 20.5; tick/map_tick (provinces, pops) 19.1
+     10.7 кадр    102.59  tick 50.1; update_gamestate 37.5; tick/map_tick (provinces, pops) 21.8; tick/market (orders) 20.0
+      9.2 кадр     94.89  tick 48.6; update_gamestate 34.2; tick/map_tick (provinces, pops) 22.2; tick/market (orders) 19.1
+      7.7 кадр    101.78  tick 50.8; update_gamestate 39.2; tick/map_tick (provinces, pops) 20.8; tick/market (orders) 20.6
+      6.2 кадр     94.46  tick 51.0; update_gamestate 34.5; tick/market (orders) 21.7; tick/map_tick (provinces, pops) 21.4
+      4.7 кадр    129.33  tick 46.5; update_gamestate 35.4; tick/map_tick (provinces, pops) 22.3; tick/market (orders) 16.6
+      3.2 кадр     96.97  tick 50.9; update_gamestate 36.4; tick/map_tick (provinces, pops) 24.3; tick/market (orders) 18.6
+      1.7 кадр    109.52  tick 51.1; update_gamestate 34.9; tick/map_tick (provinces, pops) 21.9; tick/market (orders) 21.0
+
+=== Тест ===
+Тест производительности
+  Выберите скорость и нажмите «Запустить»: игра идёт 60 секунд на этой скорости, отладчик пишет кадры, тики и память,
+  потом показывает итог и сохраняет отчёт в user://perf/.
+
+Результат теста: скорость 3 (день каждые 1500 мс), 60 с
+  игровых дней: 41 (0.68 дня/с, при пределе 0.67)
+  кадры: среднее 26.6 мс, 95% 51.4 мс, 99% 115.9 мс, максимум 147.2 мс, FPS среднее 38
+  тики: среднее 63.6 мс, 95% 82.4 мс, 99% 147.7 мс, максимум 184.2 мс, дольше интервала: 0 из 41
+  память процесса: 1695.3 МБ → 1759.4 МБ, узлов 24733 → 24898, объектов 63081 → 63649, сирот 264 → 264
+  процессор (117 замеров): игра занимает в среднем 1.22 ядер (пик 2.07), занятых потоков 1.1, вся система 27 %
+  ядра в среднем: 0: 61%  1: 48%  2: 58%  3: 10%  4: 27%  5: 5%  6: 20%  7: 4%  8: 13%  9: 3%  10: 53%  11: 56%  12: 8%  13: 8%  14: 44%  15: 7%
+  вывод: скорость держится
+  самые тяжёлые части тика (среднее, мс):
+    tick/monthly                                   119.21
+    tick/monthly/politics                          92.25
+    tick/market (orders)                           36.07
+    tick/map_tick (provinces, pops)                23.01
+    update_gamestate/map (provinces, states)       17.03
+    tick/monthly/pop dynamics                      12.89
+
+=== Процессор ===
+Процессор (выборка каждые полсекунды)
+  логических ядер: 16   игра занимает 0.96 ядер (6.0 % процессора), занятых потоков (> 10 % ядра): 1
+  вся система: 27 % (с другими программами)
+
+Нагрузка ядер (все программы вместе)
+  ядро  0   85%  ████████████████
+  ядро  1   30%  ██████
+  ядро  2   61%  ████████████
+  ядро  3   21%  ████
+  ядро  4   21%  ████
+  ядро  5    9%  █
+  ядро  6   21%  ████
+  ядро  7    6%  █
+  ядро  8   12%  ██
+  ядро  9    3%  
+  ядро 10   42%  ████████
+  ядро 11   76%  ███████████████
+  ядро 12    6%  █
+  ядро 13    0%  
+  ядро 14   30%  ██████
+  ядро 15    6%  █
+
+Самые занятые потоки игры (100 % = одно целое ядро)
+поток       ядра  имя
+21852        96%  
+
+Тик симуляции делят потоки-работники (по числу логических ядер); один поток около 100 % — главный поток Godot (интерфейс, кадр), он же часто мешает масштабированию. Число потоков симуляции можно ограничить ключом -j у headless-версии.
+

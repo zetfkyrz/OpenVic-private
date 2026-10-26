@@ -10,7 +10,8 @@ extends CanvasLayer
 ##    per minute and a verdict about possible leaks;
 ##  - "Рендер": draw calls, primitives, render time of the CPU and the GPU;
 ##  - "Журнал": slow frames and slow ticks with the parts that were the heaviest at that moment;
-##  - "Тест": a benchmark that runs the game for a time at a speed and sums up the frames and ticks.
+##  - "Тест": a benchmark that runs the game for a time at a speed and sums up the frames and ticks (also the load of the cores);
+##  - "Процессор": the load of every logical core and of the game, how many cores the game really uses, its busiest threads.
 ## The report (all tabs and the samples) is saved to user://perf/ with the button.
 
 const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
@@ -21,7 +22,7 @@ const _LAYOUT_FILE: String = "user://perf_debugger.cfg"
 const _MIN_PANEL_SIZE := Vector2(560, 300)
 const _MIN_SCALE: float = 0.6
 const _MAX_SCALE: float = 2.5
-const _TABS: PackedStringArray = ["Обзор", "Симуляция", "Интерфейс", "Скрипты", "Память", "Рендер", "Журнал", "Тест"]
+const _TABS: PackedStringArray = ["Обзор", "Симуляция", "Интерфейс", "Скрипты", "Память", "Рендер", "Журнал", "Тест", "Процессор"]
 const _FRAME_HISTORY: int = 300
 const _SAMPLE_INTERVAL: float = 0.5
 const _MAX_SAMPLES: int = 2400
@@ -40,6 +41,7 @@ var _tick_graph: Graph
 var _update_graph: Graph
 var _memory_graph: Graph
 var _nodes_graph: Graph
+var _cpu_graph: Graph
 var _tab_buttons: Array[Button] = []
 var _status: Label
 var _tab: int = 0
@@ -78,6 +80,7 @@ var _bench_tick_calls_start: int = 0
 var _bench_start_sample: Dictionary = {}
 var _bench_result: String = ""
 var _bench_buttons: Array[Button] = []
+var _bench_cpu: Array[Dictionary] = []
 
 
 ## A line chart of the last values with optional horizontal lines (budgets)
@@ -211,6 +214,9 @@ func _build_ui() -> void:
 	_nodes_graph = _make_graph("Узлы сцены", [])
 	_nodes_graph.unit = ""
 	_nodes_graph.colour = Color(0.9, 0.75, 0.3)
+	_cpu_graph = _make_graph("Процессор: сколько ядер занимает игра", [])
+	_cpu_graph.unit = "ядер"
+	_cpu_graph.colour = Color(0.55, 0.7, 1.0)
 
 	_text = RichTextLabel.new()
 	_text.bbcode_enabled = true
@@ -360,6 +366,7 @@ func _set_tab(tab: int) -> void:
 	_update_graph.visible = tab == 0 or tab == 1
 	_memory_graph.visible = tab == 4
 	_nodes_graph.visible = tab == 4
+	_cpu_graph.visible = tab == 0 or tab == 8
 	var bench: Node = _panel.find_child("Bench", true, false)
 	if bench is CanvasItem:
 		(bench as CanvasItem).visible = tab == 7
@@ -376,6 +383,7 @@ func _reset_all() -> void:
 	_samples.clear()
 	_spikes.clear()
 	_last_tick_calls = -1
+	_bench_cpu.clear()
 	_start_msec = Time.get_ticks_msec()
 
 
@@ -454,6 +462,15 @@ func _take_sample() -> void:
 		&"buffer": Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED),
 		&"draw_calls": Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
 	}
+	var cpu: Dictionary = GameSingleton.get_cpu_usage()
+	if cpu.get("valid", false):
+		sample[&"cpu_system"] = float(cpu["system_percent"])
+		sample[&"cpu_process"] = float(cpu["process_percent"])
+		sample[&"cpu_cores"] = float(cpu["process_cores"])
+		sample[&"cpu_busy_threads"] = int(cpu["busy_threads"])
+		sample[&"cpu_each"] = cpu["cores"]
+		if _bench_running:
+			_bench_cpu.append(sample)
 	_samples.append(sample)
 	if _samples.size() > _MAX_SAMPLES:
 		_samples.pop_front()
@@ -518,6 +535,12 @@ func _refresh() -> void:
 	_update_graph.values = update_history
 	for graph: Graph in [_frame_graph, _tick_graph, _update_graph]:
 		graph.queue_redraw()
+	if _tab == 0 or _tab == 8:
+		var cores_used := PackedFloat32Array()
+		for sample: Dictionary in _samples:
+			cores_used.append(float(sample.get(&"cpu_cores", 0.0)))
+		_cpu_graph.values = cores_used
+		_cpu_graph.queue_redraw()
 	if _tab == 4:
 		var megabytes := PackedFloat32Array()
 		var nodes := PackedFloat32Array()
@@ -553,6 +576,8 @@ func _build_text(tab: int) -> String:
 			return _text_spikes()
 		7:
 			return _text_benchmark()
+		8:
+			return _text_cpu()
 	return ""
 
 
@@ -608,6 +633,12 @@ func _text_overview() -> String:
 		_ms(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 8.0, 16.0),
 		_ms(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, 4.0, 8.0),
 	])
+	var cpu: Dictionary = GameSingleton.get_cpu_usage()
+	if cpu.get("valid", false):
+		lines.append("  процессор: игра занимает %s ядер из %d (%.0f %% всего процессора), занятых потоков %d, вся система %.0f %%" % [
+			("%.2f" % float(cpu["process_cores"])), int(cpu["logical_cores"]), float(cpu["process_percent"]), int(cpu["busy_threads"]),
+			float(cpu["system_percent"]),
+		])
 	lines.append("")
 	lines.append("[b]Скорость игры[/b]")
 	var speed_texts: PackedStringArray = []
@@ -943,6 +974,7 @@ func _finish_benchmark() -> void:
 			_mb(float(_bench_start_sample[&"rss"])), _mb(float(last[&"rss"])), int(_bench_start_sample[&"nodes"]), int(last[&"nodes"]),
 			int(_bench_start_sample[&"objects"]), int(last[&"objects"]), int(_bench_start_sample[&"orphans"]), int(last[&"orphans"]),
 		])
+	lines.append_array(_bench_cpu_lines())
 	var verdict: String = "[color=#c8f0c8]скорость держится[/color]"
 	if over_budget > tick_history.size() / 10:
 		verdict = "[color=#ff6b5e]тики не укладываются в интервал дня: на этой скорости игра тормозит (нужны более медленный интервал или оптимизация самых тяжёлых частей)[/color]"
@@ -960,6 +992,69 @@ func _finish_benchmark() -> void:
 			break
 	_bench_result = "\n".join(lines)
 	_save_report()
+
+
+## The load of the processor during the benchmark: the average over the samples, every core
+func _bench_cpu_lines() -> PackedStringArray:
+	var lines: PackedStringArray = []
+	if _bench_cpu.is_empty():
+		return lines
+	var system: float = 0.0
+	var process_cores: float = 0.0
+	var process_peak: float = 0.0
+	var busy: float = 0.0
+	var each: PackedFloat32Array = PackedFloat32Array()
+	for sample: Dictionary in _bench_cpu:
+		system += float(sample[&"cpu_system"])
+		process_cores += float(sample[&"cpu_cores"])
+		process_peak = maxf(process_peak, float(sample[&"cpu_cores"]))
+		busy += float(sample[&"cpu_busy_threads"])
+		var cores: PackedFloat32Array = sample[&"cpu_each"]
+		if each.size() < cores.size():
+			each.resize(cores.size())
+		for i: int in cores.size():
+			each[i] += cores[i]
+	var count: float = float(_bench_cpu.size())
+	lines.append("  процессор (%d замеров): игра занимает в среднем %.2f ядер (пик %.2f), занятых потоков %.1f, вся система %.0f %%" % [
+		_bench_cpu.size(), process_cores / count, process_peak, busy / count, system / count,
+	])
+	var parts: PackedStringArray = []
+	for i: int in each.size():
+		parts.append("%d: %.0f%%" % [i, each[i] / count])
+	lines.append("  ядра в среднем: " + "  ".join(parts))
+	return lines
+
+
+func _text_cpu() -> String:
+	var lines: PackedStringArray = []
+	var cpu: Dictionary = GameSingleton.get_cpu_usage()
+	lines.append("[b]Процессор[/b] (выборка каждые полсекунды)")
+	if not cpu.get("valid", false):
+		lines.append("Пока нет данных (нужно два замера подряд) или система не даёт эти данные.")
+		return "\n".join(lines)
+	var logical: int = int(cpu["logical_cores"])
+	lines.append("  логических ядер: %d   игра занимает %s ядер (%s %% процессора), занятых потоков (> 10 %% ядра): %d" % [
+		logical, ("%.2f" % float(cpu["process_cores"])), ("%.1f" % float(cpu["process_percent"])), int(cpu["busy_threads"]),
+	])
+	lines.append("  вся система: %.0f %% (с другими программами)" % float(cpu["system_percent"]))
+	lines.append("")
+	lines.append("[b]Нагрузка ядер[/b] (все программы вместе)")
+	var cores: PackedFloat32Array = cpu["cores"]
+	for i: int in cores.size():
+		var percent: float = cores[i]
+		var bar: String = "█".repeat(int(percent / 5.0))
+		lines.append("  ядро %2d  %s  %s" % [i, ("%3.0f%%" % percent).lpad(4), "[color=%s]%s[/color]" % [_colour_ms(percent, 60.0, 90.0), bar]])
+	lines.append("")
+	lines.append("[b]Самые занятые потоки игры[/b] (100 % = одно целое ядро)")
+	lines.append("[color=#8899aa]%s %s  %s[/color]" % ["поток".rpad(8), "ядра".lpad(7), "имя"])
+	for thread: Dictionary in cpu["threads"]:
+		var percent: float = float(thread["percent"])
+		if percent < 0.5:
+			break
+		lines.append("%s %s  %s" % [str(int(thread["id"])).rpad(8), ("%5.0f%%" % percent).lpad(7), String(thread["name"])])
+	lines.append("")
+	lines.append("[color=#8899aa]Тик симуляции делят потоки-работники (по числу логических ядер); один поток около 100 % — главный поток Godot (интерфейс, кадр), он же часто мешает масштабированию. Число потоков симуляции можно ограничить ключом -j у headless-версии.[/color]")
+	return "\n".join(lines)
 
 
 func _text_benchmark() -> String:
@@ -1006,12 +1101,25 @@ func _save_report() -> void:
 	var csv_path: String = "user://perf/perf_" + stamp + ".csv"
 	var csv: FileAccess = FileAccess.open(csv_path, FileAccess.WRITE)
 	if csv != null:
-		csv.store_line("t_s,fps,frame_ms,rss_bytes,private_bytes,godot_static,nodes,objects,resources,orphans,vram,texture,buffer,draw_calls")
+		var core_count: int = 0
 		for sample: Dictionary in _samples:
-			csv.store_line("%.1f,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d" % [
+			if sample.has(&"cpu_each"):
+				core_count = maxi(core_count, (sample[&"cpu_each"] as PackedFloat32Array).size())
+		var core_columns: String = ""
+		for i: int in core_count:
+			core_columns += ",core%d" % i
+		csv.store_line("t_s,fps,frame_ms,rss_bytes,private_bytes,godot_static,nodes,objects,resources,orphans,vram,texture,buffer,draw_calls,cpu_system_percent,cpu_process_cores,busy_threads" + core_columns)
+		for sample: Dictionary in _samples:
+			var cpu_columns: String = ",%.1f,%.2f,%d" % [
+				float(sample.get(&"cpu_system", 0.0)), float(sample.get(&"cpu_cores", 0.0)), int(sample.get(&"cpu_busy_threads", 0)),
+			]
+			var each: PackedFloat32Array = sample.get(&"cpu_each", PackedFloat32Array())
+			for i: int in core_count:
+				cpu_columns += ",%.0f" % (each[i] if i < each.size() else 0.0)
+			csv.store_line("%.1f,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d%s" % [
 				float(sample[&"t"]), int(sample[&"fps"]), float(sample[&"frame_ms"]), int(sample[&"rss"]), int(sample[&"private"]),
 				int(sample[&"static"]), int(sample[&"nodes"]), int(sample[&"objects"]), int(sample[&"resources"]), int(sample[&"orphans"]),
-				int(sample[&"vram"]), int(sample[&"texture"]), int(sample[&"buffer"]), int(sample[&"draw_calls"]),
+				int(sample[&"vram"]), int(sample[&"texture"]), int(sample[&"buffer"]), int(sample[&"draw_calls"]), cpu_columns,
 			])
 		csv.close()
 	_status.text = "Отчёт сохранён: " + ProjectSettings.globalize_path(path)

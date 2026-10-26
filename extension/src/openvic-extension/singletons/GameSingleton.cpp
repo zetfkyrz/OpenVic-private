@@ -121,6 +121,7 @@ void GameSingleton::_bind_methods() {
 	OV_BIND_METHOD(GameSingleton::get_frame_profile);
 	OV_BIND_METHOD(GameSingleton::get_ui_profile);
 	OV_BIND_METHOD(GameSingleton::get_process_memory);
+	OV_BIND_METHOD(GameSingleton::get_cpu_usage);
 	OV_BIND_METHOD(GameSingleton::get_sim_sizes);
 	OV_BIND_METHOD(GameSingleton::get_clock_info);
 	OV_BIND_METHOD(GameSingleton::start_economy_recording);
@@ -305,6 +306,41 @@ Dictionary GameSingleton::get_process_memory() const {
 	result["working_set"] = static_cast<int64_t>(memory.working_set);
 	result["peak_working_set"] = static_cast<int64_t>(memory.peak_working_set);
 	result["private_bytes"] = static_cast<int64_t>(memory.private_bytes);
+	return result;
+}
+
+Dictionary GameSingleton::get_cpu_usage() {
+	// The sample compares with the previous call, so it is renewed at most every 0.4 seconds and kept between
+	static Dictionary cached;
+	static uint64_t last_usec = 0;
+	const uint64_t now = Time::get_singleton()->get_ticks_usec();
+	if (!cached.is_empty() && now - last_usec < 400000) {
+		return cached;
+	}
+	last_usec = now;
+	const CpuUsage usage = sample_cpu_usage();
+	Dictionary result;
+	result["valid"] = usage.valid;
+	result["logical_cores"] = usage.logical_cores;
+	result["system_percent"] = usage.system_percent;
+	result["process_percent"] = usage.process_percent;
+	result["process_cores"] = usage.process_cores;
+	result["busy_threads"] = usage.busy_threads;
+	PackedFloat32Array cores;
+	for (const double percent : usage.core_percent) {
+		cores.push_back(static_cast<float>(percent));
+	}
+	result["cores"] = cores;
+	Array threads;
+	for (std::size_t i = 0; i < usage.threads.size() && i < 24; i++) {
+		Dictionary thread;
+		thread["id"] = static_cast<int64_t>(usage.threads[i].id);
+		thread["name"] = String::utf8(usage.threads[i].name.c_str());
+		thread["percent"] = usage.threads[i].percent;
+		threads.push_back(thread);
+	}
+	result["threads"] = threads;
+	cached = result;
 	return result;
 }
 
