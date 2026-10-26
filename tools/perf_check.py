@@ -11,9 +11,8 @@ Add --exe <path to openvic-simulation.headless> and --vic2 <path to Victoria 2> 
 The baseline is only valid for the commit it was made on. A change that is MEANT to change the game (balance, rules) needs a new
 baseline in its own commit (and a new Replay.hpp SIMULATION_VERSION if saved games are affected).
 
-The hash is made of the CHECKSUM log lines as they are printed, with the source position of the log call ("[main.cpp:748]", the call in
-print_state_checksum of src/headless/main.cpp). Lines added to main.cpp ABOVE that function move the number and change the hash although the
-state is the same: add new command line options below it (or make a new baseline).
+The hash is made of what follows the word CHECKSUM in the log lines: the state of the pops, treasuries, owners, armies and the full
+StateHash (politics, factories, prices, ...) of every day. The time stamp and the source position of the log call do not count.
 """
 import argparse
 import hashlib
@@ -57,7 +56,8 @@ def run(exe, vic2, arguments, threads):
     command = [exe, "-b", vic2] + arguments + (["-j", str(threads)] if threads else [])
     started = time.time()
     result = subprocess.run(command, capture_output=True, text=True, errors="replace")
-    lines = [TIMESTAMP.sub("", line) for line in result.stdout.splitlines() if "CHECKSUM" in line]
+    # only what follows the word CHECKSUM counts: the time stamp and the place in main.cpp ([main.cpp:748]) are not part of the state
+    lines = [line[line.index("CHECKSUM"):] for line in result.stdout.splitlines() if "CHECKSUM" in line]
     if not lines:
         sys.exit("No CHECKSUM lines (the run failed?): " + " ".join(command) + "\n" + result.stdout[-1500:] + result.stderr[-1500:])
     digest = hashlib.sha256("\n".join(lines).encode()).hexdigest()
