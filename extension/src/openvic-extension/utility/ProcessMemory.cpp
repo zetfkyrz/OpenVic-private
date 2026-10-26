@@ -86,6 +86,21 @@ namespace {
 }
 #endif
 
+void OpenVic::set_current_thread_name(char const* name) {
+#if defined(_WIN32)
+	using SetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PCWSTR);
+	static const SetThreadDescriptionFn set_description =
+		reinterpret_cast<SetThreadDescriptionFn>(GetProcAddress(GetModuleHandleA("kernel32.dll"), "SetThreadDescription"));
+	if (set_description != nullptr) {
+		wchar_t wide[64] = {};
+		for (int i = 0; i < 63 && name[i] != 0; ++i) {
+			wide[i] = static_cast<wchar_t>(name[i]);
+		}
+		set_description(GetCurrentThread(), wide);
+	}
+#endif
+}
+
 CpuUsage OpenVic::sample_cpu_usage() {
 	CpuUsage result;
 	result.logical_cores = static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));

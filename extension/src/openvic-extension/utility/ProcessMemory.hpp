@@ -34,4 +34,7 @@ namespace OpenVic {
 	};
 
 	CpuUsage sample_cpu_usage();
+
+	/* Names the calling thread (the load of the threads is shown by name in the debugger). */
+	void set_current_thread_name(char const* name);
 }

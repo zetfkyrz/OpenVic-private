@@ -37,12 +37,9 @@ namespace OpenVic {
 		void reset_player_singleton();
 
 		// Player country
-		[[nodiscard]] constexpr CountryInstance* get_player_country() {
-			return player_country;
-		}
-		[[nodiscard]] constexpr CountryInstance const* get_player_country() const {
-			return player_country;
-		}
+		// (Out of line: it waits for the simulation thread, like every other access of the interface to the simulation)
+		[[nodiscard]] CountryInstance* get_player_country();
+		[[nodiscard]] CountryInstance const* get_player_country() const;
 		void set_player_country(CountryInstance* new_player_country);
 		void set_player_country_by_province_number(int32_t province_number);
 		bool set_player_country_by_identifier(godot::String const& identifier);

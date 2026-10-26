@@ -1,6 +1,13 @@
 #pragma once
 
+#include <atomic>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
+#include <source_location>
+#include <thread>
+
+#include "openvic-extension/utility/ProcessMemory.hpp"
 
 #include <vector>
 
@@ -88,6 +95,48 @@ namespace OpenVic {
 		void _emit_gamestate_updated_profiled();
 		void _sync_profiling();
 
+		// ---- The simulation thread
+		// Rule: the thread works only between a call of update_clock that starts a day (it is the only place that starts it) and the next
+		// calls of the interface, which wait for it in get_instance_manager. So the interface and the thread never touch the simulation at
+		// the same time, and the code of the simulation needs no locks of its own. What the interface has to be told (the signal
+		// gamestate_updated, the colours of the map) is done by the main thread afterwards, in update_clock.
+		bool sim_thread_enabled = true; // OV_SIM_THREAD=0 or the button of the debugger (F12) switches it off
+		std::thread sim_thread;
+		std::thread::id sim_thread_id;
+		std::thread::id main_thread_id = std::this_thread::get_id(); // the thread that makes the singleton: the thread of the interface
+		mutable std::mutex sim_mutex;
+		mutable std::condition_variable sim_wake_cv, sim_done_cv;
+		bool sim_job_requested = false;
+		bool sim_stop = false;
+		std::atomic<bool> sim_busy { false };
+		std::atomic<bool> sim_callback_pending { false };
+		std::atomic<double> sim_last_job_ms { 0.0 };
+		struct WaitSite {
+			uint64_t calls = 0;
+			double ms = 0.0;
+		};
+		mutable std::map<std::string, WaitSite> sim_wait_sites;
+		mutable uint64_t sim_wait_calls = 0;
+		mutable double sim_wait_ms = 0.0;
+		uint64_t sim_jobs = 0;
+		double sim_job_ms_sum = 0.0;
+		// What the debugger shows while a day is being computed (the live values are not readable then)
+		godot::Array cached_sim_profile;
+		godot::PackedFloat32Array cached_tick_history, cached_update_history;
+		godot::Dictionary cached_clock_info, cached_sim_sizes;
+		// The load of the processor is measured by a thread of its own (the measure of the threads of the process takes tens of milliseconds)
+		std::thread cpu_thread;
+		std::mutex cpu_mutex;
+		std::condition_variable cpu_cv;
+		bool cpu_stop = false;
+		CpuUsage cpu_latest;
+		void _cpu_thread_main();
+		void _sim_thread_main();
+		void _start_sim_job();
+		void _stop_sim_thread();
+		void _wait_for_simulation(std::source_location where) const;
+		godot::Error _update_clock_threaded();
+
 	public:
 
 		static void setup_logger();
@@ -100,13 +149,41 @@ namespace OpenVic {
 			return game_manager.get_definition_manager();
 		}
 
-		inline constexpr InstanceManager* get_instance_manager() {
+		/* Every access of the interface to the simulation goes through here (and through get_player_country of PlayerSingleton): while the
+		 * simulation thread works on a day, the caller waits until it is done, so that nothing reads the state that the day changes.
+		 * Where the wait happens is recorded (see get_simulation_thread_info). */
+		inline InstanceManager* get_instance_manager(std::source_location where = std::source_location::current()) {
+			if (sim_busy.load(std::memory_order_acquire)) {
+				_wait_for_simulation(where);
+			}
 			return game_manager.get_instance_manager();
 		}
 
-		inline constexpr InstanceManager const* get_instance_manager() const {
+		inline InstanceManager const* get_instance_manager(std::source_location where = std::source_location::current()) const {
+			if (sim_busy.load(std::memory_order_acquire)) {
+				_wait_for_simulation(where);
+			}
 			return game_manager.get_instance_manager();
 		}
+
+		/* Only the main thread (the interface) may touch the interface; the threads of the simulation (and of its pool) must not, they
+		 * would wait for the main thread while the main thread waits for them. Handlers of the signals of the simulation test this. */
+		inline bool is_main_thread() const {
+			return std::this_thread::get_id() == main_thread_id;
+		}
+
+		/* Waits until the simulation thread has no day in work (the same as what get_instance_manager does before it returns). */
+		inline void wait_for_simulation(std::source_location where = std::source_location::current()) const {
+			if (sim_busy.load(std::memory_order_acquire)) {
+				_wait_for_simulation(where);
+			}
+		}
+
+		/* The simulation (a tick, the actions and the update of the game state) runs on a thread of its own, so that the frames of the
+		 * interface do not wait for it. Off: everything runs in update_clock, as before. */
+		void set_simulation_thread_enabled(bool enabled);
+		bool is_simulation_thread_enabled() const;
+		godot::Dictionary get_simulation_thread_info() const;
 
 		/* Load the game's defines in compatibility mode from the filepath
 		 * pointing to the defines folder. */

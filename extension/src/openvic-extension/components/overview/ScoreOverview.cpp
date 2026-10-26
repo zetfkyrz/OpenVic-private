@@ -248,10 +248,18 @@ godot::String ScoreOverview::generate_industrial_tooltip(CountryInstance& countr
 	       industrial_score_label.tr("RANK_INDUSTRY_D") + industrial_power_tooltip;
 }
 
+// The signals of the simulation can come from its threads (the update of the countries runs in the pool): the labels belong to the main
+// thread, so there the handlers do nothing (the interface reads the values again when the game state has been updated)
 void ScoreOverview::on_prestige_changed(const fixed_point_t new_prestige) {
+	if (!GameSingleton::get_singleton()->is_main_thread()) {
+		return;
+	}
 	prestige_label.set_text(Utilities::fixed_point_to_string_dp(new_prestige, 0));
 }
 void ScoreOverview::on_industrial_score_changed(const fixed_point_t new_industrial_score) {
+	if (!GameSingleton::get_singleton()->is_main_thread()) {
+		return;
+	}
 	industrial_score_label.set_text(Utilities::fixed_point_to_string_dp(new_industrial_score, 0));
 }
 
@@ -276,6 +284,9 @@ godot::String ScoreOverview::generate_military_tooltip(CountryInstance& country)
 	       military_score_label.tr("RANK_MILITARY_D") + military_power_tooltip;
 }
 void ScoreOverview::on_military_score_changed() {
+	if (!GameSingleton::get_singleton()->is_main_thread()) {
+		return;
+	}
 	CountryInstance* country_ptr = PlayerSingleton::get_singleton()->get_player_country();
 	if (country_ptr == nullptr) {
 		return;

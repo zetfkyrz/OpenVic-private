@@ -36,6 +36,16 @@
 #include "openvic-extension/utility/Utilities.hpp"
 
 using namespace OpenVic;
+
+CountryInstance* PlayerSingleton::get_player_country() {
+	GameSingleton::get_singleton()->wait_for_simulation();
+	return player_country;
+}
+
+CountryInstance const* PlayerSingleton::get_player_country() const {
+	GameSingleton::get_singleton()->wait_for_simulation();
+	return player_country;
+}
 using namespace godot;
 
 /* StringNames cannot be constructed until Godot has called StringName::setup(),
@@ -270,6 +280,7 @@ String PlayerSingleton::get_player_country_identifier() const {
 }
 
 String PlayerSingleton::get_player_country_name() const {
+	GameSingleton::get_singleton()->wait_for_simulation();
 	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
 	if (player_country == nullptr || menu_singleton == nullptr) {
 		return {};
@@ -278,6 +289,7 @@ String PlayerSingleton::get_player_country_name() const {
 }
 
 Vector2 PlayerSingleton::get_player_country_capital_position() const {
+	GameSingleton::get_singleton()->wait_for_simulation();
 	if (player_country != nullptr) {
 		ProvinceInstance const* capital = player_country->get_capital();
 

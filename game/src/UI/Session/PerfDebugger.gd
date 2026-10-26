@@ -81,6 +81,7 @@ var _bench_start_sample: Dictionary = {}
 var _bench_result: String = ""
 var _bench_buttons: Array[Button] = []
 var _bench_cpu: Array[Dictionary] = []
+var _sim_thread_button: Button
 
 
 ## A line chart of the last values with optional horizontal lines (budgets)
@@ -134,6 +135,7 @@ func _ready() -> void:
 	_frame_ms.resize(_FRAME_HISTORY)
 	_start_msec = Time.get_ticks_msec()
 	_build_ui()
+	_apply_sim_thread_preference()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -186,12 +188,15 @@ func _build_ui() -> void:
 	header.add_child(title)
 	for def: Array in [
 		["A−", func() -> void: _set_ui_scale(_ui_scale - 0.1)], ["A+", func() -> void: _set_ui_scale(_ui_scale + 0.1)],
+		["Поток симуляции", _toggle_sim_thread],
 		["Сбросить", _reset_all], ["Сохранить отчёт", _save_report], ["Закрыть", func() -> void: _set_open(false)],
 	]:
 		var button := Button.new()
 		button.text = def[0]
 		button.pressed.connect(def[1])
 		header.add_child(button)
+		if def[0] == "Поток симуляции":
+			_sim_thread_button = button
 
 	var tabs := HBoxContainer.new()
 	root.add_child(tabs)
@@ -326,8 +331,34 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 
+## The simulation runs on a thread of its own (the interface does not wait for the day): the choice is kept in the same file as the layout
+func _apply_sim_thread_preference() -> void:
+	var config := ConfigFile.new()
+	var enabled: bool = true
+	if config.load(_LAYOUT_FILE) == OK:
+		enabled = bool(config.get_value("simulation", "thread", true))
+	GameSingleton.set_simulation_thread_enabled(enabled)
+	_update_sim_thread_button()
+
+
+func _toggle_sim_thread() -> void:
+	var enabled: bool = not GameSingleton.is_simulation_thread_enabled()
+	GameSingleton.set_simulation_thread_enabled(enabled)
+	var config := ConfigFile.new()
+	config.load(_LAYOUT_FILE)
+	config.set_value("simulation", "thread", enabled)
+	config.save(_LAYOUT_FILE)
+	_update_sim_thread_button()
+
+
+func _update_sim_thread_button() -> void:
+	if _sim_thread_button:
+		_sim_thread_button.text = "Поток симуляции: " + ("вкл" if GameSingleton.is_simulation_thread_enabled() else "выкл")
+
+
 func _save_layout() -> void:
 	var config := ConfigFile.new()
+	config.load(_LAYOUT_FILE)
 	config.set_value("window", "position", _panel.position)
 	config.set_value("window", "size", _panel.size)
 	config.set_value("window", "scale", _ui_scale)
@@ -639,6 +670,11 @@ func _text_overview() -> String:
 			("%.2f" % float(cpu["process_cores"])), int(cpu["logical_cores"]), float(cpu["process_percent"]), int(cpu["busy_threads"]),
 			float(cpu["system_percent"]),
 		])
+	var thread_info: Dictionary = GameSingleton.get_simulation_thread_info()
+	lines.append("  поток симуляции: %s, последний день %s мс; ожидания интерфейса: %d раз, всего %s мс (интерфейс ждёт, только если читает симуляцию, пока идёт день)" % [
+		"включён" if thread_info.get("enabled", false) else "выключен", ("%.1f" % float(thread_info.get("last_job_ms", 0.0))),
+		int(thread_info.get("wait_calls", 0)), ("%.1f" % float(thread_info.get("wait_ms", 0.0))),
+	])
 	lines.append("")
 	lines.append("[b]Скорость игры[/b]")
 	var speed_texts: PackedStringArray = []
@@ -1052,6 +1088,12 @@ func _text_cpu() -> String:
 		if percent < 0.5:
 			break
 		lines.append("%s %s  %s" % [str(int(thread["id"])).rpad(8), ("%5.0f%%" % percent).lpad(7), String(thread["name"])])
+	var wait_sites: Array = GameSingleton.get_simulation_thread_info().get("sites", [])
+	if not wait_sites.is_empty():
+		lines.append("")
+		lines.append("[b]Где интерфейс ждал симуляцию[/b] (читал состояние, пока шёл день; лучше, чтобы список был пустым)")
+		for site: Dictionary in wait_sites:
+			lines.append("  %s  %d раз, %.1f мс" % [String(site["name"]).substr(0, 90), int(site["calls"]), float(site["ms"])])
 	lines.append("")
 	lines.append("[color=#8899aa]Тик симуляции делят потоки-работники (по числу логических ядер); один поток около 100 % — главный поток Godot (интерфейс, кадр), он же часто мешает масштабированию. Число потоков симуляции можно ограничить ключом -j у headless-версии.[/color]")
 	return "\n".join(lines)

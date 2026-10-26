@@ -1,6 +1,8 @@
 #include "GameSingleton.hpp"
 
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <chrono>
 #include <climits>
 #include <cstdint>
@@ -122,6 +124,9 @@ void GameSingleton::_bind_methods() {
 	OV_BIND_METHOD(GameSingleton::get_ui_profile);
 	OV_BIND_METHOD(GameSingleton::get_process_memory);
 	OV_BIND_METHOD(GameSingleton::get_cpu_usage);
+	OV_BIND_METHOD(GameSingleton::set_simulation_thread_enabled, { "enabled" });
+	OV_BIND_METHOD(GameSingleton::is_simulation_thread_enabled);
+	OV_BIND_METHOD(GameSingleton::get_simulation_thread_info);
 	OV_BIND_METHOD(GameSingleton::get_sim_sizes);
 	OV_BIND_METHOD(GameSingleton::get_clock_info);
 	OV_BIND_METHOD(GameSingleton::start_economy_recording);
@@ -137,7 +142,28 @@ GameSingleton* GameSingleton::get_singleton() {
 	return singleton;
 }
 
+// Debugging aid of the simulation thread: OV_SIM_TRACE=<file> writes what the threads do, OV_SIM_THREAD=1 switches the thread on
+static void sim_trace(char const* text, char const* detail = "") {
+	static char const* const path = std::getenv("OV_SIM_TRACE");
+	if (path == nullptr) {
+		return;
+	}
+	static std::mutex trace_mutex;
+	std::lock_guard<std::mutex> lock { trace_mutex };
+	if (std::FILE* file = std::fopen(path, "a")) {
+		std::fprintf(file, "%llu %s %s\n", static_cast<unsigned long long>(Time::get_singleton()->get_ticks_msec()), text, detail);
+		std::fclose(file);
+	}
+}
+
 void GameSingleton::_on_gamestate_updated() {
+	if (std::this_thread::get_id() == sim_thread_id) {
+		// Called by the simulation thread at the end of an update: the signals and the colours belong to the main thread
+		sim_trace("callback deferred");
+		sim_callback_pending.store(true, std::memory_order_release);
+		return;
+	}
+
 	if (economy_recorder && economy_recorder->is_running()) {
 		if (InstanceManager* instance_manager = get_instance_manager()) {
 			economy_recorder->update(*instance_manager);
@@ -211,6 +237,7 @@ void GameSingleton::_sync_profiling() {
 }
 
 void GameSingleton::set_profiling(const bool enabled) {
+	wait_for_simulation();
 	profiling = enabled;
 	_sync_profiling();
 }
@@ -224,12 +251,20 @@ void GameSingleton::reset_profiling() {
 	colours_ms = signal_ms = signal_average_ms = signal_max_ms = 0.0;
 	clock_ms = clock_average_ms = clock_max_ms = 0.0;
 	profiled_updates = 0;
+	sim_wait_sites.clear();
+	sim_wait_calls = 0;
+	sim_wait_ms = 0.0;
+	sim_jobs = 0;
+	sim_job_ms_sum = 0.0;
 	if (InstanceManager* instance_manager = get_instance_manager()) {
 		instance_manager->get_tick_profiler().reset();
 	}
 }
 
 Array GameSingleton::get_sim_profile() {
+	if (sim_busy.load(std::memory_order_acquire)) {
+		return cached_sim_profile;
+	}
 	Array result;
 	InstanceManager* instance_manager = get_instance_manager();
 	if (instance_manager == nullptr) {
@@ -248,26 +283,35 @@ Array GameSingleton::get_sim_profile() {
 		dict["calls"] = static_cast<int64_t>(entry.calls);
 		result.push_back(dict);
 	}
+	cached_sim_profile = result;
 	return result;
 }
 
 PackedFloat32Array GameSingleton::get_tick_history() {
+	if (sim_busy.load(std::memory_order_acquire)) {
+		return cached_tick_history;
+	}
 	PackedFloat32Array result;
 	if (InstanceManager* instance_manager = get_instance_manager()) {
 		for (const float value : instance_manager->get_tick_profiler().get_tick_history()) {
 			result.push_back(value);
 		}
 	}
+	cached_tick_history = result;
 	return result;
 }
 
 PackedFloat32Array GameSingleton::get_update_history() {
+	if (sim_busy.load(std::memory_order_acquire)) {
+		return cached_update_history;
+	}
 	PackedFloat32Array result;
 	if (InstanceManager* instance_manager = get_instance_manager()) {
 		for (const float value : instance_manager->get_tick_profiler().get_update_history()) {
 			result.push_back(value);
 		}
 	}
+	cached_update_history = result;
 	return result;
 }
 
@@ -309,16 +353,27 @@ Dictionary GameSingleton::get_process_memory() const {
 	return result;
 }
 
-Dictionary GameSingleton::get_cpu_usage() {
-	// The sample compares with the previous call, so it is renewed at most every 0.4 seconds and kept between
-	static Dictionary cached;
-	static uint64_t last_usec = 0;
-	const uint64_t now = Time::get_singleton()->get_ticks_usec();
-	if (!cached.is_empty() && now - last_usec < 400000) {
-		return cached;
+void GameSingleton::_cpu_thread_main() {
+	set_current_thread_name("OpenVic cpu sampler");
+	std::unique_lock<std::mutex> lock { cpu_mutex };
+	while (!cpu_stop) {
+		lock.unlock();
+		const CpuUsage usage = sample_cpu_usage();
+		lock.lock();
+		cpu_latest = usage;
+		cpu_cv.wait_for(lock, std::chrono::milliseconds(500), [this]() -> bool { return cpu_stop; });
 	}
-	last_usec = now;
-	const CpuUsage usage = sample_cpu_usage();
+}
+
+Dictionary GameSingleton::get_cpu_usage() {
+	if (!cpu_thread.joinable()) {
+		cpu_thread = std::thread(&GameSingleton::_cpu_thread_main, this);
+	}
+	CpuUsage usage;
+	{
+		std::lock_guard<std::mutex> lock { cpu_mutex };
+		usage = cpu_latest;
+	}
 	Dictionary result;
 	result["valid"] = usage.valid;
 	result["logical_cores"] = usage.logical_cores;
@@ -340,11 +395,13 @@ Dictionary GameSingleton::get_cpu_usage() {
 		threads.push_back(thread);
 	}
 	result["threads"] = threads;
-	cached = result;
 	return result;
 }
 
 Dictionary GameSingleton::get_sim_sizes() const {
+	if (sim_busy.load(std::memory_order_acquire)) {
+		return cached_sim_sizes;
+	}
 	Dictionary result;
 	InstanceManager const* instance_manager = get_instance_manager();
 	if (instance_manager == nullptr) {
@@ -353,10 +410,14 @@ Dictionary GameSingleton::get_sim_sizes() const {
 	result["action_history"] = static_cast<int64_t>(instance_manager->get_action_history().size());
 	result["wars"] = static_cast<int64_t>(instance_manager->get_war_manager().get_wars().size());
 	result["loans"] = static_cast<int64_t>(instance_manager->get_credit_manager().get_loans().size());
+	const_cast<GameSingleton*>(this)->cached_sim_sizes = result;
 	return result;
 }
 
 Dictionary GameSingleton::get_clock_info() const {
+	if (sim_busy.load(std::memory_order_acquire)) {
+		return cached_clock_info;
+	}
 	Dictionary result;
 	Array speeds;
 	for (auto const& duration : SimulationClock::GAME_SPEEDS) {
@@ -370,6 +431,7 @@ Dictionary GameSingleton::get_clock_info() const {
 		result["paused"] = clock.is_paused();
 		result["interval_ms"] = std::chrono::duration<double, std::milli>(SimulationClock::GAME_SPEEDS[clock.get_simulation_speed()]).count();
 	}
+	const_cast<GameSingleton*>(this)->cached_clock_info = result;
 	return result;
 }
 
@@ -382,9 +444,21 @@ GameSingleton::GameSingleton() :
 	               std::bind(&Time::get_ticks_msec, Time::get_singleton()) } {
 	ERR_FAIL_COND(singleton != nullptr);
 	singleton = this;
+	if (char const* const enable = std::getenv("OV_SIM_THREAD")) {
+		sim_thread_enabled = enable[0] == '1';
+	}
 }
 
 GameSingleton::~GameSingleton() {
+	_stop_sim_thread();
+	if (cpu_thread.joinable()) {
+		{
+			std::lock_guard<std::mutex> lock { cpu_mutex };
+			cpu_stop = true;
+		}
+		cpu_cv.notify_all();
+		cpu_thread.join();
+	}
 	ERR_FAIL_COND(singleton != this);
 	singleton = nullptr;
 }
@@ -705,6 +779,8 @@ Dictionary GameSingleton::get_economy_recording_info() const {
 }
 
 godot::Error GameSingleton::end_game_session() {
+	wait_for_simulation();
+	sim_callback_pending.store(false);
 	// The recording belongs to the game that ends
 	if (economy_recorder) {
 		economy_recorder->stop();
@@ -1014,15 +1090,144 @@ bool GameSingleton::is_parchment_mapmode_allowed() const {
 }
 
 godot::Error GameSingleton::update_clock() {
+	const bool threaded = sim_thread_enabled && game_manager.is_game_session_active();
 	if (!profiling) {
-		return ERR(game_manager.update_clock());
+		return threaded ? _update_clock_threaded() : ERR(game_manager.update_clock());
 	}
-	_sync_profiling();
+	if (!sim_busy.load(std::memory_order_acquire)) {
+		_sync_profiling();
+	}
 	const uint64_t start = Time::get_singleton()->get_ticks_usec();
-	const godot::Error result = ERR(game_manager.update_clock());
+	const godot::Error result = threaded ? _update_clock_threaded() : ERR(game_manager.update_clock());
 	clock_ms = static_cast<double>(Time::get_singleton()->get_ticks_usec() - start) / 1000.0;
 	clock_average_ms = clock_average_ms * 0.95 + clock_ms * 0.05;
 	clock_max_ms = std::max(clock_max_ms, clock_ms);
+	return result;
+}
+
+/* Called every frame by the main thread: if the simulation thread is still at work, nothing to do (the frame goes on); when it is
+ * done, the interface is told about the new state; if a day is due (or there are actions to execute), the thread starts it. */
+godot::Error GameSingleton::_update_clock_threaded() {
+	if (sim_busy.load(std::memory_order_acquire)) {
+		return OK;
+	}
+	if (sim_callback_pending.exchange(false)) {
+		_on_gamestate_updated();
+	}
+	if (game_manager.is_advance_due()) {
+		_start_sim_job();
+	}
+	return OK;
+}
+
+void GameSingleton::_start_sim_job() {
+	if (!sim_thread.joinable()) {
+		sim_stop = false;
+		sim_thread = std::thread(&GameSingleton::_sim_thread_main, this);
+		sim_thread_id = sim_thread.get_id();
+	}
+	{
+		std::lock_guard<std::mutex> lock { sim_mutex };
+		sim_busy.store(true, std::memory_order_release);
+		sim_job_requested = true;
+	}
+	sim_wake_cv.notify_one();
+}
+
+void GameSingleton::_sim_thread_main() {
+	set_current_thread_name("OpenVic simulation");
+	for (;;) {
+		{
+			std::unique_lock<std::mutex> lock { sim_mutex };
+			sim_wake_cv.wait(lock, [this]() -> bool { return sim_job_requested || sim_stop; });
+			if (sim_stop) {
+				return;
+			}
+			sim_job_requested = false;
+		}
+		const auto start = std::chrono::steady_clock::now();
+		sim_trace("job start");
+		try {
+			game_manager.update_clock();
+		} catch (std::exception const& exception) {
+			ERR_PRINT(String("The simulation thread failed: ") + exception.what());
+		} catch (...) {
+			ERR_PRINT("The simulation thread failed with an unknown error.");
+		}
+		sim_trace("job end");
+		sim_last_job_ms.store(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+		{
+			std::lock_guard<std::mutex> lock { sim_mutex };
+			sim_busy.store(false, std::memory_order_release);
+		}
+		sim_done_cv.notify_all();
+	}
+}
+
+void GameSingleton::_stop_sim_thread() {
+	if (!sim_thread.joinable()) {
+		return;
+	}
+	{
+		std::unique_lock<std::mutex> lock { sim_mutex };
+		sim_done_cv.wait(lock, [this]() -> bool { return !sim_busy.load(); });
+		sim_stop = true;
+	}
+	sim_wake_cv.notify_all();
+	sim_thread.join();
+	sim_thread_id = std::thread::id {};
+}
+
+void GameSingleton::_wait_for_simulation(std::source_location where) const {
+	// Only the interface waits; the simulation thread and its pool are the ones it waits for
+	if (std::this_thread::get_id() != main_thread_id) {
+		return;
+	}
+	const auto start = std::chrono::steady_clock::now();
+	sim_trace("main waits in", where.function_name());
+	{
+		std::unique_lock<std::mutex> lock { sim_mutex };
+		sim_done_cv.wait(lock, [this]() -> bool { return !sim_busy.load(std::memory_order_acquire); });
+	}
+	sim_trace("main waited in", where.function_name());
+	const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+	sim_wait_calls++;
+	sim_wait_ms += ms;
+	WaitSite& site = sim_wait_sites[where.function_name()];
+	site.calls++;
+	site.ms += ms;
+}
+
+void GameSingleton::set_simulation_thread_enabled(const bool enabled) {
+	wait_for_simulation();
+	if (sim_callback_pending.exchange(false)) {
+		_on_gamestate_updated();
+	}
+	sim_thread_enabled = enabled;
+}
+
+bool GameSingleton::is_simulation_thread_enabled() const {
+	return sim_thread_enabled;
+}
+
+Dictionary GameSingleton::get_simulation_thread_info() const {
+	Dictionary result;
+	result["enabled"] = sim_thread_enabled;
+	result["busy"] = sim_busy.load();
+	result["last_job_ms"] = sim_last_job_ms.load();
+	result["wait_calls"] = static_cast<int64_t>(sim_wait_calls);
+	result["wait_ms"] = sim_wait_ms;
+	std::vector<std::pair<std::string, WaitSite>> sites(sim_wait_sites.begin(), sim_wait_sites.end());
+	std::sort(sites.begin(), sites.end(), [](auto const& lhs, auto const& rhs) -> bool { return lhs.second.ms > rhs.second.ms; });
+	Array top;
+	for (std::size_t i = 0; i < sites.size() && i < 14; i++) {
+		Dictionary site;
+		site["name"] = String::utf8(sites[i].first.c_str());
+		site["calls"] = static_cast<int64_t>(sites[i].second.calls);
+		site["ms"] = sites[i].second.ms;
+		top.push_back(site);
+	}
+	result["sites"] = top;
 	return result;
 }
 
