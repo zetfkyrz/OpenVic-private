@@ -23,7 +23,8 @@ fixed_point_t NavyStockpileBudget::get_expenses() const {
 fixed_point_t NavyStockpileBudget::calculate_budget_and_update_custom(
     CountryInstance& country, const fixed_point_t scaled_value
 ) {
-	return scaled_value * 2; // TODO connect with sim once sim has this
+	// What the supplies of all the ships cost per day at the prices of the market, at the level of the slider
+	return scaled_value * country.calculate_navy_supply_cost_per_day();
 }
 
 ReadOnlyClampedValue& NavyStockpileBudget::get_clamped_value(CountryInstance& country) const {

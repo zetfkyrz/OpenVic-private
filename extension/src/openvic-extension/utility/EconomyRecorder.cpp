@@ -580,9 +580,10 @@ void EconomyRecorder::record_monthly(InstanceManager& instance_manager, std::str
 					c.life += num(pop.get_life_needs_fulfilled()) * size;
 					c.everyday += num(pop.get_everyday_needs_fulfilled()) * size;
 					c.luxury += num(pop.get_luxury_needs_fulfilled()) * size;
-					c.starved += pop_num(pop.get_num_starved());
-					c.emigrated_internal += pop_num(pop.get_num_migrated_internal());
-					c.emigrated_external += pop_num(pop.get_num_migrated_external());
+					// The records are changes of the size of the pop: the people who left or died are the negative ones
+					c.starved -= pop_num(pop.get_num_starved());
+					c.emigrated_internal -= std::min(0.0, pop_num(pop.get_num_migrated_internal()));
+					c.emigrated_external -= std::min(0.0, pop_num(pop.get_num_migrated_external()));
 					c.hungry_days += static_cast<double>(pop.hungry_days) * size;
 					c.rgo_owner += num(pop.get_rgo_owner_income());
 					c.rgo_worker += num(pop.get_rgo_worker_income());

@@ -26,6 +26,10 @@ namespace OpenVic {
 	public:
 		NationalStockpileBudget(GUINode const& parent);
 		fixed_point_t get_expenses() const override;
+		// The part of the expenses that is the supplies of the army and the navy (the rest is the allocation to the investment fund)
+		fixed_point_t get_military_supply_expenses() const {
+			return army_stockpile_budget.get_expenses() + navy_stockpile_budget.get_expenses();
+		}
 		void full_update(CountryInstance& country) override;
 	};
 }

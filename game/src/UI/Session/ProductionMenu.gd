@@ -26,8 +26,22 @@ const _FACTORY_WIDTH: float = 112.0
 const _STATE_ENTRY_HEIGHT: float = 140.0
 # Vertical offset of the factory windows, which are not centred vertically in their bounds window
 const _FACTORY_Y_OFFSET: float = -36.0
-# Width of the "factory_info_bounds" window of the original interface
-const _DEFAULT_BOUNDS_WIDTH: float = 940.0
+# The window shows this many factories of a state in a row (the original interface has 8), so it is wider than the original one
+const _SLOTS: int = 12
+const _EXTRA_WIDTH: float = (_SLOTS - 8) * _FACTORY_WIDTH
+# Width of the "factory_info_bounds" window: the slots of the factories
+const _DEFAULT_BOUNDS_WIDTH: float = _SLOTS * _FACTORY_WIDTH
+# Pictures of the frame of the window and of the plates of the states: they are stretched with nine-patches
+const _FRAME_TEXTURE: String = "gfx/interface/main_bg.dds"
+const _FRAME_POSITION: Vector2 = Vector2(-70, -70)
+const _FRAME_SIZE: Vector2 = Vector2(1168, 772)
+const _PANEL_TEXTURE: String = "gfx/interface/prod_bg.dds"
+const _PANEL_POSITION: Vector2 = Vector2(18, 9)
+const _PANEL_SIZE: Vector2 = Vector2(988, 616)
+const _STATE_TEXTURE: String = "gfx/interface/prod_state_bg.dds"
+const _STATE_SIZE: Vector2 = Vector2(960, 120)
+# The part of the screen at the top that the window leaves free (the top bar)
+const _TOP_MARGIN: float = 64.0
 const _MAX_INPUT_ICONS: int = 4
 const _PRIORITY_NAMES: PackedStringArray = ["низкий", "обычный", "высокий"]
 # Seconds in which the second click of the delete button confirms the deletion
@@ -67,6 +81,7 @@ var _build_options: Array = []
 var _build_selected: int = -1
 
 var _states_by_province: Dictionary[int, Dictionary] = {}
+var _window_fit_pending: bool = true
 var _ownership_dialog: Control
 var _stats_window: Control
 
@@ -140,6 +155,9 @@ func _ready() -> void:
 
 	_state_listbox = GUINode.get_gui_listbox_from_node(_main_window.get_node_or_null(^"./state_listbox"))
 
+	_widen_window()
+	get_viewport().size_changed.connect(_fit_window_to_screen)
+
 	_setup_build_dialog()
 	_setup_mass_buttons()
 
@@ -169,6 +187,69 @@ func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_TRANSLATION_CHANGED:
 			_update_info()
+
+
+# A picture of the interface stretched to a bigger size (the corners stay as they are); the original picture is hidden
+func _stretch_picture(picture: Node, texture_path: String, new_size: Vector2, margin: int) -> void:
+	var texture: Texture2D = AssetManager.get_texture(texture_path)
+	if texture == null or not (picture is Control):
+		return
+	var patch := NinePatchRect.new()
+	patch.name = String(picture.name) + "_wide"
+	patch.texture = texture
+	patch.patch_margin_left = margin
+	patch.patch_margin_right = margin
+	patch.patch_margin_top = margin
+	patch.patch_margin_bottom = margin
+	patch.position = (picture as Control).position
+	patch.size = new_size
+	patch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var parent: Node = picture.get_parent()
+	parent.add_child(patch)
+	parent.move_child(patch, picture.get_index())
+	(picture as Control).hide()
+
+
+func _widen_window() -> void:
+	# The frame and the parchment get wider, what is at the right edge moves with it
+	_stretch_picture(_main_window.get_node_or_null(^"./main_bg"), _FRAME_TEXTURE, _FRAME_SIZE + Vector2(_EXTRA_WIDTH, 0), 90)
+	_stretch_picture(_main_window.get_node_or_null(^"./prod_bg"), _PANEL_TEXTURE, _PANEL_SIZE + Vector2(_EXTRA_WIDTH, 0), 24)
+	for moved_name: NodePath in [^"./close_button", ^"./headline_production"]:
+		var moved: Node = _main_window.get_node_or_null(moved_name)
+		if moved is Control:
+			(moved as Control).position.x += _EXTRA_WIDTH
+	_main_window.size.x += _EXTRA_WIDTH
+	if _state_listbox:
+		_state_listbox.size.x += _EXTRA_WIDTH
+		var scrollbar: Control = _state_listbox.get_scrollbar()
+		if scrollbar:
+			scrollbar.position.x += _EXTRA_WIDTH
+	var buttons: Node = _main_window.get_node_or_null(^"./factory_buttons")
+	if buttons is Control:
+		for button: Node in buttons.get_children():
+			if button is Control and (button as Control).position.x > 900.0:
+				(button as Control).position.x += _EXTRA_WIDTH
+	_window_fit_pending = true
+	_fit_window_to_screen()
+
+
+# The window fills the screen (the top bar stays free): it is scaled up to the size of the screen, the clicks outside of it go to the map
+func _fit_window_to_screen() -> void:
+	if _main_window == null:
+		return
+	var screen: Vector2 = get_viewport_rect().size
+	var area := Rect2(Vector2(0, _TOP_MARGIN), Vector2(screen.x, screen.y - _TOP_MARGIN))
+	var frame_size: Vector2 = _FRAME_SIZE + Vector2(_EXTRA_WIDTH, 0)
+	var window_scale: float = minf(area.size.x / frame_size.x, area.size.y / frame_size.y)
+	_main_window.pivot_offset = Vector2.ZERO
+	_main_window.scale = Vector2(window_scale, window_scale)
+	var frame_origin: Vector2 = area.position + (area.size - frame_size * window_scale) / 2.0
+	_main_window.position = frame_origin - _FRAME_POSITION * window_scale
+	# Only the frame of the window takes the clicks
+	var mask := BitMap.new()
+	mask.create(Vector2i(maxi(1, int(screen.x)), maxi(1, int(screen.y))))
+	mask.set_bit_rect(Rect2i(frame_origin, frame_size * window_scale), true)
+	set_click_mask(mask)
 
 
 func _on_update_active_nation_management_screen(active_screen: NationManagement.Screen) -> void:
@@ -267,6 +348,18 @@ func _setup_state_entry(entry: Panel) -> void:
 		if node is CanvasItem:
 			node.hide()
 
+	# Wider plate: the picture is stretched, what is at the right edge moves, the bounds of the factories get the room of the slots
+	entry.custom_minimum_size.x = entry.size.x + _EXTRA_WIDTH
+	entry.size.x += _EXTRA_WIDTH
+	_stretch_picture(entry.get_node_or_null(^"./state_bg"), _STATE_TEXTURE, _STATE_SIZE + Vector2(_EXTRA_WIDTH, 0), 28)
+	for moved_name: NodePath in [^"./build_new_factory", ^"./avg_infra", ^"./avg_infra_text"]:
+		var moved: Node = entry.get_node_or_null(moved_name)
+		if moved is Control:
+			(moved as Control).position.x += _EXTRA_WIDTH
+	var slots_bounds: Node = entry.get_node_or_null(^"./factory_info_bounds")
+	if slots_bounds is Control:
+		(slots_bounds as Control).size.x = _DEFAULT_BOUNDS_WIDTH
+
 	var build_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(entry, ^"./build_new_factory")
 	if build_button:
 		build_button.pressed.connect(func() -> void: _open_build_dialog(int(entry.get_meta(&"province_index", -1))))
@@ -348,7 +441,7 @@ func _setup_mass_buttons() -> void:
 	var expand_all := Button.new()
 	expand_all.text = "+ все"
 	expand_all.tooltip_text = "Расширить все заводы страны на один уровень (дешёвые первыми, пока хватает денег)"
-	expand_all.position = Vector2(946, 116)
+	expand_all.position = Vector2(946 + _EXTRA_WIDTH, 116)
 	expand_all.size = Vector2(44, 22)
 	expand_all.pressed.connect(func() -> void: PlayerSingleton.expand_all_factories())
 	buttons.add_child(expand_all)
@@ -363,6 +456,15 @@ func _setup_factory_panel(panel: Panel) -> void:
 	var priority_node: Node = panel.get_node_or_null(^"./priority")
 	if priority_node is CanvasItem:
 		priority_node.hide()
+
+	# The tick of the subsidy was under the button that deletes the factory: it is a little to the left; the cross that cancels the
+	# construction was under the other buttons: it is a little higher
+	var moved_subsidise: Node = panel.get_node_or_null(^"./subsidise")
+	if moved_subsidise is Control:
+		(moved_subsidise as Control).position.x = 48.0
+	var moved_cancel: Node = panel.get_node_or_null(^"./prod_cancel_progress")
+	if moved_cancel is Control:
+		(moved_cancel as Control).position.y = 56.0
 
 	# Deleting a factory (or cancelling its construction) asks for a second click
 	for delete_name: NodePath in [^"./delete_factory", ^"./prod_cancel_progress"]:
@@ -523,6 +625,7 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 		employment_icon.set_icon_index(
 			clampi(roundi(factory[&"employment_ratio"] * _EMPLOYMENT_FRAMES), 0, _EMPLOYMENT_FRAMES) + 1
 		)
+		employment_icon.set_tooltip_string(_employment_tooltip(factory))
 
 	# Income of yesterday
 	var profit: float = factory[&"profit"]
@@ -582,6 +685,27 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 	var open_close: Node = panel.get_node_or_null(^"./open_close")
 	if open_close is CanvasItem:
 		open_close.visible = level > 0
+
+
+func _employment_tooltip(factory: Dictionary) -> String:
+	var employees: int = int(factory.get(&"employees", 0))
+	var max_employees: int = int(factory.get(&"max_employees", 0))
+	var ratio: float = float(factory[&"employment_ratio"])
+	var text: String = "Работники: §Y%s§! из §Y%s§! (§Y%d%%§!)\nСвободных работников в регионе: §Y%s§! (всего людей этих профессий: %s)" % [
+		GUINode.int_to_string_commas(employees), GUINode.int_to_string_commas(max_employees), roundi(ratio * 100.0),
+		GUINode.int_to_string_commas(int(factory.get(&"available_workers", 0))),
+		GUINode.int_to_string_commas(int(factory.get(&"workers_in_region", 0))),
+	]
+	var fills: Array = factory.get(&"fill_since_check", [])
+	if not fills.is_empty():
+		var parts: PackedStringArray = []
+		for fill: float in fills:
+			parts.append("%d%%" % roundi(fill * 100.0))
+		text += "\nЗанятость по месяцам с последней проверки: %s" % ", ".join(parts)
+	text += "\nРаз в 3 месяца от постройки: если места были заняты на 90% и больше каждый месяц, владельцы расширяют завод."
+	if factory.get(&"expansion_wanted", false):
+		text += "\n§GЗавод хочет расшириться§!"
+	return text
 
 
 # A click on the delete button arms it, the second one within a few seconds deletes the factory

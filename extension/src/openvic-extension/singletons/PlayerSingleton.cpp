@@ -859,6 +859,24 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["priority"] = static_cast<int32_t>(factory.get_priority());
 				factory_dict["employees"] = static_cast<int32_t>(type_safe::get(factory.get_employee_count()));
 				factory_dict["max_employees"] = static_cast<int32_t>(type_safe::get(factory.get_max_employee_count()));
+				{
+					// The people of the region who could work here: the unemployed of the pop types of the jobs of the factory
+					int32_t available_workers = 0, workers_in_region = 0;
+					for (Job const& job : factory.production_type.get_jobs()) {
+						for (Pop const& pop : state.get_pops_cache_by_type()[job.pop_type_index]) {
+							available_workers += type_safe::get(pop.get_unemployed());
+							workers_in_region += type_safe::get(pop.get_size());
+						}
+					}
+					factory_dict["available_workers"] = available_workers;
+					factory_dict["workers_in_region"] = workers_in_region;
+					factory_dict["expansion_wanted"] = factory.is_expansion_wanted();
+					Array fills;
+					for (fixed_point_t const fill : factory.get_fill_since_check()) {
+						fills.push_back(static_cast<float>(fill));
+					}
+					factory_dict["fill_since_check"] = std::move(fills);
+				}
 				factory_dict["efficiency"] = static_cast<float>(factory.get_efficiency());
 				factory_dict["throttle"] = static_cast<float>(factory.get_throttle());
 				factory_dict["budget"] = static_cast<float>(factory.get_budget());

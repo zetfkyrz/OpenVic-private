@@ -44,6 +44,21 @@ namespace OpenVic {
 		// Pie charts of the classes (chart_0 to chart_2), one per strata, with a slice for each pop type of the strata
 		memory::vector<GUIPieChart*> strata_charts;
 
+		// What the sliders do not show but what changes the treasury (the figures of the last day): the income from the sales of the national
+		// stockpile, the freight, other income (dividends, loans, ...), the subsidies of the factories, other spending (construction, loans,
+		// ...) and the purchases of the national stockpile that are more than the supplies of the army and the navy
+		struct extras_t {
+			fixed_point_t stockpile_sales, freight, other_income;
+			fixed_point_t subsidies, other_spending, extra_purchases;
+			fixed_point_t income() const {
+				return stockpile_sales + freight + other_income;
+			}
+			fixed_point_t spending() const {
+				return subsidies + other_spending + extra_purchases;
+			}
+		};
+		extras_t get_extras(CountryInstance const& country) const;
+
 		void update_strata_charts(CountryInstance const& country);
 
 		void update_projected_balance();

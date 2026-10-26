@@ -70,18 +70,79 @@ BudgetMenu::BudgetMenu(
 	projected_expenses_args.resize(8);
 }
 
+BudgetMenu::extras_t BudgetMenu::get_extras(CountryInstance const& country) const {
+	extras_t extras;
+	extras.stockpile_sales = country.get_actual_national_stockpile_income().load();
+	extras.freight = country.get_transport_to_treasury();
+	extras.other_income = country.get_treasury_other_income();
+	extras.subsidies = country.get_treasury_subsidy_spending();
+	extras.other_spending = country.get_treasury_other_spending();
+	// What the government really paid for the goods of its stockpile yesterday replaces the need of the army and the navy that the
+	// sliders count (the need is what the units would use, the treasury pays only what it can): the difference is added here
+	extras.extra_purchases =
+		country.get_actual_national_stockpile_spending().load() - national_stockpile_budget.get_military_supply_expenses();
+	return extras;
+}
+
 void BudgetMenu::update_projected_balance() {
 	CountryInstance const* const country_ptr = PlayerSingleton::get_singleton()->get_player_country();
 	ERR_FAIL_NULL(country_ptr);
 	CountryInstance const& country = *country_ptr;
 	fixed_point_t projected_balance =
-	    country.get_gold_income_untracked() + administration_budget.get_balance() + diplomatic_budget.get_balance() +
-	    education_budget.get_balance() + military_budget.get_balance() + national_stockpile_budget.get_balance() +
-	    social_budget.get_balance() + tariff_budget.get_balance();
+		country.get_gold_income_untracked() + administration_budget.get_balance() + diplomatic_budget.get_balance() +
+		education_budget.get_balance() + military_budget.get_balance() + national_stockpile_budget.get_balance() +
+		social_budget.get_balance() + tariff_budget.get_balance();
 
+	fixed_point_t taxes = 0;
 	for (StrataTaxBudget const& strata_tax_budget : tax_budgets) {
 		projected_balance += strata_tax_budget.get_balance();
+		taxes += strata_tax_budget.get_income();
 	}
+
+	// Everything else that fills the treasury or empties it (the figures of the last day)
+	const extras_t extras = get_extras(country);
+	projected_balance += extras.income() - extras.spending();
+
+	// The tooltip: every source of money of the treasury and every use of it
+	const auto line = [](char const* name, const fixed_point_t amount, const bool income) -> godot::String {
+		return Utilities::format(
+			godot::String::utf8("\n %s: §%s%s§!"), godot::String::utf8(name), income ? "G" : "R", Utilities::cash_to_string_dp_dynamic(amount)
+		);
+	};
+	const fixed_point_t total_income = taxes + tariff_budget.get_income() + country.get_gold_income_untracked() + extras.income();
+	const fixed_point_t total_expenses = total_income - projected_balance;
+	godot::String tooltip = Utilities::format(
+		godot::String::utf8("Примерное дневное сальдо казны: §%s%s§!\n--------------\nПоступления: §G%s§!"),
+		Utilities::get_colour_and_sign(projected_balance), Utilities::cash_to_string_dp_dynamic(projected_balance),
+		Utilities::cash_to_string_dp_dynamic(total_income)
+	);
+	tooltip += line("Налоги", taxes, true);
+	tooltip += line("Пошлины", tariff_budget.get_income(), true);
+	tooltip += line("Золотодобыча", country.get_gold_income_untracked(), true);
+	tooltip += line("Продажа товаров гос. запасов (за вчера)", extras.stockpile_sales, true);
+	tooltip += line("Плата за перевозки (доля казны, за вчера)", extras.freight, true);
+	tooltip += line("Прочее: дивиденды госзаводов, займы, выплаты (за вчера)", extras.other_income, true);
+	tooltip += Utilities::format(godot::String::utf8("\n\nТраты: §R%s§!"), Utilities::cash_to_string_dp_dynamic(total_expenses));
+	tooltip += line("Образование", education_budget.get_expenses(), false);
+	tooltip += line("Управление", administration_budget.get_expenses(), false);
+	tooltip += line("Социальная сфера (пенсии, пособия)", social_budget.get_expenses(), false);
+	tooltip += line("Оборона (жалованье армии)", military_budget.get_expenses(), false);
+	tooltip += line("Закупки товаров для гос. запасов: армия, флот, стройка (оплачено вчера)", country.get_actual_national_stockpile_spending().load(), false);
+	tooltip += line("Отчисление в инвестиционный фонд", national_stockpile_budget.get_expenses() - national_stockpile_budget.get_military_supply_expenses(), false);
+	tooltip += line("Субсидии промышленности (за вчера)", extras.subsidies, false);
+	tooltip += line("Прочее: стройка, займы, проценты (за вчера)", extras.other_spending, false);
+	tooltip += line("Дипломатия", diplomatic_budget.get_expenses(), false);
+	tooltip += Utilities::format(
+		godot::String::utf8("\n\nПотребность армии и флота в снабжении: §Y%s§! в день (армия §Y%s§!, флот §Y%s§!), казна оплачивает, сколько может."),
+		Utilities::cash_to_string_dp_dynamic(national_stockpile_budget.get_military_supply_expenses()),
+		Utilities::cash_to_string_dp_dynamic(country.calculate_army_supply_cost_per_day()),
+		Utilities::cash_to_string_dp_dynamic(country.calculate_navy_supply_cost_per_day())
+	);
+	tooltip += godot::String::utf8(
+		"\n\nКазна — «Гос. банк»: деньги страны. График вверху показывает фактическое изменение казны за день, сальдо — расчёт по "
+		"ползункам и данным за вчера."
+	);
+	projected_balance_label.set_tooltip_string(tooltip);
 
 	projected_balance_label.set_text(
 	    Utilities::format(
@@ -94,10 +155,12 @@ void BudgetMenu::update_projected_balance() {
 
 void BudgetMenu::update_projected_expenses() {
 	static const godot::String projected_expenses_template = "%s\n--------------\n%s\n%s\n%s\n%s\n%s\n%s%s";
+	CountryInstance const* const country_for_extras = PlayerSingleton::get_singleton()->get_player_country();
+	const extras_t extras = country_for_extras != nullptr ? get_extras(*country_for_extras) : extras_t {};
 	const fixed_point_t projected_expenses =
-	    administration_budget.get_expenses() + diplomatic_budget.get_expenses() + education_budget.get_expenses() +
-	    military_budget.get_expenses() + national_stockpile_budget.get_expenses() + social_budget.get_expenses() +
-	    tariff_budget.get_expenses();
+		administration_budget.get_expenses() + diplomatic_budget.get_expenses() + education_budget.get_expenses() +
+		military_budget.get_expenses() + national_stockpile_budget.get_expenses() + social_budget.get_expenses() +
+		tariff_budget.get_expenses() + extras.spending();
 	// TODO: + import subsidies?
 	// TODO: + factory subsidies
 	// TODO: + interest
@@ -123,7 +186,14 @@ void BudgetMenu::update_projected_expenses() {
 	        );
 	projected_expenses_args[6] = national_stockpile_budget.generate_expenses_summary_text(projected_expenses_label);
 	projected_expenses_args[7] = diplomatic_budget.generate_expenses_summary_text(projected_expenses_label);
-	projected_expenses_label.set_tooltip_string(projected_expenses_template % projected_expenses_args);
+	godot::String expenses_tooltip = projected_expenses_template % projected_expenses_args;
+	// The spending that has no slider (the figures of the last day)
+	expenses_tooltip += Utilities::format(
+		godot::String::utf8("\n Субсидии промышленности: §Y%s§!\n Поправка: закупки гос. запасов фактически минус потребность армии и флота: §Y%s§!\n Стройка, займы и прочее: §Y%s§!"),
+		Utilities::cash_to_string_dp_dynamic(extras.subsidies), Utilities::cash_to_string_dp_dynamic(extras.extra_purchases),
+		Utilities::cash_to_string_dp_dynamic(extras.other_spending)
+	);
+	projected_expenses_label.set_tooltip_string(expenses_tooltip);
 }
 
 void BudgetMenu::update_projected_expenses_and_balance() {
@@ -145,7 +215,7 @@ void BudgetMenu::update_projected_income() {
 	}
 
 	projected_income_args[i++] = tariff_budget.generate_income_summary_text(projected_income_label);
-	const fixed_point_t stockpile_income = 0; // TODO stockpile sales
+	const fixed_point_t stockpile_income = country.get_actual_national_stockpile_income().load();
 	projected_income_excluding_tariffs += stockpile_income;
 	projected_income_args[i++] =
 	    projected_income_label.tr("BUDGET_EXPORTS")
@@ -162,6 +232,10 @@ void BudgetMenu::update_projected_income() {
 	        );
 	projected_income_args[i++] = diplomatic_budget.generate_income_summary_text(projected_income_label);
 
+	// The freight and the other income of the last day
+	const extras_t extras = get_extras(country);
+	projected_income_excluding_tariffs += extras.freight + extras.other_income;
+
 	const fixed_point_t projected_income = projected_income_excluding_tariffs + tariff_budget.get_income();
 	projected_income_args[0] =
 	    projected_income_label.tr("BUDGET_TOTAL_INCOME")
@@ -169,7 +243,12 @@ void BudgetMenu::update_projected_income() {
 	            Utilities::get_short_value_placeholder(), Utilities::float_to_string_dp(static_cast<float>(projected_income), 3)
 	        );
 	projected_income_label.set_text(Utilities::cash_to_string_dp_dynamic(projected_income_excluding_tariffs));
-	projected_income_label.set_tooltip_string(projected_income_template % projected_income_args);
+	godot::String income_tooltip = projected_income_template % projected_income_args;
+	income_tooltip += Utilities::format(
+		godot::String::utf8("\n Плата за перевозки (доля казны): §Y%s§!\n Прочее (дивиденды, займы, выплаты): §Y%s§!"),
+		Utilities::cash_to_string_dp_dynamic(extras.freight), Utilities::cash_to_string_dp_dynamic(extras.other_income)
+	);
+	projected_income_label.set_tooltip_string(income_tooltip);
 
 	// TODO stockpile sold to construction projects
 }
