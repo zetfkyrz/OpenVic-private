@@ -8,6 +8,7 @@
 #include <openvic-simulation/core/object/FixedPoint.hpp>
 #include <openvic-simulation/core/object/FixedPoint/Math.hpp>
 #include <openvic-simulation/economy/GoodDefinition.hpp>
+#include <openvic-simulation/military/SupplyTerritory.hpp>
 #include <openvic-simulation/modifier/Modifier.hpp>
 #include <openvic-simulation/politics/PartyPolicy.hpp>
 #include <openvic-simulation/population/PopType.hpp>
@@ -960,7 +961,14 @@ Dictionary MenuSingleton::get_province_info_from_number(int32_t province_number)
 
 	if (!province->province_definition.is_water()) {
 		CountryInstance const* const player_country = PlayerSingleton::get_singleton()->get_player_country();
-		ProvinceInstance::supply_breakdown_t const supply = province->get_supply_breakdown(player_country);
+		SupplyTerritory territory;
+		if (player_country != nullptr) {
+			territory = calculate_supply_territory(
+			    *province, instance_manager->get_map_instance(), *player_country, SupplyContext::build_friends(*player_country),
+			    instance_manager->definition_manager.get_define_manager().get_openvic_defines().supply
+			);
+		}
+		ProvinceInstance::supply_breakdown_t const supply = province->get_supply_breakdown(player_country, territory);
 		const bool shortage = supply.load > supply.capacity;
 		ret[province_info_supply_limit_text_key] = Utilities::format(
 		    String::utf8("§%s%s§!"), shortage ? "R" : "W", Utilities::fixed_point_to_string_dp(supply.capacity, 1)
@@ -996,14 +1004,43 @@ Dictionary MenuSingleton::get_province_info_from_number(int32_t province_number)
 				  Utilities::fixed_point_to_string_dp(supply.home_bonus * 100, 0)
 			  )
 			: String::utf8("Родная земля: §Gнет§! (бонус только на землях страны армии)\n");
+		const String coefficient_text = Utilities::fixed_point_to_string_dp(supply.territory.coefficient, 2);
+		switch (supply.territory.kind) {
+		case SupplyTerritory::kind_t::HELD:
+			tooltip += String::utf8("Территория: своя, союзная или занятая нами: §G×1.00§!\n");
+			break;
+		case SupplyTerritory::kind_t::TWO_NEIGHBOURS:
+			tooltip += String::utf8("Чужая земля, два соседа и больше под нашим контролем: §G×") + coefficient_text + String::utf8("§!\n");
+			break;
+		case SupplyTerritory::kind_t::ONE_NEIGHBOUR:
+			tooltip += String::utf8("Чужая земля, один сосед под нашим контролем: §Y×") + coefficient_text + String::utf8("§!\n");
+			break;
+		case SupplyTerritory::kind_t::ONE_BETWEEN:
+			tooltip += Utilities::format(
+			    String::utf8("Чужая земля, между нами и своей территорией одна чужая провинция (под нашим контролем рядом: %d): §Y×%s§!\n"),
+			    supply.territory.held_count, coefficient_text
+			);
+			break;
+		case SupplyTerritory::kind_t::TWO_BETWEEN:
+			tooltip += Utilities::format(
+			    String::utf8("Чужая земля, между нами и своей территорией две чужие провинции (под нашим контролем рядом: %d): §R×%s§!\n"),
+			    supply.territory.held_count, coefficient_text
+			);
+			break;
+		case SupplyTerritory::kind_t::FAR:
+			tooltip += String::utf8("Чужая земля вдали от нашей территории: §R×") + coefficient_text + String::utf8("§!\n");
+			break;
+		}
+		tooltip += String::utf8("Климат: пока не учитывается (заглушка, сезоны будут позже)\n");
 		tooltip += Utilities::format(
-		    String::utf8("= (%s + %s) × %s × %s × %s × (1 + %s) = §Y%s§!"),
+		    String::utf8("= (%s + %s) × %s × %s × %s × (1 + %s) × %s = §Y%s§!"),
 		    Utilities::fixed_point_to_string_dp(supply.local_limit, 2),
 		    Utilities::fixed_point_to_string_dp(supply.country_limit, 2),
 		    Utilities::fixed_point_to_string_dp(supply.limit_multiplier, 2),
 		    Utilities::fixed_point_to_string_dp(supply.rail_multiplier, 2),
 		    Utilities::fixed_point_to_string_dp(supply.technology_multiplier, 2),
 		    Utilities::fixed_point_to_string_dp(supply.home_bonus, 2),
+		    coefficient_text,
 		    Utilities::fixed_point_to_string_dp(supply.capacity, 2)
 		);
 		tooltip += get_tooltip_separator();
