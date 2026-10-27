@@ -174,7 +174,17 @@ namespace OpenVic {
 		//   supply (0..1), speed, front_id, leader_id (0 if none), leader: Dictionary of MenuSingleton.make_leader_dict,
 		//   units: [{ id, name, type_identifier, type_name, strength, max_strength, organisation, max_organisation,
 		//             pop_type, pop_culture }] }
+		//   plus the supply of the army: supply_level (0..1, the same as supply), supply_delivery (the share of the need the supply limit of the
+		//   province lets through), supply_send (how many times the need is sent), supply_ratio (the share of the need that arrived),
+		//   supply_reserve (days, the average of the regiments), supply_reserve_capacity (days), supply_priority (0 standard, 1 increased,
+		//   2 maximum: the one that applies), supply_priority_own (the same, 3 = the army has no own priority), supply_global_priority,
+		//   supply_tooltip (the explanation)
 		godot::Dictionary get_army_details(int64_t army_id) const;
+		// The priority of the supply of one army (0 standard, 1 increased, 2 maximum, 3 = the priority of the country) and of all the armies
+		// of the player that have no priority of their own
+		bool set_army_supply_priority(int64_t army_id, int32_t priority) const;
+		bool set_global_supply_priority(int32_t priority) const;
+		int32_t get_global_supply_priority() const;
 		// Generals of the country: [{ leader_id, name, picture, tooltip, personality, background, prestige, army_id, army_name }]
 		godot::Array get_generals() const;
 		// The same for admirals (leaders of fleets)

@@ -135,6 +135,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::assign_free_armies, { "front_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_auto_plan, { "enabled" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_supply_priority, { "army_id", "priority" });
+	OV_BIND_METHOD(PlayerSingleton::set_global_supply_priority, { "priority" });
+	OV_BIND_METHOD(PlayerSingleton::get_global_supply_priority);
 	OV_BIND_METHOD(PlayerSingleton::get_market_overview);
 	OV_BIND_METHOD(PlayerSingleton::get_colonisation_info);
 	OV_BIND_METHOD(PlayerSingleton::start_colonisation, { "province_number" });
@@ -1851,7 +1854,7 @@ Array PlayerSingleton::get_map_units() const {
 			{
 				CountryInstance const* owner = province.get_owner();
 				const bool friendly = owner == country || (owner != nullptr && country->has_alliance_with(*owner));
-				const bool unsupplied = country->is_at_war() && country->get_army_supply_ratio() < (fixed_point_t(3) / 4);
+				const bool unsupplied = country->is_at_war() && army.get_supply_level() < (fixed_point_t(3) / 4);
 				group->attrition = group->attrition || (!country->is_rebel_country() && (!friendly || unsupplied));
 			}
 			group->army_ids.push_back(static_cast<int64_t>(army.unique_id));
@@ -2444,7 +2447,41 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	result["dig_in_cap"] = static_cast<int32_t>(country.get_dig_in_cap());
 	result["moving"] = army.is_moving();
 	result["in_combat"] = army.is_in_combat();
-	result["supply"] = static_cast<float>(country.get_army_supply_ratio());
+	result["supply"] = static_cast<float>(army.get_supply_level());
+	result["supply_level"] = static_cast<float>(army.get_supply_level());
+	result["supply_delivery"] = static_cast<float>(army.get_supply_delivery());
+	result["supply_send"] = static_cast<float>(army.get_supply_send_multiplier());
+	result["supply_ratio"] = static_cast<float>(army.get_supply_ratio());
+	const fixed_point_t reserve_capacity = country.get_supply_reserve_capacity();
+	// The reserve of the regiments (a regiment that has not had its first day is full)
+	fixed_point_t reserve_average = fixed_point_t::_0;
+	if (army.get_unit_count() > 0) {
+		fixed_point_t reserve_sum = fixed_point_t::_0;
+		for (RegimentInstance const& regiment : army.get_regiment_instances()) {
+			reserve_sum += regiment.get_supply_reserve() < fixed_point_t::_0 ? reserve_capacity : regiment.get_supply_reserve();
+		}
+		reserve_average = reserve_sum / static_cast<std::int32_t>(army.get_unit_count());
+	}
+	result["supply_reserve"] = static_cast<float>(reserve_average);
+	result["supply_reserve_capacity"] = static_cast<float>(reserve_capacity);
+	const supply_priority_t effective_priority =
+		country.get_effective_supply_priority(army.is_supply_priority_custom(), army.get_supply_priority());
+	result["supply_priority"] = static_cast<int32_t>(effective_priority);
+	result["supply_priority_own"] = army.is_supply_priority_custom() ? static_cast<int32_t>(army.get_supply_priority()) : 3;
+	result["supply_global_priority"] = static_cast<int32_t>(country.get_army_supply_priority());
+	{
+		static const char* const priority_names[] = { "стандартный", "повышенный", "максимальный" };
+		const auto percent = [](fixed_point_t value) -> int32_t { return static_cast<int32_t>((value * 100).round<int32_t>()); };
+		String tip = Utilities::format(
+			String::utf8("Снабжение армии: уровень §Y%d%%§! (атака и защита армии умножаются на него)\nПровинция пропускает §Y%d%%§! потребности, отправляется §Yx%s§! потребности (приоритет: %s), пришло §Y%d%%§! (с учётом запасов товаров и ползунка бюджета)\nЗапас полков: §Y%s§! из §Y%s§! дн. Пока запас есть, снабжение не приходит полностью, но уровень не падает; при полном снабжении запас пополняется."),
+			percent(army.get_supply_level()), percent(army.get_supply_delivery()),
+			Utilities::fixed_point_to_string_dp(army.get_supply_send_multiplier(), 2),
+			String::utf8(priority_names[static_cast<int32_t>(effective_priority)]), percent(army.get_supply_ratio()),
+			Utilities::fixed_point_to_string_dp(reserve_average, 1),
+			Utilities::fixed_point_to_string_dp(reserve_capacity, 0)
+		);
+		result["supply_tooltip"] = std::move(tip);
+	}
 	result["speed"] = static_cast<float>(army.get_movement_speed());
 	result["eta_days"] = army.get_movement_days_left();
 
@@ -2619,6 +2656,36 @@ bool PlayerSingleton::merge_armies(int64_t target_army_id, int64_t source_army_i
 	return instance_manager->queue_game_action<merge_armies_argument_t>(
 		static_cast<unique_id_t>(target_army_id), static_cast<unique_id_t>(source_army_id)
 	);
+}
+
+bool PlayerSingleton::set_army_supply_priority(int64_t army_id, int32_t priority) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstanceGroup* const group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+		static_cast<unique_id_t>(army_id)
+	);
+	ERR_FAIL_NULL_V(group, false);
+	ERR_FAIL_COND_V(group->branch != unit_branch_t::LAND || &group->get_country() != player_country, false);
+	ERR_FAIL_COND_V(priority < 0 || priority > 3, false);
+	return instance_manager->queue_game_action<set_army_supply_priority_argument_t>(
+		static_cast<unique_id_t>(army_id), static_cast<std::uint32_t>(priority)
+	);
+}
+
+bool PlayerSingleton::set_global_supply_priority(int32_t priority) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(priority < 0 || priority > 2, false);
+	return instance_manager->queue_game_action<set_global_supply_priority_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(priority)
+	);
+}
+
+int32_t PlayerSingleton::get_global_supply_priority() const {
+	ERR_FAIL_NULL_V(player_country, 0);
+	return static_cast<int32_t>(player_country->get_army_supply_priority());
 }
 
 bool PlayerSingleton::set_army_leader(int64_t army_id, int64_t leader_id) const {

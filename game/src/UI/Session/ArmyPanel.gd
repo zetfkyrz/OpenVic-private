@@ -17,6 +17,8 @@ var _prev_button: Button
 var _next_button: Button
 var _nav_label: Label
 var _info_label: Label
+var _priority_option: OptionButton
+var _global_priority_option: OptionButton
 var _leader_label: Label
 var _general_option: OptionButton
 var _assign_button: Button
@@ -71,7 +73,32 @@ func _ready() -> void:
 
 	_info_label = Label.new()
 	_info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_info_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(_info_label)
+
+	# The priority of the supply of the army (an own one or the one of all the armies) - what the country sends to the army
+	var priority_row := HBoxContainer.new()
+	priority_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(priority_row)
+	var priority_caption := Label.new()
+	priority_caption.text = "Приоритет снабжения:"
+	priority_caption.tooltip_text = "Стандартный: отправляется ровно то, что нужно армии.\nПовышенный: отправляется больше, чтобы покрыть потери (до 2.5 потребности).\nМаксимальный: до 5 потребностей. Сверх нормы тратятся товары из запаса."
+	priority_row.add_child(priority_caption)
+	_priority_option = OptionButton.new()
+	_priority_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for text: String in ["Как у всех армий", "Стандартный", "Повышенный", "Максимальный"]:
+		_priority_option.add_item(text)
+	_priority_option.item_selected.connect(_on_priority_selected)
+	priority_row.add_child(_priority_option)
+	var global_caption := Label.new()
+	global_caption.text = "Для всех армий:"
+	global_caption.tooltip_text = "Приоритет армий, у которых нет своего. Свой приоритет армии этим не меняется."
+	priority_row.add_child(global_caption)
+	_global_priority_option = OptionButton.new()
+	for text: String in ["Стандартный", "Повышенный", "Максимальный"]:
+		_global_priority_option.add_item(text)
+	_global_priority_option.item_selected.connect(_on_global_priority_selected)
+	priority_row.add_child(_global_priority_option)
 
 	var leader_row := HBoxContainer.new()
 	leader_row.add_theme_constant_override(&"separation", 6)
@@ -204,6 +231,8 @@ func _refresh() -> void:
 	_nav_label.text = _make_nav_text()
 
 	_info_label.text = _make_info_text()
+	_info_label.tooltip_text = _details.get(&"supply_tooltip", "").replace("§Y", "").replace("§G", "").replace("§R", "").replace("§W", "").replace("§!", "")
+	_update_priority()
 	_update_leader()
 	_update_units()
 	_update_merge_list()
@@ -214,6 +243,25 @@ func _refresh() -> void:
 	_stop_button.disabled = not _details[&"moving"]
 	_disband_army_button.disabled = _details[&"in_combat"]
 	_disband_army_button.text = "Подтвердить роспуск армии" if _disband_armed else "Распустить армию"
+
+
+func _update_priority() -> void:
+	var is_player: bool = _details[&"is_player"]
+	_priority_option.disabled = not is_player
+	_global_priority_option.disabled = not is_player
+	_priority_option.select(_details[&"supply_priority_own"])
+	_global_priority_option.select(_details[&"supply_global_priority"])
+
+
+func _on_priority_selected(index: int) -> void:
+	# 0 in the list is "as all the armies" (the own priority is taken off), 1..3 the own priorities 0..2
+	var value: int = 3 if index == 0 else index - 1
+	for army_id: int in _army_ids:
+		PlayerSingleton.set_army_supply_priority(army_id, value)
+
+
+func _on_global_priority_selected(index: int) -> void:
+	PlayerSingleton.set_global_supply_priority(index)
 
 
 func _make_nav_text() -> String:
@@ -237,8 +285,9 @@ func _make_info_text() -> String:
 	])
 
 	var supply: float = _details[&"supply"]
-	lines.append("Снабжение: %d%%. Окопанность: %d из %d." % [
-		roundi(supply * 100.0), _details[&"dig_in"], _details[&"dig_in_cap"],
+	lines.append("Снабжение: %d%% (пришло %d%%, запас %.1f из %d дн.). Окопанность: %d из %d." % [
+		roundi(supply * 100.0), roundi(float(_details[&"supply_ratio"]) * 100.0), _details[&"supply_reserve"],
+		roundi(float(_details[&"supply_reserve_capacity"])), _details[&"dig_in"], _details[&"dig_in_cap"],
 	])
 
 	if _details[&"in_combat"]:

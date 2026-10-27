@@ -53,6 +53,10 @@ func _make_text(entry: Dictionary) -> String:
 			return "%s объявляет нам войну!" % entry[&"country"]
 		"peace_signed":
 			return "Заключён мир: %s и %s" % [entry[&"country"], entry[&"other"]]
+		"army_no_supply":
+			return "Армия без снабжения: %s" % entry[&"subject"]
+		"army_supply_restored":
+			return "Снабжение армии восстановлено: %s" % entry[&"subject"]
 	return ""
 
 
