@@ -206,6 +206,8 @@ func _update_info() -> void:
 	const _province_info_crime_name_key: StringName = &"crime_name"
 	const _province_info_crime_icon_key: StringName = &"crime_icon"
 	const _province_info_total_population_key: StringName = &"total_population"
+	const _province_info_supply_limit_text_key: StringName = &"supply_limit_text"
+	const _province_info_supply_limit_tooltip_key: StringName = &"supply_limit_tooltip"
 	const _province_info_pop_types_key: StringName = &"pop_types"
 	const _province_info_pop_ideologies_key: StringName = &"pop_ideologies"
 	const _province_info_pop_cultures_key: StringName = &"pop_cultures"
@@ -341,7 +343,8 @@ func _update_info() -> void:
 			_pop_cultures_piechart.set_slices_array(_province_info.get(_province_info_pop_cultures_key, []))
 
 		if _supply_limit_label:
-			pass
+			_supply_limit_label.text = _province_info.get(_province_info_supply_limit_text_key, "")
+			_supply_limit_label.set_tooltip_string(_province_info.get(_province_info_supply_limit_tooltip_key, ""))
 
 		if _cores_overlapping_elements_box:
 			var cores: PackedStringArray = _province_info.get(_province_info_cores_key, [])

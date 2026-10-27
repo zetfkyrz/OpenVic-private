@@ -338,4 +338,18 @@ defines = {
 		SUBSISTENCE_RAIL_RELIEF = 0.7, -- fraction 0 to 1
 		SUBSISTENCE_NEED_MULTIPLIER = 2, -- whole number 1 to 100
 	},
+	ov_supply = {
+		SUPPLY_LIMIT_BASE = 1, -- number 0 to 100
+		SUPPLY_RAIL_BONUS_PER_LEVEL = 0.1, -- fraction 0 to 10
+		SUPPLY_HOME_BONUS = 0.05, -- fraction 0 to 10
+		SUPPLY_HOME_BONUS_TECH = 0.05, -- fraction 0 to 10
+		SUPPLY_MAP_REFERENCE_LOAD = 4, -- number 0 to 1000
+		SUPPLY_MAP_DARK_GREEN_FROM = 1.5, -- fraction 0 to 100
+		SUPPLY_MAP_GREEN_ABOVE = 1.25, -- fraction 0 to 100
+		SUPPLY_MAP_LIGHT_BLUE_ABOVE = 1.1, -- fraction 0 to 100
+		SUPPLY_MAP_BLUE_FROM = 1, -- fraction 0 to 100
+		SUPPLY_MAP_YELLOW_FROM = 0.9, -- fraction 0 to 100
+		SUPPLY_MAP_ORANGE_FROM = 0.75, -- fraction 0 to 100
+		SUPPLY_MAP_RED_FROM = 0.5, -- fraction 0 to 100
+	},
 }

@@ -461,6 +461,8 @@ Dictionary MenuSingleton::get_province_info_from_number(int32_t province_number)
 	static const StringName province_info_pop_cultures_key = "pop_cultures";
 	static const StringName province_info_cores_key = "cores";
 	static const StringName province_info_buildings_key = "buildings";
+	static const StringName province_info_supply_limit_text_key = "supply_limit_text";
+	static const StringName province_info_supply_limit_tooltip_key = "supply_limit_tooltip";
 
 	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
 	if (province == nullptr) {
@@ -954,6 +956,69 @@ Dictionary MenuSingleton::get_province_info_from_number(int32_t province_number)
 	TypedArray<Dictionary> building_dict_array = _make_buildings_dict_array(province);
 	if (!building_dict_array.is_empty()) {
 		ret[province_info_buildings_key] = std::move(building_dict_array);
+	}
+
+	if (!province->province_definition.is_water()) {
+		CountryInstance const* const player_country = PlayerSingleton::get_singleton()->get_player_country();
+		ProvinceInstance::supply_breakdown_t const supply = province->get_supply_breakdown(player_country);
+		const bool shortage = supply.load > supply.capacity;
+		ret[province_info_supply_limit_text_key] = Utilities::format(
+		    String::utf8("§%s%s§!"), shortage ? "R" : "W", Utilities::fixed_point_to_string_dp(supply.capacity, 1)
+		);
+		String tooltip = Utilities::format(
+		    String::utf8("Лимит снабжения провинции: §Y%s§!\n(сколько полков она может прокормить)"),
+		    Utilities::fixed_point_to_string_dp(supply.capacity, 2)
+		);
+		tooltip += get_tooltip_separator();
+		tooltip += Utilities::format(
+		    String::utf8("Местность, тип провинции, климат, здания: §Y%s§!\n"),
+		    Utilities::fixed_point_to_string_dp(supply.local_limit, 2)
+		);
+		tooltip += Utilities::format(
+		    String::utf8("Общий лимит страны (база и технологии): §Y%s§!\n"),
+		    Utilities::fixed_point_to_string_dp(supply.country_limit, 2)
+		);
+		tooltip += Utilities::format(
+		    String::utf8("Множитель базы (ov_supply): §Y×%s§!\n"), Utilities::fixed_point_to_string_dp(supply.limit_multiplier, 2)
+		);
+		tooltip += Utilities::format(
+		    String::utf8("Железная дорога, уровней: §Y%s§! (множитель §Y×%s§!)\n"),
+		    Utilities::fixed_point_to_string_dp(supply.rail_level, 0),
+		    Utilities::fixed_point_to_string_dp(supply.rail_multiplier, 2)
+		);
+		tooltip += Utilities::format(
+		    String::utf8("Технологии и модификаторы страны: §Y×%s§!\n"),
+		    Utilities::fixed_point_to_string_dp(supply.technology_multiplier, 2)
+		);
+		tooltip += supply.is_home
+			? Utilities::format(
+				  String::utf8("Родная земля: §G+%s%%§!\n"),
+				  Utilities::fixed_point_to_string_dp(supply.home_bonus * 100, 0)
+			  )
+			: String::utf8("Родная земля: §Gнет§! (бонус только на землях страны армии)\n");
+		tooltip += Utilities::format(
+		    String::utf8("= (%s + %s) × %s × %s × %s × (1 + %s) = §Y%s§!"),
+		    Utilities::fixed_point_to_string_dp(supply.local_limit, 2),
+		    Utilities::fixed_point_to_string_dp(supply.country_limit, 2),
+		    Utilities::fixed_point_to_string_dp(supply.limit_multiplier, 2),
+		    Utilities::fixed_point_to_string_dp(supply.rail_multiplier, 2),
+		    Utilities::fixed_point_to_string_dp(supply.technology_multiplier, 2),
+		    Utilities::fixed_point_to_string_dp(supply.home_bonus, 2),
+		    Utilities::fixed_point_to_string_dp(supply.capacity, 2)
+		);
+		tooltip += get_tooltip_separator();
+		tooltip += Utilities::format(
+		    String::utf8("Нагрузка (полки вашей страны здесь): §%s%s§!"), shortage ? "R" : "G",
+		    Utilities::fixed_point_to_string_dp(supply.load, 2)
+		);
+		if (supply.load > fixed_point_t::_0) {
+			const fixed_point_t share = supply.capacity / supply.load;
+			tooltip += Utilities::format(
+			    String::utf8("\nЛимит / нагрузка: §%s%s%%§!"), shortage ? "R" : "G",
+			    Utilities::fixed_point_to_string_dp(share * 100, 0)
+			);
+		}
+		ret[province_info_supply_limit_tooltip_key] = std::move(tooltip);
 	}
 
 	return ret;
