@@ -184,6 +184,17 @@ namespace OpenVic {
 		// of the player that have no priority of their own
 		bool set_army_supply_priority(int64_t army_id, int32_t priority) const;
 		bool set_global_supply_priority(int32_t priority) const;
+		// Divisions (docs/PLAN_ARMY_SUPPLY_FRONTS.md, section 4): get_army_details also has has_organisation (the country has the technology of the
+		// organisation of the army: divisions, templates and generals), divisions: [{ id, template_id (0 = out of the template), name, regiments,
+		// unit_ids: [...] }] and the division_id of every unit
+		bool has_army_organisation() const;
+		// The templates of the divisions of the player: [{ id, name, text, infantry, cavalry, support, special }]
+		godot::Array get_division_templates() const;
+		bool create_division_template(int32_t infantry, int32_t cavalry, int32_t support, int32_t special) const;
+		bool update_division_template(int32_t template_id, int32_t infantry, int32_t cavalry, int32_t support, int32_t special) const;
+		bool delete_division_template(int32_t template_id) const;
+		// division_id 0: the regiments of all the divisions of the army that are out of the template
+		bool reform_army_to_template(int64_t army_id, int32_t division_id, int32_t template_id) const;
 		int32_t get_global_supply_priority() const;
 		// Generals of the country: [{ leader_id, name, picture, tooltip, personality, background, prestige, army_id, army_name }]
 		godot::Array get_generals() const;

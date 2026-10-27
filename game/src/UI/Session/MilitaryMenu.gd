@@ -54,6 +54,7 @@ var _build_navy_button: GUIIconButton
 var _table_listboxes: Array[GUIListBox]
 var _table_sort_columns: PackedByteArray
 var _table_sort_directions: PackedByteArray
+var _global_priority_option: OptionButton
 
 
 func _ready() -> void:
@@ -170,6 +171,20 @@ func _ready() -> void:
 			_build_army_button.set_tooltip_string("MILITARY_BUILD_ARMY_TOOLTIP")
 
 		_table_listboxes.push_back(GUINode.get_gui_listbox_from_node(army_window.get_node(^"./unit_listbox")))
+
+		# The priority of the supply for all the armies (an army with its own priority keeps it); the list is made a little shorter for it
+		var army_listbox: Control = army_window.get_node(^"./unit_listbox")
+		army_listbox.custom_minimum_size.y = army_listbox.size.y - 34.0
+		army_listbox.size.y = army_listbox.size.y - 34.0
+		army_listbox.clip_contents = true
+		_global_priority_option = OptionButton.new()
+		for text: String in ["Снабжение армий: стандартный", "Снабжение армий: повышенный", "Снабжение армий: максимальный"]:
+			_global_priority_option.add_item(text)
+		_global_priority_option.position = Vector2(10, 60.0 + 429.0 - 34.0 + 4.0)
+		_global_priority_option.size = Vector2(316, 28)
+		_global_priority_option.tooltip_text = "Приоритет снабжения армий, у которых нет своего." + char(10) + "Стандартный: отправляется ровно то, что нужно армии." + char(10) + "Повышенный: больше, чтобы покрыть потери (до 2.5 потребности)." + char(10) + "Максимальный: до 5 потребностей. Сверх нормы тратятся товары из запаса." + char(10) + "Армия со своим приоритетом (панель армии) его сохраняет."
+		_global_priority_option.item_selected.connect(PlayerSingleton.set_global_supply_priority)
+		army_window.add_child(_global_priority_option)
 	else:
 		_table_listboxes.push_back(null)
 	_table_sort_columns.push_back(TABLE_UNSORTED)
@@ -440,6 +455,8 @@ func _update_unit_group_list(
 
 
 func _update_info() -> void:
+	if _global_priority_option != null:
+		_global_priority_option.select(PlayerSingleton.get_global_supply_priority())
 	if _active:
 		# Military stats
 		const military_info_war_exhaustion_key: StringName = &"war_exhaustion"

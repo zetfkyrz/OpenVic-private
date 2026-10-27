@@ -138,6 +138,12 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_army_supply_priority, { "army_id", "priority" });
 	OV_BIND_METHOD(PlayerSingleton::set_global_supply_priority, { "priority" });
 	OV_BIND_METHOD(PlayerSingleton::get_global_supply_priority);
+	OV_BIND_METHOD(PlayerSingleton::has_army_organisation);
+	OV_BIND_METHOD(PlayerSingleton::get_division_templates);
+	OV_BIND_METHOD(PlayerSingleton::create_division_template, { "infantry", "cavalry", "support", "special" });
+	OV_BIND_METHOD(PlayerSingleton::update_division_template, { "template_id", "infantry", "cavalry", "support", "special" });
+	OV_BIND_METHOD(PlayerSingleton::delete_division_template, { "template_id" });
+	OV_BIND_METHOD(PlayerSingleton::reform_army_to_template, { "army_id", "division_id", "template_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_market_overview);
 	OV_BIND_METHOD(PlayerSingleton::get_colonisation_info);
 	OV_BIND_METHOD(PlayerSingleton::start_colonisation, { "province_number" });
@@ -2520,6 +2526,7 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 		entry["max_strength"] = static_cast<float>(unit.get_max_strength());
 		entry["organisation"] = static_cast<float>(unit.get_organisation());
 		entry["max_organisation"] = static_cast<float>(unit.get_max_organisation());
+		entry["division_id"] = static_cast<int32_t>(static_cast<RegimentInstance const&>(unit).get_division_id());
 		Pop const* pop = static_cast<RegimentInstance const&>(unit).get_pop();
 		entry["pop_type"] = pop != nullptr ? menu_singleton->tr(convert_to<String>(pop->get_type().get_identifier())) : String {};
 		entry["pop_culture"] =
@@ -2528,7 +2535,104 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	}
 	result["units"] = units;
 
+	result["has_organisation"] = country.has_army_organisation();
+	Array divisions;
+	int32_t division_number = 0;
+	for (DivisionInstance const& division : army.get_divisions()) {
+		division_number++;
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(division.id);
+		entry["template_id"] = static_cast<int32_t>(division.template_id);
+		PackedInt64Array unit_ids;
+		for (RegimentInstance const& regiment : army.get_regiment_instances()) {
+			if (regiment.get_division_id() == division.id) {
+				unit_ids.push_back(static_cast<int64_t>(regiment.unique_id));
+			}
+		}
+		entry["regiments"] = static_cast<int32_t>(unit_ids.size());
+		entry["unit_ids"] = unit_ids;
+		entry["name"] = division.template_id == 0
+			? Utilities::format(String::utf8("Вне шаблона %d"), division_number)
+			: Utilities::format(String::utf8("Дивизия %d (шаблон %d)"), division_number, static_cast<int32_t>(division.template_id));
+		divisions.push_back(entry);
+	}
+	result["divisions"] = divisions;
+
 	return result;
+}
+
+bool PlayerSingleton::has_army_organisation() const {
+	return player_country != nullptr && player_country->has_army_organisation();
+}
+
+Array PlayerSingleton::get_division_templates() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	for (DivisionTemplate const& division_template : player_country->get_division_templates()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(division_template.id);
+		entry["infantry"] = static_cast<int32_t>(division_template.slots[0]);
+		entry["cavalry"] = static_cast<int32_t>(division_template.slots[1]);
+		entry["support"] = static_cast<int32_t>(division_template.slots[2]);
+		entry["special"] = static_cast<int32_t>(division_template.slots[3]);
+		entry["name"] = Utilities::format(String::utf8("Шаблон %d"), static_cast<int32_t>(division_template.id));
+		entry["text"] = Utilities::format(
+			String::utf8("Шаблон %d: пехота %d, кавалерия %d, поддержка %d, особые %d"), static_cast<int32_t>(division_template.id),
+			static_cast<int32_t>(division_template.slots[0]), static_cast<int32_t>(division_template.slots[1]),
+			static_cast<int32_t>(division_template.slots[2]), static_cast<int32_t>(division_template.slots[3])
+		);
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::create_division_template(int32_t infantry, int32_t cavalry, int32_t support, int32_t special) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(infantry < 0 || cavalry < 0 || support < 0 || special < 0, false);
+	return instance_manager->queue_game_action<create_division_template_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(infantry), static_cast<std::uint32_t>(cavalry),
+		static_cast<std::uint32_t>(support), static_cast<std::uint32_t>(special)
+	);
+}
+
+bool PlayerSingleton::update_division_template(
+	int32_t template_id, int32_t infantry, int32_t cavalry, int32_t support, int32_t special
+) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(template_id < 0 || infantry < 0 || cavalry < 0 || support < 0 || special < 0, false);
+	return instance_manager->queue_game_action<update_division_template_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(template_id), static_cast<std::uint32_t>(infantry),
+		static_cast<std::uint32_t>(cavalry), static_cast<std::uint32_t>(support), static_cast<std::uint32_t>(special)
+	);
+}
+
+bool PlayerSingleton::delete_division_template(int32_t template_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(template_id < 0, false);
+	return instance_manager->queue_game_action<delete_division_template_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(template_id)
+	);
+}
+
+bool PlayerSingleton::reform_army_to_template(int64_t army_id, int32_t division_id, int32_t template_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstanceGroup* const group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+		static_cast<unique_id_t>(army_id)
+	);
+	ERR_FAIL_NULL_V(group, false);
+	ERR_FAIL_COND_V(group->branch != unit_branch_t::LAND || &group->get_country() != player_country, false);
+	ERR_FAIL_COND_V(division_id < 0 || template_id < 0, false);
+	return instance_manager->queue_game_action<reform_army_to_template_argument_t>(
+		static_cast<unique_id_t>(army_id), static_cast<std::uint32_t>(division_id), static_cast<std::uint32_t>(template_id)
+	);
 }
 
 namespace {

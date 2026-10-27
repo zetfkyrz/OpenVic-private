@@ -132,6 +132,7 @@ const SETTINGS_FILE := "user://settings.cfg"
 const GENERAL_SAVE_GAME_FORMAT := &"general/save_game_format"
 const GENERAL_AUTO_SAVE_INTERVAL := &"general/auto_save_interval"
 const GENERAL_LANGUAGE := &"general/language"
+const GENERAL_SUPPLY_MESSAGES := &"general/supply_messages"
 #
 # Video Settings
 const VIDEO_RESOLUTION := &"video/resolution"
@@ -194,6 +195,11 @@ func _init() -> void:
 		.add_meta(&"hint", PROPERTY_HINT_ENUM)
 		.add_meta(&"values", _get_loaded_locales())
 		.add_meta(&"display_values", _get_loaded_locale_names()))
+
+	self.add_setting(Setting.new(GENERAL_SUPPLY_MESSAGES, true)
+		.set_description("Messages \"the army is without supplies\" and \"the supplies of the army are restored\".")
+		.add_meta(&"display_name", "Supply Messages")
+		.add_meta(&"type", TYPE_BOOL))
 
 	# Video Settings
 	self.add_setting(Setting.new(VIDEO_RESOLUTION, Vector2i(

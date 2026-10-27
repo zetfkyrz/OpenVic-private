@@ -4,13 +4,14 @@ extends "res://src/UI/Session/Vic2Window.gd"
 ## disband a regiment or the whole army. When several armies are selected a summary is shown and the arrows switch
 ## between the armies. A Victoria 2 style window, it appears when armies are selected on the map (see UnitBanners).
 
-const _SIZE: Vector2 = Vector2(720, 560)
+const _SIZE: Vector2 = Vector2(840, 620)
 const _SELECTED_COLOUR: Color = Color(0.6, 0.18, 0.2, 0.45)
 
 var _army_ids: Array[int] = []
 var _index: int = 0
 var _details: Dictionary = {}
 var _selected_regiment_id: int = 0
+var _selected_division_id: int = 0
 var _disband_armed: bool = false
 
 var _prev_button: Button
@@ -31,6 +32,12 @@ var _merge_button: Button
 var _stop_button: Button
 var _recruit_button: Button
 var _disband_army_button: Button
+var _template_option: OptionButton
+var _reform_button: Button
+var _templates_button: Button
+var _division_row: HBoxContainer
+var _templates_signature: String = ""
+var _templates_window: Control
 
 # Signatures of the lists in the drop-downs, they are rebuilt only when the content changes so that an opened list
 # does not close every day
@@ -120,6 +127,27 @@ func _ready() -> void:
 	_remove_leader_button.pressed.connect(_on_remove_leader_pressed)
 	leader_row.add_child(_remove_leader_button)
 
+	# Divisions (the countries with the technology of the organisation of the army): reforming the regiments by a template
+	_division_row = HBoxContainer.new()
+	_division_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(_division_row)
+	var template_caption := Label.new()
+	template_caption.text = "Шаблон:"
+	_division_row.add_child(template_caption)
+	_template_option = OptionButton.new()
+	_template_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_template_option.clip_text = true
+	_division_row.add_child(_template_option)
+	_reform_button = Button.new()
+	_reform_button.text = "Переформировать по шаблону"
+	_reform_button.tooltip_text = "Полки выбранной дивизии вне шаблона (или всех дивизий вне шаблона, если ничего не выбрано) складываются в целые дивизии выбранного шаблона; остаток остаётся как был"
+	_reform_button.pressed.connect(_on_reform_pressed)
+	_division_row.add_child(_reform_button)
+	_templates_button = Button.new()
+	_templates_button.text = "Шаблоны…"
+	_templates_button.pressed.connect(_on_templates_pressed)
+	_division_row.add_child(_templates_button)
+
 	_tree = Tree.new()
 	_tree.columns = 5
 	_tree.column_titles_visible = true
@@ -193,6 +221,10 @@ func set_recruitment_window(window: Control) -> void:
 	_recruitment_window = window
 
 
+func set_templates_window(window: Control) -> void:
+	_templates_window = window
+
+
 ## Shows the selected armies of the player, an empty list hides the panel
 func show_armies(army_ids: Array[int]) -> void:
 	if army_ids.is_empty():
@@ -231,6 +263,7 @@ func _refresh() -> void:
 	_nav_label.text = _make_nav_text()
 
 	_info_label.text = _make_info_text()
+	_update_divisions_row()
 	_info_label.tooltip_text = _details.get(&"supply_tooltip", "").replace("§Y", "").replace("§G", "").replace("§R", "").replace("§W", "").replace("§!", "")
 	_update_priority()
 	_update_leader()
@@ -330,15 +363,88 @@ func _update_leader() -> void:
 			if not general.get(&"leader_can_be_used", true):
 				_general_option.set_item_disabled(_general_option.item_count - 1, true)
 
-	_general_option.disabled = _general_option.item_count == 0
-	_assign_button.disabled = _general_option.item_count == 0 or not _details[&"is_player"]
+	var organised: bool = _details.get(&"has_organisation", false)
+	if not organised:
+		_leader_label.text = "Нет генерала"
+		_leader_label.tooltip_text = "Генералы командуют армиями только у стран с технологией «Организация армии» (цивилизованных)"
+	_general_option.disabled = _general_option.item_count == 0 or not organised
+	_assign_button.disabled = _general_option.item_count == 0 or not _details[&"is_player"] or not organised
 	_remove_leader_button.disabled = leader_id == 0 or not _details[&"is_player"]
+
+
+func _update_divisions_row() -> void:
+	var organised: bool = _details.get(&"has_organisation", false)
+	_division_row.visible = organised
+	if not organised:
+		return
+	var templates: Array = PlayerSingleton.get_division_templates()
+	var signature: String = str(templates)
+	if signature != _templates_signature:
+		_templates_signature = signature
+		_template_option.clear()
+		for entry: Dictionary in templates:
+			_template_option.add_item(entry[&"text"])
+			_template_option.set_item_metadata(_template_option.item_count - 1, entry[&"id"])
+	_template_option.disabled = _template_option.item_count == 0
+	_reform_button.disabled = _template_option.item_count == 0 or not _details[&"is_player"] or _details[&"in_combat"]
+
+
+func _on_reform_pressed() -> void:
+	if _template_option.item_count == 0 or _template_option.selected < 0:
+		return
+	var template_id: int = _template_option.get_item_metadata(_template_option.selected)
+	PlayerSingleton.reform_army_to_template(_army_ids[_index], _selected_division_id, template_id)
+
+
+func _on_templates_pressed() -> void:
+	if _templates_window != null:
+		_templates_window.open_templates()
+
+
+func _add_unit_item(parent: TreeItem, unit: Dictionary) -> TreeItem:
+	var item: TreeItem = _tree.create_item(parent)
+	item.set_text(0, unit[&"name"])
+	item.set_text(1, unit[&"type_name"])
+	var max_strength: float = unit[&"max_strength"]
+	var strength_share: float = float(unit[&"strength"]) / max_strength if max_strength > 0.0 else 0.0
+	item.set_text(2, "%d%%" % roundi(strength_share * 100.0))
+	var max_organisation: float = unit[&"max_organisation"]
+	var organisation_share: float = float(unit[&"organisation"]) / max_organisation if max_organisation > 0.0 else 0.0
+	item.set_text(3, "%d%%" % roundi(organisation_share * 100.0))
+	item.set_text(4, "%s (%s)" % [unit[&"pop_type"], unit[&"pop_culture"]] if unit[&"pop_type"] != "" else "-")
+	item.set_metadata(0, unit[&"id"])
+	item.set_metadata(1, 0)
+	return item
 
 
 func _update_units() -> void:
 	_tree.clear()
 	var root: TreeItem = _tree.create_item()
 	var to_select: TreeItem = null
+	if _details.get(&"has_organisation", false) and not _details.get(&"divisions", []).is_empty():
+		# The divisions with their regiments
+		var by_id: Dictionary = {}
+		for unit: Dictionary in _details[&"units"]:
+			by_id[unit[&"id"]] = unit
+		for division: Dictionary in _details[&"divisions"]:
+			var division_item: TreeItem = _tree.create_item(root)
+			division_item.set_text(0, division[&"name"])
+			division_item.set_text(1, "%d полков" % division[&"regiments"])
+			division_item.set_metadata(0, 0)
+			division_item.set_metadata(1, division[&"id"])
+			division_item.set_custom_color(0, Color(0.55, 0.15, 0.15))
+			for unit_id: int in division[&"unit_ids"]:
+				var unit_item: TreeItem = _add_unit_item(division_item, by_id[unit_id])
+				if unit_id == _selected_regiment_id:
+					to_select = unit_item
+			if division[&"id"] == _selected_division_id and _selected_regiment_id == 0:
+				to_select = division_item
+		if to_select != null:
+			to_select.select(0)
+		else:
+			_selected_regiment_id = 0
+			_selected_division_id = 0
+		return
 	for unit: Dictionary in _details[&"units"]:
 		var item: TreeItem = _tree.create_item(root)
 		item.set_text(0, unit[&"name"])
@@ -386,11 +492,19 @@ func _on_nav_pressed(step: int) -> void:
 func _on_regiment_selected() -> void:
 	var item: TreeItem = _tree.get_selected()
 	_selected_regiment_id = item.get_metadata(0) if item != null else 0
+	# A division is selected by its line, a regiment by its own (then the division of the regiment is meant)
+	if item != null and item.get_metadata(1) != null and item.get_metadata(1) != 0:
+		_selected_division_id = item.get_metadata(1)
+	elif item != null and item.get_parent() != null and item.get_parent().get_metadata(1) != null:
+		_selected_division_id = item.get_parent().get_metadata(1)
+	else:
+		_selected_division_id = 0
 	_refresh_buttons_only()
 
 
 func _on_regiment_deselected() -> void:
 	_selected_regiment_id = 0
+	_selected_division_id = 0
 	_tree.deselect_all()
 	_refresh_buttons_only()
 

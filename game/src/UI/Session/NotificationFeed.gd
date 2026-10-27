@@ -54,10 +54,19 @@ func _make_text(entry: Dictionary) -> String:
 		"peace_signed":
 			return "Заключён мир: %s и %s" % [entry[&"country"], entry[&"other"]]
 		"army_no_supply":
+			if not _supply_messages_enabled():
+				return ""
 			return "Армия без снабжения: %s" % entry[&"subject"]
 		"army_supply_restored":
+			if not _supply_messages_enabled():
+				return ""
 			return "Снабжение армии восстановлено: %s" % entry[&"subject"]
 	return ""
+
+
+# The setting "Supply Messages" of the options (General)
+func _supply_messages_enabled() -> bool:
+	return GameSettings.get_setting(GameSettings.GENERAL_SUPPLY_MESSAGES).value()
 
 
 func _show(text: String) -> void:
