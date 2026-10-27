@@ -22,6 +22,7 @@
 #include "openvic-extension/classes/GUIScrollbar.hpp"
 #include "openvic-extension/classes/GUITextureRect.hpp"
 #include "openvic-extension/classes/MapMesh.hpp"
+#include "openvic-extension/classes/VATBaker.hpp"
 #include "openvic-extension/classes/resources/StyleBoxWithSound.hpp"
 #include "openvic-extension/core/register_core_types.hpp"
 #include "openvic-extension/singletons/AssetManager.hpp"
@@ -103,6 +104,7 @@ void initialize_openvic_types(ModuleInitializationLevel p_level) {
 	Engine::get_singleton()->register_singleton("PlayerSingleton", PlayerSingleton::get_singleton());
 
 	ClassDB::register_class<MapMesh>();
+	ClassDB::register_class<VATBaker>();
 	ClassDB::register_abstract_class<GFXCorneredTileSupportingTexture>();
 
 	/* Depend on GFXCorneredTileSupportingTexture */

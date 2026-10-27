@@ -15,6 +15,8 @@ extends CanvasLayer
 ## The report (all tabs and the samples) is saved to user://perf/ with the button.
 
 const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
+# Models whose animation is played by the video card: the switch is kept in the file of the layout
+const VatConvert := preload("res://src/Model/VatConvert.gd")
 
 # F12: the only function key the game and its interface do not use (F1-F8 are the hotkeys of the top bar, F4, F6-F11 of the windows)
 const _TOGGLE_KEY: Key = KEY_F12
@@ -82,6 +84,7 @@ var _bench_result: String = ""
 var _bench_buttons: Array[Button] = []
 var _bench_cpu: Array[Dictionary] = []
 var _sim_thread_button: Button
+var _vat_button: Button
 
 
 ## A line chart of the last values with optional horizontal lines (budgets)
@@ -188,7 +191,7 @@ func _build_ui() -> void:
 	header.add_child(title)
 	for def: Array in [
 		["A−", func() -> void: _set_ui_scale(_ui_scale - 0.1)], ["A+", func() -> void: _set_ui_scale(_ui_scale + 0.1)],
-		["Поток симуляции", _toggle_sim_thread],
+		["Поток симуляции", _toggle_sim_thread], ["Анимация на GPU", _toggle_vat],
 		["Сбросить", _reset_all], ["Сохранить отчёт", _save_report], ["Закрыть", func() -> void: _set_open(false)],
 	]:
 		var button := Button.new()
@@ -197,6 +200,8 @@ func _build_ui() -> void:
 		header.add_child(button)
 		if def[0] == "Поток симуляции":
 			_sim_thread_button = button
+		elif def[0] == "Анимация на GPU":
+			_vat_button = button
 
 	var tabs := HBoxContainer.new()
 	root.add_child(tabs)
@@ -339,6 +344,32 @@ func _apply_sim_thread_preference() -> void:
 		enabled = bool(config.get_value("simulation", "thread", true))
 	GameSingleton.set_simulation_thread_enabled(enabled)
 	_update_sim_thread_button()
+	# The animation on the video card: the choice is applied before the models are made
+	VatConvert.enabled = bool(config.get_value("graphics", "vat", true)) if config.load(_LAYOUT_FILE) == OK else true
+	_update_vat_button()
+
+
+func _toggle_vat() -> void:
+	var enabled: bool = not VatConvert.enabled
+	var model_manager: Node = get_parent().get(&"_model_manager") as Node
+	if model_manager != null and model_manager.has_method("set_vat_enabled"):
+		model_manager.set_vat_enabled(enabled)
+	else:
+		VatConvert.enabled = enabled
+	var config := ConfigFile.new()
+	config.load(_LAYOUT_FILE)
+	config.set_value("graphics", "vat", enabled)
+	config.save(_LAYOUT_FILE)
+	_update_vat_button()
+
+
+func _update_vat_button() -> void:
+	if _vat_button:
+		var stats: Dictionary = VatConvert.get_stats()
+		_vat_button.text = "Анимация на GPU: " + ("вкл" if VatConvert.enabled else "выкл")
+		_vat_button.tooltip_text = "Анимацию моделей считает видеокарта (текстуры анимации вершин). Запечено моделей: %d (%.1f МБ), заменено %d, оставлено на процессоре %d" % [
+			int(stats[&"assets"]), float(stats[&"bytes"]) / 1048576.0, int(stats[&"converted"]), int(stats[&"skipped"]),
+		]
 
 
 func _toggle_sim_thread() -> void:

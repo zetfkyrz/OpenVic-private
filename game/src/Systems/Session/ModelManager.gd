@@ -2,6 +2,8 @@ class_name ModelManager
 extends Node3D
 
 const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
+# Models whose animation is played by the video card (vertex animation textures) instead of the processor
+const VatConvert := preload("res://src/Model/VatConvert.gd")
 
 const MODEL_SCALE: float = 1.0 / 256.0
 
@@ -256,8 +258,9 @@ func _generate_unit(unit_dict: Dictionary) -> Node3D:
 	var rotation: float = unit_dict.get(rotation_key, 0.0)
 
 	var flag_dict: Dictionary = ModelSingleton.get_flag_model(unit_dict.get(flag_floating_key, false))
+	var flag_model: UnitModel = null
 	if flag_dict:
-		var flag_model: UnitModel = _generate_model(flag_dict, "", true)
+		flag_model = _generate_model(flag_dict, "", true)
 		if flag_model:
 			flag_model.set_flag_index(unit_dict[flag_index_key])
 			flag_model.current_anim = UnitModel.Anim.IDLE
@@ -278,10 +281,35 @@ func _generate_unit(unit_dict: Dictionary) -> Node3D:
 		model.tertiary_colour = unit_dict[tertiary_colour_key]
 
 	add_child(model)
+	if VatConvert.enabled:
+		# Models with a skeleton: the body and what it carries, and the flag, are baked into textures once for every kind of model
+		if model is UnitModel and not (mount_model_key in unit_dict and mount_attach_node_key in unit_dict):
+			VatConvert.try_convert(model, _vat_key(unit_dict[model_key]))
+		if flag_model != null:
+			VatConvert.try_convert(flag_model, _vat_key(flag_dict))
 	_take_over_animation(model)
 	if not _animating:
 		_set_animated(model, false)
 	return model
+
+
+## What the baked animation depends on: the file of the model and the files of its animations
+func _vat_key(model_dict: Dictionary) -> String:
+	var key: String = str(model_dict.get(&"file", ""))
+	for clip: StringName in [&"idle", &"move", &"attack"]:
+		var clip_dict: Dictionary = model_dict.get(clip, {})
+		key += "|" + str(clip_dict.get(&"file", ""))
+	return key
+
+
+## The animation of the models on the video card on or off (the models are made again)
+func set_vat_enabled(enabled: bool) -> void:
+	if VatConvert.enabled == enabled:
+		return
+	VatConvert.enabled = enabled
+	for id: int in _unit_nodes.keys():
+		_remove_unit_node(id)
+	_sync_units()
 
 
 func generate_buildings() -> void:

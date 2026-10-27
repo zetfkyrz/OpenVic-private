@@ -7,6 +7,11 @@ var anim_lib: AnimationLibrary = null
 var sub_units: Array[UnitModel]
 var meshes: Array[MeshInstance3D]
 
+# VAT: the animation is played by the video card (see VatConvert.gd): there is no skeleton and no animation player, the mesh instances
+# that are animated (the body and what is carried by it) get the clip and the phase as instance shader parameters
+var vat_instances: Array[MeshInstance3D] = []
+var vat_phase: float = 0.0
+
 # COLOUR VARIABLES
 
 @export_group("Colors")
@@ -62,6 +67,20 @@ const ANIMATION_LIBRARY: StringName = &"default_lib"
 		for unit: UnitModel in sub_units:
 			unit.current_anim = anim_in
 
+		if not vat_instances.is_empty():
+			current_anim = anim_in
+			_apply_vat_clip()
+			match anim_in:
+				Anim.IDLE:
+					_set_tex_scroll(scroll_speed_idle)
+				Anim.MOVE:
+					_set_tex_scroll(scroll_speed_move)
+				Anim.ATTACK:
+					_set_tex_scroll(scroll_speed_attack)
+				_:
+					_set_tex_scroll(0.0)
+			return
+
 		if anim_player:
 			match anim_in:
 				Anim.IDLE:
@@ -107,6 +126,27 @@ const ANIMATION_LIBRARY: StringName = &"default_lib"
 		scroll_speed_attack = speed_in
 		for unit: UnitModel in sub_units:
 			unit.scroll_speed_attack = speed_in
+
+
+## The clip that plays now and the phase go to the shaders of the meshes that the video card animates
+func vat_apply() -> void:
+	_apply_vat_clip()
+	for sub_unit: UnitModel in sub_units:
+		sub_unit.current_anim = current_anim
+
+
+func _apply_vat_clip() -> void:
+	# idle 0, move 1, attack 2 (nothing plays: idle)
+	var clip: float = 0.0
+	match current_anim:
+		Anim.MOVE:
+			clip = 1.0
+		Anim.ATTACK:
+			clip = 2.0
+	for mesh_instance: MeshInstance3D in vat_instances:
+		if is_instance_valid(mesh_instance):
+			mesh_instance.set_instance_shader_parameter(&"vat_clip", clip)
+			mesh_instance.set_instance_shader_parameter(&"vat_phase", vat_phase)
 
 
 func unit_init() -> void:
