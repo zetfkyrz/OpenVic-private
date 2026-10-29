@@ -193,10 +193,19 @@ namespace OpenVic {
 		// organisation of the army: divisions, templates and generals), divisions: [{ id, template_id (0 = out of the template), name, regiments,
 		// unit_ids: [...] }] and the division_id of every unit
 		bool has_army_organisation() const;
-		// The templates of the divisions of the player: [{ id, name, text, infantry, cavalry, support, special }]
+		// The templates of the divisions of the player (a grid, docs/PLAN_ARMY_SUPPLY_FRONTS.md, 4b): [{ id, name, text, cells, stats }] where cells is
+		// max_ranks x max_depth numbers (the cell of rank r, row d is at r * max_depth + d: the regiment type + 1, 0 is empty) and stats what the template
+		// is worth (get_division_grid_stats)
 		godot::Array get_division_templates() const;
-		bool create_division_template(int32_t infantry, int32_t cavalry, int32_t support, int32_t special) const;
-		bool update_division_template(int32_t template_id, int32_t infantry, int32_t cavalry, int32_t support, int32_t special) const;
+		// { ranks, depth, company_slots (what the country may use), row_weight_shift, max_ranks, max_depth, max_company_slots (the size of cells) }
+		godot::Dictionary get_division_template_limits() const;
+		// The regiment types a cell can hold: [{ cell (the number in cells), identifier, unlocked }]
+		godot::Array get_division_cell_types() const;
+		// What a grid is worth: { regiments, men, speed, weight, durability, organisation, reconnaissance, occupation_speed, occupation_instant, attack,
+		// defence, width, depth, density, fortification, reliability, cost, supply_per_day, ammo_per_day }, the three last are [{ good, amount }]
+		godot::Dictionary get_division_grid_stats(godot::PackedInt32Array const& cells) const;
+		bool create_division_template(godot::PackedInt32Array const& cells) const;
+		bool update_division_template(int32_t template_id, godot::PackedInt32Array const& cells) const;
 		bool delete_division_template(int32_t template_id) const;
 		// division_id 0: the regiments of all the divisions of the army that are out of the template
 		bool reform_army_to_template(int64_t army_id, int32_t division_id, int32_t template_id) const;

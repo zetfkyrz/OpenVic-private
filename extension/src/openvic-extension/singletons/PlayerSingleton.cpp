@@ -29,6 +29,9 @@
 #include <openvic-simulation/research/Technology.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
 #include <openvic-simulation/misc/GameAction.hpp>
+#include <openvic-simulation/military/Division.hpp>
+#include <openvic-simulation/military/DivisionStats.hpp>
+#include <openvic-simulation/military/Unlocks.hpp>
 #include <openvic-simulation/types/TypedIndices.hpp>
 
 #include "openvic-extension/classes/GUIScrollbar.hpp"
@@ -150,8 +153,11 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_army_group, { "army_id", "group_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_marshal, { "group_id", "leader_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_division_templates);
-	OV_BIND_METHOD(PlayerSingleton::create_division_template, { "infantry", "cavalry", "support", "special" });
-	OV_BIND_METHOD(PlayerSingleton::update_division_template, { "template_id", "infantry", "cavalry", "support", "special" });
+	OV_BIND_METHOD(PlayerSingleton::get_division_template_limits);
+	OV_BIND_METHOD(PlayerSingleton::get_division_cell_types);
+	OV_BIND_METHOD(PlayerSingleton::get_division_grid_stats, { "cells" });
+	OV_BIND_METHOD(PlayerSingleton::create_division_template, { "cells" });
+	OV_BIND_METHOD(PlayerSingleton::update_division_template, { "template_id", "cells" });
 	OV_BIND_METHOD(PlayerSingleton::delete_division_template, { "template_id" });
 	OV_BIND_METHOD(PlayerSingleton::reform_army_to_template, { "army_id", "division_id", "template_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_market_overview);
@@ -2865,48 +2871,150 @@ bool PlayerSingleton::has_army_organisation() const {
 	return player_country != nullptr && player_country->has_army_organisation();
 }
 
+namespace {
+	Array goods_to_array(memory::vector<DivisionGoodAmount> const& goods) {
+		Array result;
+		for (DivisionGoodAmount const& entry : goods) {
+			Dictionary item;
+			item["good"] = convert_to<String>(entry.good);
+			item["amount"] = static_cast<double>(entry.amount);
+			result.push_back(item);
+		}
+		return result;
+	}
+
+	Dictionary stats_to_dictionary(DivisionStats const& stats) {
+		Dictionary result;
+		result["regiments"] = static_cast<int32_t>(stats.regiments);
+		result["men"] = static_cast<double>(stats.men);
+		result["speed"] = static_cast<double>(stats.speed);
+		result["weight"] = static_cast<double>(stats.weight);
+		result["durability"] = static_cast<double>(stats.durability);
+		result["organisation"] = static_cast<double>(stats.organisation);
+		result["reconnaissance"] = static_cast<double>(stats.reconnaissance);
+		result["occupation_speed"] = static_cast<double>(stats.occupation_speed);
+		result["occupation_instant"] = stats.occupation_instant;
+		result["attack"] = static_cast<double>(stats.attack);
+		result["defence"] = static_cast<double>(stats.defence);
+		result["width"] = static_cast<int32_t>(stats.width);
+		result["depth"] = static_cast<double>(stats.depth);
+		result["density"] = static_cast<double>(stats.density);
+		result["fortification"] = static_cast<double>(stats.fortification);
+		result["reliability"] = static_cast<double>(stats.reliability);
+		result["cost"] = goods_to_array(stats.cost);
+		result["supply_per_day"] = goods_to_array(stats.supply_per_day);
+		result["ammo_per_day"] = goods_to_array(stats.ammo_per_day);
+		return result;
+	}
+
+	PackedInt32Array grid_to_array(DivisionGrid const& grid) {
+		PackedInt32Array result;
+		result.resize(static_cast<int64_t>(grid.size()));
+		for (size_t i = 0; i < grid.size(); ++i) {
+			result.set(static_cast<int64_t>(i), static_cast<int32_t>(grid[i]));
+		}
+		return result;
+	}
+
+	// The cells of a template: DIVISION_MAX_RANKS x DIVISION_MAX_DEPTH numbers (the regiment type index + 1, 0 is empty), rank after rank
+	bool array_to_grid(PackedInt32Array const& cells, DivisionGrid& grid) {
+		if (static_cast<size_t>(cells.size()) != grid.size()) {
+			return false;
+		}
+		for (size_t i = 0; i < grid.size(); ++i) {
+			const int32_t cell = cells[static_cast<int64_t>(i)];
+			if (cell < 0 || cell > static_cast<int32_t>(DIVISION_MAX_TYPES)) {
+				return false;
+			}
+			grid[i] = static_cast<std::uint8_t>(cell);
+		}
+		return true;
+	}
+}
+
 Array PlayerSingleton::get_division_templates() const {
 	Array result;
 	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
 	for (DivisionTemplate const& division_template : player_country->get_division_templates()) {
+		const DivisionStats stats = compute_division_stats(*instance_manager, *player_country, division_template);
 		Dictionary entry;
 		entry["id"] = static_cast<int32_t>(division_template.id);
-		entry["infantry"] = static_cast<int32_t>(division_template.slots[0]);
-		entry["cavalry"] = static_cast<int32_t>(division_template.slots[1]);
-		entry["support"] = static_cast<int32_t>(division_template.slots[2]);
-		entry["special"] = static_cast<int32_t>(division_template.slots[3]);
+		entry["cells"] = grid_to_array(division_template.cells);
+		entry["stats"] = stats_to_dictionary(stats);
 		entry["name"] = Utilities::format(String::utf8("Шаблон %d"), static_cast<int32_t>(division_template.id));
 		entry["text"] = Utilities::format(
-			String::utf8("Шаблон %d: пехота %d, кавалерия %d, поддержка %d, особые %d"), static_cast<int32_t>(division_template.id),
-			static_cast<int32_t>(division_template.slots[0]), static_cast<int32_t>(division_template.slots[1]),
-			static_cast<int32_t>(division_template.slots[2]), static_cast<int32_t>(division_template.slots[3])
+			String::utf8("Шаблон %d: полков %d, фронт %d, глубина %.1f, атака %.1f, защита %.1f, прочность %.1f"), static_cast<int32_t>(division_template.id),
+			static_cast<int32_t>(stats.regiments), static_cast<int32_t>(stats.width), static_cast<double>(stats.depth), static_cast<double>(stats.attack),
+			static_cast<double>(stats.defence), static_cast<double>(stats.durability)
 		);
 		result.push_back(entry);
 	}
 	return result;
 }
 
-bool PlayerSingleton::create_division_template(int32_t infantry, int32_t cavalry, int32_t support, int32_t special) const {
-	ERR_FAIL_NULL_V(player_country, false);
-	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
-	ERR_FAIL_NULL_V(instance_manager, false);
-	ERR_FAIL_COND_V(infantry < 0 || cavalry < 0 || support < 0 || special < 0, false);
-	return instance_manager->queue_game_action<create_division_template_argument_t>(
-		player_country->index, static_cast<std::uint32_t>(infantry), static_cast<std::uint32_t>(cavalry),
-		static_cast<std::uint32_t>(support), static_cast<std::uint32_t>(special)
-	);
+Dictionary PlayerSingleton::get_division_template_limits() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	const DivisionTemplateLimits limits = get_template_limits(*instance_manager, *player_country);
+	result["ranks"] = static_cast<int32_t>(limits.ranks);
+	result["depth"] = static_cast<int32_t>(limits.depth);
+	result["company_slots"] = static_cast<int32_t>(limits.company_slots);
+	result["row_weight_shift"] = limits.row_weight_shift;
+	result["max_ranks"] = static_cast<int32_t>(DIVISION_MAX_RANKS);
+	result["max_depth"] = static_cast<int32_t>(DIVISION_MAX_DEPTH);
+	result["max_company_slots"] = static_cast<int32_t>(DIVISION_MAX_COMPANY_SLOTS);
+	return result;
 }
 
-bool PlayerSingleton::update_division_template(
-	int32_t template_id, int32_t infantry, int32_t cavalry, int32_t support, int32_t special
-) const {
+Array PlayerSingleton::get_division_cell_types() const {
+	Array result;
+	for (RegimentType const& regiment_type : GameSingleton::get_singleton()->get_definition_manager().get_military_manager().get_unit_type_manager().get_regiment_types()) {
+		const size_t kind = get_division_slot_kind(regiment_type);
+		if (kind >= DIVISION_MAX_TYPES) {
+			continue;
+		}
+		Dictionary entry;
+		entry["cell"] = static_cast<int32_t>(kind + 1);
+		entry["identifier"] = convert_to<String>(regiment_type.get_identifier());
+		entry["unlocked"] = player_country != nullptr && player_country->is_unit_type_unlocked(regiment_type);
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Dictionary PlayerSingleton::get_division_grid_stats(PackedInt32Array const& cells) const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	DivisionTemplate division_template;
+	ERR_FAIL_COND_V(!array_to_grid(cells, division_template.cells), result);
+	division_template.rebuild_counts();
+	return stats_to_dictionary(compute_division_stats(*instance_manager, *player_country, division_template));
+}
+
+bool PlayerSingleton::create_division_template(PackedInt32Array const& cells) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
-	ERR_FAIL_COND_V(template_id < 0 || infantry < 0 || cavalry < 0 || support < 0 || special < 0, false);
+	DivisionGrid grid {};
+	ERR_FAIL_COND_V(!array_to_grid(cells, grid), false);
+	return instance_manager->queue_game_action<create_division_template_argument_t>(player_country->index, grid);
+}
+
+bool PlayerSingleton::update_division_template(int32_t template_id, PackedInt32Array const& cells) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(template_id < 0, false);
+	DivisionGrid grid {};
+	ERR_FAIL_COND_V(!array_to_grid(cells, grid), false);
 	return instance_manager->queue_game_action<update_division_template_argument_t>(
-		player_country->index, static_cast<std::uint32_t>(template_id), static_cast<std::uint32_t>(infantry),
-		static_cast<std::uint32_t>(cavalry), static_cast<std::uint32_t>(support), static_cast<std::uint32_t>(special)
+		player_country->index, static_cast<std::uint32_t>(template_id), grid
 	);
 }
 
