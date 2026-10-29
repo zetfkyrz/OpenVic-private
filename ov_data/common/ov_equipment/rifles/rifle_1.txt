@@ -1,0 +1,24 @@
+# Smoothbore muzzle-loading musket of the years after the Napoleonic wars (Brown Bess, Charleville), 1836+.
+# Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+rifle_1 = {
+	line = rifle
+	tier = 1
+	unlock_key = "equipment:rifle_1"   # the unlock of the country that makes the weapon available (the default)
+	rof = 2.5   # shots per minute
+	range = 100   # metres
+	accuracy = 0.30
+	reliability = 0.85
+	ammo_per_day = 0.020   # of ammo_good, per piece
+	ammo_good = "ammunition"   # the generations of the ammunition may come later
+	weight = 4.7   # kilograms of a piece
+	cost = { rifle_1 = 1 }   # what a piece costs in a template, in goods
+	flags = { }
+	good = {
+		id = "rifle_1"
+		replaces = "small_arms"   # the good of the base game that becomes this one
+		base_price = 37
+		icon = "small_arms"
+		name = "rifle_1"
+		colour = { 189 118 22 }
+	}
+}

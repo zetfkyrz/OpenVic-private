@@ -1,0 +1,23 @@
+# Quick-firing gun with a recoil mechanism and indirect fire (the French 75 mm of 1897 and its kind).
+# Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+field_gun_4 = {
+	line = field_artillery
+	tier = 4
+	unlock_key = "equipment:field_gun_4"   # the unlock of the country that makes the weapon available (the default)
+	rof = 17   # shots per minute
+	range = 7000   # metres
+	accuracy = 0.75
+	reliability = 0.95
+	ammo_per_day = 1.00   # of ammo_good, per piece
+	ammo_good = "ammunition"   # the generations of the ammunition may come later
+	weight = 1150   # kilograms of a piece
+	cost = { field_gun_4 = 1 }   # what a piece costs in a template, in goods
+	flags = { breech_loading shrapnel indirect_fire }
+	good = {
+		id = "field_gun_4"
+		base_price = 185
+		icon = "artillery"
+		name = "field_gun_4"
+		colour = { 186 170 114 }
+	}
+}

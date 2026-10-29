@@ -1,0 +1,23 @@
+# Breech-loader with a needle or a metal cartridge, the time of the Franco-Prussian war (Dreyse, Chassepot, Martini-Henry).
+# Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+rifle_3 = {
+	line = rifle
+	tier = 3
+	unlock_key = "equipment:rifle_3"   # the unlock of the country that makes the weapon available (the default)
+	rof = 7   # shots per minute
+	range = 500   # metres
+	accuracy = 0.65
+	reliability = 0.88
+	ammo_per_day = 0.040   # of ammo_good, per piece
+	ammo_good = "ammunition"   # the generations of the ammunition may come later
+	weight = 4.2   # kilograms of a piece
+	cost = { rifle_3 = 1 }   # what a piece costs in a template, in goods
+	flags = { breech_loading }
+	good = {
+		id = "rifle_3"
+		base_price = 80
+		icon = "small_arms"
+		name = "rifle_3"
+		colour = { 222 142 34 }
+	}
+}

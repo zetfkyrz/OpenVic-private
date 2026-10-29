@@ -1,0 +1,23 @@
+# Rifled and early breech-loading field gun (La Hitte, Parrott, Armstrong).
+# Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+field_gun_2 = {
+	line = field_artillery
+	tier = 2
+	unlock_key = "equipment:field_gun_2"   # the unlock of the country that makes the weapon available (the default)
+	rof = 2.5   # shots per minute
+	range = 2500   # metres
+	accuracy = 0.50
+	reliability = 0.80
+	ammo_per_day = 0.20   # of ammo_good, per piece
+	ammo_good = "ammunition"   # the generations of the ammunition may come later
+	weight = 1300   # kilograms of a piece
+	cost = { field_gun_2 = 1 }   # what a piece costs in a template, in goods
+	flags = { shrapnel }
+	good = {
+		id = "field_gun_2"
+		base_price = 90
+		icon = "artillery"
+		name = "field_gun_2"
+		colour = { 158 142 94 }
+	}
+}

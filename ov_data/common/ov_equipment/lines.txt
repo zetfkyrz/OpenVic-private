@@ -1,0 +1,22 @@
+# The kinds of weapons ("lines") of the army. A line is only a description: the generations of it are the weapons of
+# ov_data/common/ov_equipment/<folder>/<id>.txt whose "line" is the key of the line. A new line (siege artillery, machine guns...)
+# is a block here plus its weapon files, no code is needed. See docs/EQUIPMENT_MODDING.md.
+#
+#   icon        the key of the icon of the line (a sprite of the interface files)
+#   name        localisation key of the name
+#   slot        the slot of the division template the line belongs to: infantry, cavalry, support or special
+#   unit_types  the regiment types (units/*.txt) that use the weapons of the line
+
+rifle = {
+	icon = "small_arms"
+	name = "EQUIPMENT_LINE_RIFLE"
+	slot = infantry
+	unit_types = { infantry guard irregular engineer dragoon }
+}
+
+field_artillery = {
+	icon = "artillery"
+	name = "EQUIPMENT_LINE_FIELD_ARTILLERY"
+	slot = special
+	unit_types = { artillery }
+}

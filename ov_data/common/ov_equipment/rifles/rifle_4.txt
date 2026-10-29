@@ -1,0 +1,23 @@
+# Late magazine rifle for smokeless powder (Lebel, Mosin, Mauser 98).
+# Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+rifle_4 = {
+	line = rifle
+	tier = 4
+	unlock_key = "equipment:rifle_4"   # the unlock of the country that makes the weapon available (the default)
+	rof = 13   # shots per minute
+	range = 800   # metres
+	accuracy = 0.80
+	reliability = 0.95
+	ammo_per_day = 0.060   # of ammo_good, per piece
+	ammo_good = "ammunition"   # the generations of the ammunition may come later
+	weight = 4.1   # kilograms of a piece
+	cost = { rifle_4 = 1 }   # what a piece costs in a template, in goods
+	flags = { breech_loading magazine smokeless }
+	good = {
+		id = "rifle_4"
+		base_price = 115
+		icon = "small_arms"
+		name = "rifle_4"
+		colour = { 238 156 44 }
+	}
+}

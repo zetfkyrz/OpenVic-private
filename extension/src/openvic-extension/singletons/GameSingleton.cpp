@@ -9,8 +9,11 @@
 #include <functional>
 #include <unordered_map>
 
+#include <godot_cpp/classes/dir_access.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/node.hpp>
+#include <godot_cpp/classes/os.hpp>
+#include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/classes/script.hpp>
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/core/error_macros.hpp>
@@ -1475,8 +1478,32 @@ godot::Error GameSingleton::_load_flag_sheet() {
 	return ret;
 }
 
+// The folder ov_data with the data of OpenVic itself (the weapons, their goods and recipes): the environment variable OPENVIC_DATA_PATH,
+// else ov_data next to the executable or in its parent, else the one next to the Godot project (the editor: <repository>/ov_data)
+static String find_builtin_data_path() {
+	if (char const* const from_environment = std::getenv("OPENVIC_DATA_PATH"); from_environment != nullptr && *from_environment != 0) {
+		return String { from_environment };
+	}
+	PackedStringArray candidates;
+	candidates.push_back(ProjectSettings::get_singleton()->globalize_path("res://").path_join("../ov_data").simplify_path());
+	candidates.push_back(OS::get_singleton()->get_executable_path().get_base_dir().path_join("ov_data"));
+	candidates.push_back(OS::get_singleton()->get_executable_path().get_base_dir().path_join("../ov_data").simplify_path());
+	for (int64_t i = 0; i < candidates.size(); i++) {
+		String const candidate = candidates[i];
+		if (DirAccess::dir_exists_absolute(candidate)) {
+			return candidate;
+		}
+	}
+	return {};
+}
+
 godot::Error GameSingleton::set_compatibility_mode_roots(String const& path) {
 	Dataloader::path_vector_t roots { convert_to<std::string>(path) };
+	if (String const builtin_data = find_builtin_data_path(); !builtin_data.is_empty()) {
+		game_manager.set_builtin_data_path(std::filesystem::path { convert_to<std::string>(builtin_data) });
+	} else {
+		UtilityFunctions::push_warning("The folder ov_data was not found (set OPENVIC_DATA_PATH): the weapons of OpenVic are not loaded.");
+	}
 	ERR_FAIL_COND_V_MSG(!game_manager.set_base_path(roots), FAILED, "Failed to set dataloader roots!");
 	return OK;
 }

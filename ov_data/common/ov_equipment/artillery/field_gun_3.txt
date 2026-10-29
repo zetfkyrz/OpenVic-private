@@ -1,0 +1,23 @@
+# Steel breech-loading field gun (Krupp C/64, C/67).
+# Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+field_gun_3 = {
+	line = field_artillery
+	tier = 3
+	unlock_key = "equipment:field_gun_3"   # the unlock of the country that makes the weapon available (the default)
+	rof = 3.5   # shots per minute
+	range = 3500   # metres
+	accuracy = 0.60
+	reliability = 0.92
+	ammo_per_day = 0.30   # of ammo_good, per piece
+	ammo_good = "ammunition"   # the generations of the ammunition may come later
+	weight = 1500   # kilograms of a piece
+	cost = { field_gun_3 = 1 }   # what a piece costs in a template, in goods
+	flags = { breech_loading shrapnel }
+	good = {
+		id = "field_gun_3"
+		base_price = 130
+		icon = "artillery"
+		name = "field_gun_3"
+		colour = { 172 156 104 }
+	}
+}
