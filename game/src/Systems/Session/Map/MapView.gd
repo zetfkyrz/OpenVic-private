@@ -2,6 +2,7 @@ class_name MapView
 extends Node3D
 
 const PerfProbe := preload("res://src/Utilities/PerfProbe.gd")
+const _FrontLines: GDScript = preload("res://src/Systems/Session/Map/FrontLines.gd")
 
 signal map_view_camera_changed(
 	near_left: Vector2,
@@ -140,6 +141,12 @@ func _ready() -> void:
 	_map_baker.relief_ready.connect(func() -> void: ground_changed.emit())
 	_map_baker.setup(_map_shader_material)
 
+	# The fronts of the player along the borders of the provinces
+	var front_lines: MeshInstance3D = _FrontLines.new()
+	front_lines.name = &"FrontLines"
+	add_child(front_lines)
+	front_lines.setup(self)
+
 	PlayerSingleton.province_selected.connect(_on_province_selected)
 
 	# Start zoomed out with the parchment map active
@@ -235,6 +242,11 @@ func look_at_map_position(pos: Vector2) -> void:
 	var pos_delta: Vector3 = _map_to_world_coords(pos) - _viewport_to_world_coords(viewport_centre)
 	_camera.position.x += pos_delta.x
 	_camera.position.z += pos_delta.z
+
+
+## Position on the ground (on the displaced relief) of a map position (0..1 on both axes)
+func get_ground_position(pos: Vector2) -> Vector3:
+	return _map_to_ground_coords(pos)
 
 
 ## Height of the camera above the map

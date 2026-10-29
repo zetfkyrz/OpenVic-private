@@ -1,6 +1,9 @@
 #include "PlayerSingleton.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <span>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -133,6 +136,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_front_mode, { "front_id", "mode" });
 	OV_BIND_METHOD(PlayerSingleton::set_front_army, { "front_id", "army_id", "assigned" });
 	OV_BIND_METHOD(PlayerSingleton::assign_free_armies, { "front_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_front_lines, { "front_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_front_summaries);
 	OV_BIND_METHOD(PlayerSingleton::set_auto_plan, { "enabled" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_details, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_supply_priority, { "army_id", "priority" });
@@ -1754,6 +1759,221 @@ bool PlayerSingleton::set_auto_plan(bool enabled) const {
 	ERR_FAIL_NULL_V(instance_manager, false);
 
 	return instance_manager->queue_game_action<set_auto_plan_argument_t>(player_country->index, enabled);
+}
+
+// The line of a front along the borders of the provinces (docs/PLAN_ARMY_SUPPLY_FRONTS.md, section 5): the pixel edges between a province of the line
+// and the land next to it that the country does not control (the enemy, a neutral country), joined into polylines and simplified. If the line has no
+// such neighbour (a front inside our land) the border with all the other land is taken.
+namespace {
+	std::vector<Vector2> simplify_polyline(std::vector<Vector2> const& points, const float epsilon) {
+		if (points.size() < 3) {
+			return points;
+		}
+		std::vector<bool> keep(points.size(), false);
+		keep.front() = true;
+		keep.back() = true;
+		std::vector<std::pair<size_t, size_t>> stack;
+		stack.emplace_back(0, points.size() - 1);
+		while (!stack.empty()) {
+			const auto [first, last] = stack.back();
+			stack.pop_back();
+			const Vector2 a = points[first];
+			const Vector2 b = points[last];
+			const Vector2 ab = b - a;
+			const float length_squared = ab.length_squared();
+			float max_distance = 0.0f;
+			size_t max_index = first;
+			for (size_t i = first + 1; i < last; ++i) {
+				float distance = 0.0f;
+				if (length_squared <= 0.0f) {
+					distance = points[i].distance_to(a);
+				} else {
+					distance = std::abs((points[i] - a).cross(ab)) / std::sqrt(length_squared);
+				}
+				if (distance > max_distance) {
+					max_distance = distance;
+					max_index = i;
+				}
+			}
+			if (max_distance > epsilon) {
+				keep[max_index] = true;
+				stack.emplace_back(first, max_index);
+				stack.emplace_back(max_index, last);
+			}
+		}
+		std::vector<Vector2> result;
+		for (size_t i = 0; i < points.size(); ++i) {
+			if (keep[i]) {
+				result.push_back(points[i]);
+			}
+		}
+		return result;
+	}
+}
+
+Array PlayerSingleton::get_front_summaries() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	for (Front const& front : instance_manager->get_war_manager().get_fronts()) {
+		if (front.country != player_country) {
+			continue;
+		}
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(front.id);
+		entry["mode"] = static_cast<int32_t>(front.mode);
+		entry["army_count"] = static_cast<int32_t>(front.army_ids.size());
+		PackedInt32Array province_numbers;
+		for (ProvinceInstance const* const province : front.provinces) {
+			province_numbers.push_back(static_cast<int32_t>(province->province_definition.get_province_number()));
+		}
+		entry["province_numbers"] = province_numbers;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Array PlayerSingleton::get_front_lines(int32_t front_id) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* const game_singleton = GameSingleton::get_singleton();
+	InstanceManager* const instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+
+	Front const* const front = instance_manager->get_war_manager().get_front_by_id(static_cast<uint32_t>(front_id));
+	if (front == nullptr || front->country != player_country || front->provinces.empty()) {
+		return result;
+	}
+
+	MapDefinition const& map_definition = game_singleton->get_definition_manager().get_map_definition();
+	const int32_t width = map_definition.get_width();
+	const int32_t height = map_definition.get_height();
+	std::span<const MapDefinition::shape_pixel_t> const image = map_definition.get_province_shape_image();
+	ERR_FAIL_COND_V(width <= 0 || height <= 0 || image.size() < static_cast<size_t>(width) * static_cast<size_t>(height), result);
+
+	// 1 = a province of the line, 2 = land the country does not control, 3 = the other land of the country
+	std::vector<uint8_t> state(map_definition.get_province_definition_count() + 1, 0);
+	for (ProvinceInstance const& province : instance_manager->get_map_instance().get_province_instances()) {
+		const size_t number = province.province_definition.get_province_number();
+		if (number >= state.size() || province.province_definition.is_water()) {
+			continue;
+		}
+		state[number] = province.get_controller() != player_country ? 2 : 3;
+	}
+	for (ProvinceInstance const* const province : front->provinces) {
+		const size_t number = province->province_definition.get_province_number();
+		if (number < state.size()) {
+			state[number] = 1;
+		}
+	}
+
+	struct segment_t {
+		int64_t from, to;
+	};
+	const auto point_key = [width](const int32_t x, const int32_t y) -> int64_t {
+		return static_cast<int64_t>(y) * (static_cast<int64_t>(width) + 1) + x;
+	};
+	const auto state_at = [&](const int32_t x, const int32_t y) -> uint8_t {
+		if (x < 0 || y < 0 || x >= width || y >= height) {
+			return 0;
+		}
+		const size_t number = image[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)].province_number;
+		return number < state.size() ? state[number] : 0;
+	};
+	std::vector<segment_t> segments;
+	const auto collect = [&](const bool include_own_land) {
+		segments.clear();
+		const auto is_outside = [&](const int32_t x, const int32_t y) -> bool {
+			const uint8_t other = state_at(x, y);
+			return other == 2 || (include_own_land && other == 3);
+		};
+		for (int32_t y = 0; y < height; ++y) {
+			for (int32_t x = 0; x < width; ++x) {
+				if (state_at(x, y) != 1) {
+					continue;
+				}
+				if (is_outside(x + 1, y)) {
+					segments.push_back({ point_key(x + 1, y), point_key(x + 1, y + 1) });
+				}
+				if (is_outside(x - 1, y)) {
+					segments.push_back({ point_key(x, y), point_key(x, y + 1) });
+				}
+				if (is_outside(x, y + 1)) {
+					segments.push_back({ point_key(x, y + 1), point_key(x + 1, y + 1) });
+				}
+				if (is_outside(x, y - 1)) {
+					segments.push_back({ point_key(x, y), point_key(x + 1, y) });
+				}
+			}
+		}
+	};
+	collect(false);
+	if (segments.empty()) {
+		collect(true);
+	}
+	if (segments.empty()) {
+		return result;
+	}
+
+	std::unordered_map<int64_t, std::vector<size_t>> at_point;
+	for (size_t i = 0; i < segments.size(); ++i) {
+		at_point[segments[i].from].push_back(i);
+		at_point[segments[i].to].push_back(i);
+	}
+	std::vector<bool> used(segments.size(), false);
+	const auto extend = [&](std::vector<int64_t>& chain, const bool at_end) {
+		while (true) {
+			const int64_t tip = at_end ? chain.back() : chain.front();
+			size_t found = segments.size();
+			for (const size_t candidate : at_point[tip]) {
+				if (!used[candidate]) {
+					found = candidate;
+					break;
+				}
+			}
+			if (found == segments.size()) {
+				return;
+			}
+			used[found] = true;
+			const int64_t other = segments[found].from == tip ? segments[found].to : segments[found].from;
+			if (at_end) {
+				chain.push_back(other);
+			} else {
+				chain.insert(chain.begin(), other);
+			}
+		}
+	};
+
+	const float map_width = static_cast<float>(width);
+	const float map_height = static_cast<float>(height);
+	const int64_t row = static_cast<int64_t>(width) + 1;
+	for (size_t i = 0; i < segments.size(); ++i) {
+		if (used[i]) {
+			continue;
+		}
+		used[i] = true;
+		std::vector<int64_t> chain { segments[i].from, segments[i].to };
+		extend(chain, true);
+		extend(chain, false);
+
+		std::vector<Vector2> points;
+		points.reserve(chain.size());
+		for (const int64_t key : chain) {
+			points.emplace_back(static_cast<float>(key % row), static_cast<float>(key / row));
+		}
+		points = simplify_polyline(points, 1.5f);
+		if (points.size() < 2) {
+			continue;
+		}
+		PackedVector2Array line;
+		for (Vector2 const& point : points) {
+			line.push_back(Vector2(point.x / map_width, point.y / map_height));
+		}
+		result.push_back(line);
+	}
+	return result;
 }
 
 // Map units

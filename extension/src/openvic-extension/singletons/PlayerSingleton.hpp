@@ -166,6 +166,11 @@ namespace OpenVic {
 		bool set_front_mode(int32_t front_id, int32_t mode) const;
 		bool set_front_army(int32_t front_id, int64_t army_id, bool assigned) const;
 		bool assign_free_armies(int32_t front_id) const;
+		// The line of the front along the borders of the provinces: an Array of PackedVector2Array in map coordinates (0..1), empty if
+		// the front is not the player's or has no border to draw
+		godot::Array get_front_lines(int32_t front_id) const;
+		// The fronts of the player, cheap (for drawing them on the map): [{ id, mode, army_count, province_numbers: PackedInt32Array }]
+		godot::Array get_front_summaries() const;
 		bool set_auto_plan(bool enabled) const;
 
 		// Selected army panel (A1):
