@@ -84,8 +84,10 @@ func _ready() -> void:
 
 
 func open_templates() -> void:
-	_refresh()
+	# The window is opened first (a hidden window does not refresh)
+	_signature = ""
 	open_window()
+	_refresh()
 
 
 func _values() -> Array[int]:

@@ -139,6 +139,11 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_global_supply_priority, { "priority" });
 	OV_BIND_METHOD(PlayerSingleton::get_global_supply_priority);
 	OV_BIND_METHOD(PlayerSingleton::has_army_organisation);
+	OV_BIND_METHOD(PlayerSingleton::get_army_groups);
+	OV_BIND_METHOD(PlayerSingleton::create_army_group);
+	OV_BIND_METHOD(PlayerSingleton::delete_army_group, { "group_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_group, { "army_id", "group_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_group_marshal, { "group_id", "leader_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_division_templates);
 	OV_BIND_METHOD(PlayerSingleton::create_division_template, { "infantry", "cavalry", "support", "special" });
 	OV_BIND_METHOD(PlayerSingleton::update_division_template, { "template_id", "infantry", "cavalry", "support", "special" });
@@ -2479,12 +2484,12 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 		static const char* const priority_names[] = { "стандартный", "повышенный", "максимальный" };
 		const auto percent = [](fixed_point_t value) -> int32_t { return static_cast<int32_t>((value * 100).round<int32_t>()); };
 		String tip = Utilities::format(
-			String::utf8("Снабжение армии: уровень §Y%d%%§! (атака и защита армии умножаются на него)\nПровинция пропускает §Y%d%%§! потребности, отправляется §Yx%s§! потребности (приоритет: %s), пришло §Y%d%%§! (с учётом запасов товаров и ползунка бюджета)\nЗапас полков: §Y%s§! из §Y%s§! дн. Пока запас есть, снабжение не приходит полностью, но уровень не падает; при полном снабжении запас пополняется."),
+			String::utf8("Снабжение армии: уровень §Y%d%%§! (атака и защита армии умножаются на него)\nПровинция пропускает §Y%d%%§! потребности, отправляется §Yx%s§! потребности (приоритет: %s), пришло §Y%d%%§! (с учётом запасов товаров и ползунка бюджета)\nЗапас полков: §Y%s§! из §Y%s§! дн. Пока запас есть, снабжение не приходит полностью, но уровень не падает; при полном снабжении запас пополняется.\nБонус генерала и фельдмаршала группы: §Y%d%%§!"),
 			percent(army.get_supply_level()), percent(army.get_supply_delivery()),
 			Utilities::fixed_point_to_string_dp(army.get_supply_send_multiplier(), 2),
 			String::utf8(priority_names[static_cast<int32_t>(effective_priority)]), percent(army.get_supply_ratio()),
 			Utilities::fixed_point_to_string_dp(reserve_average, 1),
-			Utilities::fixed_point_to_string_dp(reserve_capacity, 0)
+			Utilities::fixed_point_to_string_dp(reserve_capacity, 0), percent(army.get_supply_leader_bonus())
 		);
 		result["supply_tooltip"] = std::move(tip);
 	}
@@ -2557,8 +2562,83 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 		divisions.push_back(entry);
 	}
 	result["divisions"] = divisions;
+	result["army_group_id"] = static_cast<int32_t>(army.get_army_group_id());
+	result["supply_leader_bonus"] = static_cast<float>(army.get_supply_leader_bonus());
 
 	return result;
+}
+
+Array PlayerSingleton::get_army_groups() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	for (ArmyGroup const& group : player_country->get_army_groups()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(group.id);
+		entry["name"] = Utilities::format(String::utf8("Группа армий %d"), static_cast<int32_t>(group.id));
+		entry["marshal_id"] = static_cast<int64_t>(group.marshal_id);
+		String marshal_name;
+		if (group.marshal_id != 0) {
+			LeaderInstance const* const marshal =
+				instance_manager->get_unit_instance_manager().get_leader_instance_by_unique_id(group.marshal_id);
+			if (marshal != nullptr) {
+				marshal_name = convert_to<String>(marshal->get_name());
+			}
+		}
+		entry["marshal_name"] = marshal_name;
+		PackedInt64Array army_ids;
+		for (ArmyInstance const& army : player_country->get_armies()) {
+			if (army.get_army_group_id() == group.id) {
+				army_ids.push_back(static_cast<int64_t>(army.unique_id));
+			}
+		}
+		entry["army_count"] = static_cast<int32_t>(army_ids.size());
+		entry["army_ids"] = army_ids;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::create_army_group() const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<create_army_group_argument_t>(player_country->index);
+}
+
+bool PlayerSingleton::delete_army_group(int32_t group_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(group_id <= 0, false);
+	return instance_manager->queue_game_action<delete_army_group_argument_t>(player_country->index, static_cast<std::uint32_t>(group_id));
+}
+
+bool PlayerSingleton::set_army_group(int64_t army_id, int32_t group_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstanceGroup* const group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(
+		static_cast<unique_id_t>(army_id)
+	);
+	ERR_FAIL_NULL_V(group, false);
+	ERR_FAIL_COND_V(group->branch != unit_branch_t::LAND || &group->get_country() != player_country || group_id < 0, false);
+	return instance_manager->queue_game_action<set_army_group_argument_t>(
+		static_cast<unique_id_t>(army_id), static_cast<std::uint32_t>(group_id)
+	);
+}
+
+bool PlayerSingleton::set_army_group_marshal(int32_t group_id, int64_t leader_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(group_id <= 0 || leader_id < 0, false);
+	return instance_manager->queue_game_action<set_army_group_marshal_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(group_id), static_cast<unique_id_t>(leader_id)
+	);
 }
 
 bool PlayerSingleton::has_army_organisation() const {
@@ -2648,6 +2728,13 @@ namespace {
 				entry["background"] = leader.get_background() != nullptr
 					? menu_singleton->tr(convert_to<String>(leader.get_background()->get_identifier())) : String {};
 				UnitInstanceGroup const* group = leader.get_unit_instance_group();
+				entry["is_marshal"] = leader.is_marshal();
+				entry["marshal_group_id"] = 0;
+				for (ArmyGroup const& army_group : player->get_army_groups()) {
+					if (army_group.marshal_id == leader.unique_id) {
+						entry["marshal_group_id"] = static_cast<int32_t>(army_group.id);
+					}
+				}
 				entry["army_id"] = group != nullptr ? static_cast<int64_t>(group->unique_id) : 0;
 				entry["army_name"] = group != nullptr ? convert_to<String>(group->get_name()) : String {};
 				result.push_back(entry);

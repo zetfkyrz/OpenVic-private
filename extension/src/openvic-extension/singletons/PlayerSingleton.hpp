@@ -195,6 +195,15 @@ namespace OpenVic {
 		bool delete_division_template(int32_t template_id) const;
 		// division_id 0: the regiments of all the divisions of the army that are out of the template
 		bool reform_army_to_template(int64_t army_id, int32_t division_id, int32_t template_id) const;
+		// Groups of armies and field marshals: get_army_details also has army_group_id (0 = none) and supply_leader_bonus; get_generals has
+		// is_marshal and marshal_group_id. The groups of the player: [{ id, name, marshal_id, marshal_name, army_count, army_ids: [...] }]
+		godot::Array get_army_groups() const;
+		bool create_army_group() const;
+		bool delete_army_group(int32_t group_id) const;
+		// group_id 0 takes the army out of its group
+		bool set_army_group(int64_t army_id, int32_t group_id) const;
+		// leader_id 0 takes the marshal off
+		bool set_army_group_marshal(int32_t group_id, int64_t leader_id) const;
 		int32_t get_global_supply_priority() const;
 		// Generals of the country: [{ leader_id, name, picture, tooltip, personality, background, prestige, army_id, army_name }]
 		godot::Array get_generals() const;

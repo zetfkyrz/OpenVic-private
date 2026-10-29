@@ -38,6 +38,10 @@ var _templates_button: Button
 var _division_row: HBoxContainer
 var _templates_signature: String = ""
 var _templates_window: Control
+var _groups_window: Control
+var _group_row: HBoxContainer
+var _group_option: OptionButton
+var _groups_signature: String = ""
 
 # Signatures of the lists in the drop-downs, they are rebuilt only when the content changes so that an opened list
 # does not close every day
@@ -148,6 +152,23 @@ func _ready() -> void:
 	_templates_button.pressed.connect(_on_templates_pressed)
 	_division_row.add_child(_templates_button)
 
+	# The group of armies of the army (the countries with the technology of the organisation of the army)
+	_group_row = HBoxContainer.new()
+	_group_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(_group_row)
+	var group_caption := Label.new()
+	group_caption.text = "Группа армий:"
+	_group_row.add_child(group_caption)
+	_group_option = OptionButton.new()
+	_group_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_group_option.clip_text = true
+	_group_option.item_selected.connect(_on_group_selected)
+	_group_row.add_child(_group_option)
+	var groups_button := Button.new()
+	groups_button.text = "Группы и фельдмаршалы…"
+	groups_button.pressed.connect(_on_groups_pressed)
+	_group_row.add_child(groups_button)
+
 	_tree = Tree.new()
 	_tree.columns = 5
 	_tree.column_titles_visible = true
@@ -225,6 +246,10 @@ func set_templates_window(window: Control) -> void:
 	_templates_window = window
 
 
+func set_groups_window(window: Control) -> void:
+	_groups_window = window
+
+
 ## Shows the selected armies of the player, an empty list hides the panel
 func show_armies(army_ids: Array[int]) -> void:
 	if army_ids.is_empty():
@@ -264,6 +289,7 @@ func _refresh() -> void:
 
 	_info_label.text = _make_info_text()
 	_update_divisions_row()
+	_update_group_row()
 	_info_label.tooltip_text = _details.get(&"supply_tooltip", "").replace("§Y", "").replace("§G", "").replace("§R", "").replace("§W", "").replace("§!", "")
 	_update_priority()
 	_update_leader()
@@ -387,6 +413,42 @@ func _update_divisions_row() -> void:
 			_template_option.set_item_metadata(_template_option.item_count - 1, entry[&"id"])
 	_template_option.disabled = _template_option.item_count == 0
 	_reform_button.disabled = _template_option.item_count == 0 or not _details[&"is_player"] or _details[&"in_combat"]
+
+
+func _update_group_row() -> void:
+	var organised: bool = _details.get(&"has_organisation", false)
+	_group_row.visible = organised
+	if not organised:
+		return
+	var groups: Array = PlayerSingleton.get_army_groups()
+	var signature: String = str(groups)
+	if signature != _groups_signature:
+		_groups_signature = signature
+		_group_option.clear()
+		_group_option.add_item("Нет группы")
+		_group_option.set_item_metadata(0, 0)
+		for group: Dictionary in groups:
+			var text: String = group[&"name"]
+			if group[&"marshal_name"] != "":
+				text += " (фельдмаршал %s)" % group[&"marshal_name"]
+			_group_option.add_item(text)
+			_group_option.set_item_metadata(_group_option.item_count - 1, group[&"id"])
+	var current: int = _details.get(&"army_group_id", 0)
+	for index: int in _group_option.item_count:
+		if _group_option.get_item_metadata(index) == current:
+			_group_option.select(index)
+	_group_option.disabled = not _details[&"is_player"]
+
+
+func _on_group_selected(index: int) -> void:
+	var group_id: int = _group_option.get_item_metadata(index)
+	for army_id: int in _army_ids:
+		PlayerSingleton.set_army_group(army_id, group_id)
+
+
+func _on_groups_pressed() -> void:
+	if _groups_window != null:
+		_groups_window.open_groups()
 
 
 func _on_reform_pressed() -> void:

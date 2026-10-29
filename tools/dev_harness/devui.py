@@ -3,7 +3,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-ROOT = os.path.join(REPO, 'game', 'src')
+ROOT = os.path.join(os.environ.get('GAME_DIR', os.path.join(REPO, 'game')), 'src')
 SHOTS = os.path.join(REPO, 'out', 'dev_shots').replace('\\', '/')
 BODY = open(sys.argv[1], encoding='utf8').read()
 
