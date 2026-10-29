@@ -1,0 +1,22 @@
+# Rifled and early breech-loading guns.
+# A production type that a factory of artillery_factory can make instead of the one of the building (docs/EQUIPMENT_MODDING.md). The recipes are estimates,
+# see docs/WAR_ASSUMPTIONS.md. It is available to a country that has the unlock of the weapon it makes (equipment:field_gun_2).
+field_gun_2_factory = {
+	template = factory_template      # the workers, the owners and the efficiency of the factories of the game
+	building = artillery_factory
+	input_goods = {
+		explosives = 1.0
+		steel = 10.0
+		machine_parts = 0.5
+	}
+	output_goods = field_gun_2
+	value = 1.3
+	bonus = {
+		trigger = { has_building = steel_factory }
+		value = 0.15
+	}
+	bonus = {
+		trigger = { has_building = explosives_factory }
+		value = 0.1
+	}
+}

@@ -163,3 +163,21 @@ my_rifled_tactics = {
 псевдонимом (`small_arms` → `rifle_1`, `artillery` → `field_gun_1`), поэтому файлы Vic2 и модов со старым именем работают. Названия товаров, линий и эффектов — в `ov_data/localisation/*.csv` (формат файлов
 Vic2: `КЛЮЧ;English;French;German;Polish;Spanish;Italian;Swedish;Czech;Hungarian;Dutch;Portuguese;Russian;Finnish;x`); ключ названия товара — его `id` (его показывает окно рынка F8). Новое оружие нового
 мода получает название файлом локализации мода.
+
+## 8. Рецепты производства: тип продукции на фабрике
+
+Каждое поколение оружия — свой тип продукции здания: файл `ov_data/common/ov_production_types/<id>.txt` (один тип на файл, формат как в `common/production_types.txt` Vic2). Ключ `building` называет здание
+(`small_arms_factory`, `artillery_factory` или здание линии мода), `template = factory_template` берёт рабочих, владельцев и эффективность фабрик игры. Пример:
+
+```
+rifle_3_factory = {
+	template = factory_template
+	building = small_arms_factory
+	input_goods = { ammunition = 3.0 steel = 5.0 machine_parts = 1.0 }
+	output_goods = rifle_3
+	value = 2
+	bonus = { trigger = { has_building = steel_factory } value = 0.15 }
+}
+```
+Тип доступен стране с разблокировкой оружия, которое он выпускает (товар выпуска совпадает с товаром оружия, ключ `unlock_key` оружия). Новое поколение мода: файл оружия (раздел 3) + файл рецепта с `building` — без правки кода.
+Тип фабрики меняется командой `set_factory_production_type` (окно производства, выпадающий список с ценой товара; ИИ ставит новейшее доступное поколение), мгновенно и без штрафа. Файл с ошибкой пропускается с предупреждением.

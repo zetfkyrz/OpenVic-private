@@ -109,6 +109,8 @@ namespace OpenVic {
 		bool set_factory_open(int32_t province_index, int32_t building_type_index, bool open) const;
 		// Hiring priority inside the state: 0 low, 1 normal, 2 high (factories with a higher priority hire first)
 		bool set_factory_priority(int32_t province_index, int32_t building_type_index, int32_t priority) const;
+		// The production type of a factory of weapons: option_index is the index in the factory's production_options (get_investment_overview)
+		bool set_factory_production_type(int32_t province_index, int32_t building_type_index, int32_t option_index) const;
 		// Removes the factory (the money of its budget goes back to its owners). Factories under construction can be deleted too.
 		bool delete_factory(int32_t province_index, int32_t building_type_index) const;
 		// "Investments" tab: what is being built in the states of the player and who pays.

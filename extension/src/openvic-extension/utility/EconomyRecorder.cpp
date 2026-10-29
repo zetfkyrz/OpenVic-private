@@ -666,7 +666,7 @@ void EconomyRecorder::record_monthly(InstanceManager& instance_manager, std::str
 				if (const std::optional<pop_type_index_t> owner_type = factory.get_effective_owner_pop_type_index(); owner_type.has_value()) {
 					owner_class = pop_types[*owner_type].get_identifier();
 				}
-				GoodDefinition const& output_good = factory.production_type.output_good;
+				GoodDefinition const& output_good = factory.production_type->output_good;
 				add(factories_table.buffer,
 					"{},{},{},{},{},{},{},{:.3f},{:.4f},{},{},{:.2f},{:.2f},{:.4f},{:.4f},{:.0f},{:.0f},{:.3f},{:.3f},{:.2f},{:.2f},{:.2f},"
 					"{:.2f},{:.3f},{:.2f},{:.2f},{:.2f},{},{},{:.4f}\n",

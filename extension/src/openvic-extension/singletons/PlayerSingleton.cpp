@@ -122,6 +122,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_factory_trade_quote, { "province_index", "building_type_index", "percent", "buy" });
 	OV_BIND_METHOD(PlayerSingleton::set_factory_open, { "province_index", "building_type_index", "open" });
 	OV_BIND_METHOD(PlayerSingleton::set_factory_priority, { "province_index", "building_type_index", "priority" });
+	OV_BIND_METHOD(PlayerSingleton::set_factory_production_type, { "province_index", "building_type_index", "option_index" });
 	OV_BIND_METHOD(PlayerSingleton::delete_factory, { "province_index", "building_type_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_investment_overview);
 
@@ -857,9 +858,9 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["identifier"] = identifier;
 				factory_dict["name"] = menu_singleton->tr(identifier);
 				factory_dict["output_good"] =
-				    menu_singleton->tr(convert_to<String>(factory.production_type.output_good.get_identifier()));
+				    menu_singleton->tr(convert_to<String>(factory.production_type->output_good.get_identifier()));
 				factory_dict["output_good_index"] =
-				    static_cast<int32_t>(type_safe::get(factory.production_type.output_good.index));
+				    static_cast<int32_t>(type_safe::get(factory.production_type->output_good.index));
 
 				const int32_t level_value = static_cast<int32_t>(type_safe::get(factory.get_level()));
 				const int32_t max_employees_for_input = static_cast<int32_t>(type_safe::get(factory.get_max_employee_count()));
@@ -894,12 +895,35 @@ Array PlayerSingleton::get_production_info() const {
 				factory_dict["construction_progress"] = static_cast<float>(factory.get_construction_progress(today));
 				factory_dict["open"] = factory.is_open();
 				factory_dict["priority"] = static_cast<int32_t>(factory.get_priority());
+				// What the factory can make (a building of weapons has a type for every generation): [{ index, name, output_good_index, price, available,
+				// selected }], empty if the building has one type only
+				{
+					const memory::vector<FactoryProductionOption> options = get_factory_production_options(*instance_manager, building_type);
+					Array production_options;
+					if (options.size() > 1) {
+						ProductionType const* const shown = factory.get_pending_production_type() != nullptr
+							? factory.get_pending_production_type() : factory.production_type;
+						for (size_t option_index = 0; option_index < options.size(); ++option_index) {
+							FactoryProductionOption const& option = options[option_index];
+							GoodDefinition const& output_good = option.production_type->output_good;
+							Dictionary option_dict;
+							option_dict["index"] = static_cast<int32_t>(option_index);
+							option_dict["name"] = menu_singleton->tr(convert_to<String>(output_good.get_identifier()));
+							option_dict["output_good_index"] = static_cast<int32_t>(type_safe::get(output_good.index));
+							option_dict["price"] = static_cast<float>(market_instance.get_good_instance(output_good.index).get_price());
+							option_dict["available"] = is_production_option_available(*player_country, option);
+							option_dict["selected"] = option.production_type == shown;
+							production_options.push_back(std::move(option_dict));
+						}
+					}
+					factory_dict["production_options"] = std::move(production_options);
+				}
 				factory_dict["employees"] = static_cast<int32_t>(type_safe::get(factory.get_employee_count()));
 				factory_dict["max_employees"] = static_cast<int32_t>(type_safe::get(factory.get_max_employee_count()));
 				{
 					// The people of the region who could work here: the unemployed of the pop types of the jobs of the factory
 					int32_t available_workers = 0, workers_in_region = 0;
-					for (Job const& job : factory.production_type.get_jobs()) {
+					for (Job const& job : factory.production_type->get_jobs()) {
 						for (Pop const& pop : state.get_pops_cache_by_type()[job.pop_type_index]) {
 							available_workers += type_safe::get(pop.get_unemployed());
 							workers_in_region += type_safe::get(pop.get_size());
@@ -1131,7 +1155,7 @@ Dictionary PlayerSingleton::get_factory_details(int32_t province_index, int32_t 
 		if (static_cast<int32_t>(type_safe::get(factory.building_type.index)) != building_type_index) {
 			continue;
 		}
-		ProductionType const& production_type = factory.production_type;
+		ProductionType const& production_type = *factory.production_type;
 		const String identifier = convert_to<String>(factory.building_type.get_identifier());
 		const int32_t level = static_cast<int32_t>(type_safe::get(factory.get_level()));
 
@@ -1337,6 +1361,20 @@ bool PlayerSingleton::set_factory_priority(int32_t province_index, int32_t build
 	    province_index_t(static_cast<uint32_t>(province_index)),
 	    building_type_index_t(static_cast<uint32_t>(building_type_index)),
 	    static_cast<uint32_t>(priority)
+	);
+}
+
+bool PlayerSingleton::set_factory_production_type(int32_t province_index, int32_t building_type_index, int32_t option_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(province_index < 0 || building_type_index < 0 || option_index < 0, false);
+
+	return instance_manager->queue_game_action<set_factory_production_type_argument_t>(
+	    player_country->index,
+	    province_index_t(static_cast<uint32_t>(province_index)),
+	    building_type_index_t(static_cast<uint32_t>(building_type_index)),
+	    static_cast<uint32_t>(option_index)
 	);
 }
 

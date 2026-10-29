@@ -522,6 +522,27 @@ func _setup_factory_panel(panel: Panel) -> void:
 	)
 	panel.add_child(owner_button)
 
+	# What the factory makes (a factory of weapons has a type for every generation): a drop-down list with the price of the good at the market
+	var type_option := OptionButton.new()
+	type_option.name = "production_type_option"
+	# On the row of the employment, to the right of the little men: the only free place of the plate
+	type_option.position = Vector2(47, 49)
+	type_option.size = Vector2(62, 15)
+	type_option.custom_minimum_size = Vector2(62, 15)
+	type_option.add_theme_font_size_override(&"font_size", 9)
+	type_option.fit_to_longest_item = false
+	type_option.clip_text = true
+	type_option.visible = false
+	type_option.item_selected.connect(
+		func(index: int) -> void:
+			if not panel.has_meta(&"building_type_index"):
+				return
+			PlayerSingleton.set_factory_production_type(
+				panel.get_meta(&"province_index"), panel.get_meta(&"building_type_index"), type_option.get_item_metadata(index)
+			)
+	)
+	panel.add_child(type_option)
+
 	var upgrade_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./upgrade")
 	if upgrade_button:
 		upgrade_button.pressed.connect(
@@ -596,6 +617,8 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 	var level: int = factory[&"level"]
 	var constructing: bool = factory[&"constructing"]
 	var is_new: bool = constructing and level == 0
+
+	_update_production_type_option(panel, factory.get(&"production_options", []), level > 0 and not constructing)
 	var is_upgrading: bool = constructing and level > 0
 
 	_set_label_text(GUINode.get_gui_label_from_node_and_path(panel, ^"./level"), str(level) if level > 0 else "")
@@ -685,6 +708,33 @@ func _update_factory_panel(panel: Panel, province_index: int, factory: Dictionar
 	var open_close: Node = panel.get_node_or_null(^"./open_close")
 	if open_close is CanvasItem:
 		open_close.visible = level > 0
+
+
+func _update_production_type_option(panel: Panel, options: Array, shown: bool) -> void:
+	var type_option: OptionButton = panel.get_node_or_null(^"./production_type_option")
+	if type_option == null:
+		return
+	type_option.visible = shown and options.size() > 1
+	if not type_option.visible:
+		return
+	var signature: String = str(options)
+	if type_option.has_meta(&"signature") and type_option.get_meta(&"signature") == signature:
+		return
+	type_option.set_meta(&"signature", signature)
+	type_option.clear()
+	var selected_item: int = 0
+	for option: Dictionary in options:
+		type_option.add_item("%d: %.0f£ %s" % [int(option[&"index"]) + 1, option[&"price"], option[&"name"]])
+		var item: int = type_option.item_count - 1
+		type_option.set_item_metadata(item, int(option[&"index"]))
+		type_option.set_item_disabled(item, not option[&"available"])
+		type_option.set_item_tooltip(item, "Цена на рынке: %.2f £%s" % [
+			option[&"price"], "" if option[&"available"] else "\nПоколение ещё не открыто"
+		])
+		if option[&"selected"]:
+			selected_item = item
+	type_option.select(selected_item)
+	type_option.tooltip_text = "Что выпускает завод: поколение оружия (цена товара на рынке). Смена мгновенная и без потерь."
 
 
 func _employment_tooltip(factory: Dictionary) -> String:
