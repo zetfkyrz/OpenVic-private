@@ -47,11 +47,8 @@ rifle_3 = {
 	line = rifle                  вид оружия (ключ из lines.txt)
 	tier = 3                      поколение, 1 и больше
 	unlock_key = "equipment:rifle_3"   разблокировка страны, при которой оружие доступно (по умолчанию equipment:<id>)
-	rof = 7                       выстрелов в минуту
-	range = 500                   дальность, метры
-	canister_range = 300          (необязательно) дальность картечи, метры
-	accuracy = 0.65               0..1
-	reliability = 0.88            0..1
+	attack = 9                    очки атаки изделия в единицах типов полков (units/*.txt)
+	defence = 6.5                 очки защиты изделия
 	ammo_per_day = 0.040          расход ammo_good на изделие в день боя (необязательно)
 	ammo_good = "ammunition"      товар патронов (необязательно; поколения патронов — позже)
 	weight = 4.2                  килограммов одного изделия
@@ -67,11 +64,11 @@ rifle_3 = {
 	}
 }
 ```
-Обязательные ключи: `line`, `tier`, `rof`, `range`, `accuracy`, `reliability`, `weight`, `good.base_price`. Всё, что не указано, берёт значение по умолчанию.
+Обязательные ключи: `line`, `tier`, `attack`, `defence`, `weight`, `good.base_price`. Всё, что не указано, берёт значение по умолчанию.
 
 ## 4. Как поменять баланс
 
-Правка одного числа в одном файле: например, чтобы сделать `rifle_2` дальнобойнее, открой `ov_data/common/ov_equipment/rifles/rifle_2.txt` и поменяй `range`.
+Правка одного числа в одном файле: например, чтобы усилить `rifle_2`, открой `ov_data/common/ov_equipment/rifles/rifle_2.txt` и поменяй `attack`.
 Мод делает то же, кладя в свою папку файл по тому же пути. Цены — `good.base_price`. Все коэффициенты боя и шаблонов (веса линий, плотность, пределы шаблона) — не в этих файлах,
 а в группах `ov_war` / `ov_economy` файла `common/openvic_defines.lua`.
 
@@ -89,10 +86,8 @@ rifle_3 = {
    siege_1 = {
    	line = siege_artillery
    	tier = 1
-   	rof = 0.5
-   	range = 3000
-   	accuracy = 0.4
-   	reliability = 0.9
+   	attack = 8
+   	defence = 2
    	weight = 2000
    	good = { base_price = 120 }
    }
