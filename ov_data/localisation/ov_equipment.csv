@@ -1,0 +1,19 @@
+rifle_1;Smoothbore muskets;;;;;;;;;;;Гладкоствольные ружья;;x
+rifle_2;Rifled muskets;;;;;;;;;;;Нарезные ружья;;x
+rifle_3;Breech-loading rifles;;;;;;;;;;;Казнозарядные винтовки;;x
+rifle_4;Magazine rifles;;;;;;;;;;;Магазинные винтовки;;x
+field_gun_1;Smoothbore field guns;;;;;;;;;;;Гладкоствольные полевые орудия;;x
+field_gun_2;Rifled field guns;;;;;;;;;;;Нарезные полевые орудия;;x
+field_gun_3;Steel breech-loading guns;;;;;;;;;;;Стальные казнозарядные орудия;;x
+field_gun_4;Quick-firing guns;;;;;;;;;;;Скорострельные орудия;;x
+EQUIPMENT_LINE_RIFLE;Rifles;;;;;;;;;;;Винтовки;;x
+EQUIPMENT_LINE_FIELD_ARTILLERY;Field artillery;;;;;;;;;;;Полевая артиллерия;;x
+MAX_COLUMNS_TECH;Division ranks;;;;;;;;;;;Шеренги дивизии;;x
+MAX_ROWS_TECH;Division rows (depth);;;;;;;;;;;Ряды (глубина) дивизии;;x
+MAX_COMPANY_SLOTS_TECH;Support company slots of a rank;;;;;;;;;;;Слоты рот поддержки у шеренги;;x
+DENSITY_REDUCTION_TECH;Formation density reduction;;;;;;;;;;;Снижение плотности построения;;x
+ROW_WEIGHT_SHIFT_TECH;Row weight shift (formation);;;;;;;;;;;Сдвиг весов рядов (построение);;x
+FORTIFICATION_TECH;Division fortification;;;;;;;;;;;Укреплённость дивизии;;x
+OCCUPATION_SPEED_TECH;Occupation speed;;;;;;;;;;;Скорость оккупации;;x
+DIVISION_DURABILITY_TECH;Division durability;;;;;;;;;;;Прочность дивизии;;x
+DIVISION_RECONNAISSANCE_TECH;Division reconnaissance;;;;;;;;;;;Разведка дивизии;;x
