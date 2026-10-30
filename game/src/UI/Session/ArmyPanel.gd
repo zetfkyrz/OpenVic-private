@@ -38,6 +38,7 @@ var _templates_button: Button
 var _division_row: HBoxContainer
 var _templates_signature: String = ""
 var _templates_window: Control
+var _tech_window: Control
 var _groups_window: Control
 var _group_row: HBoxContainer
 var _group_option: OptionButton
@@ -151,6 +152,10 @@ func _ready() -> void:
 	_templates_button.text = "Шаблоны…"
 	_templates_button.pressed.connect(_on_templates_pressed)
 	_division_row.add_child(_templates_button)
+	var tech_button := Button.new()
+	tech_button.text = tr("ARMY_TECH_WINDOW") + "… (F5)"
+	tech_button.pressed.connect(_on_tech_pressed)
+	_division_row.add_child(tech_button)
 
 	# The group of armies of the army (the countries with the technology of the organisation of the army)
 	_group_row = HBoxContainer.new()
@@ -244,6 +249,10 @@ func set_recruitment_window(window: Control) -> void:
 
 func set_templates_window(window: Control) -> void:
 	_templates_window = window
+
+
+func set_tech_window(window: Control) -> void:
+	_tech_window = window
 
 
 func set_groups_window(window: Control) -> void:
@@ -461,6 +470,11 @@ func _on_reform_pressed() -> void:
 func _on_templates_pressed() -> void:
 	if _templates_window != null:
 		_templates_window.open_templates()
+
+
+func _on_tech_pressed() -> void:
+	if _tech_window != null:
+		_tech_window.open_technologies()
 
 
 func _add_unit_item(parent: TreeItem, unit: Dictionary) -> TreeItem:

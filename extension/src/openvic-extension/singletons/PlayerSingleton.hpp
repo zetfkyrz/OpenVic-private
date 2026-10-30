@@ -199,6 +199,14 @@ namespace OpenVic {
 		// max_ranks x max_depth numbers (the cell of rank r, row d is at r * max_depth + d: the regiment type + 1, 0 is empty) and stats what the template
 		// is worth (get_division_grid_stats)
 		godot::Array get_division_templates() const;
+		// The army technologies (research/ArmyResearch.hpp, docs/WAR_ASSUMPTIONS.md section 5): the branches [{ id, name, index }] and the technologies of the
+		// player [{ index, id, name, branch, branch_index, era, x, y, state (0 not available, 1 available, 2 researching, 3 researched), days_total,
+		// days_left, progress (0..1), prerequisites: [[id, ...], ...] (a block: any of them; the blocks: all), prerequisite_indices, unlocks: [{ kind, id }],
+		// effects: [{ key, scope, value }], can_start, block_reason }]
+		godot::Array get_army_tech_branches() const;
+		godot::Array get_army_technologies() const;
+		bool start_army_research(int32_t technology_index) const;
+		bool cancel_army_research(int32_t technology_index) const;
 		// { ranks, depth, company_slots (what the country may use), row_weight_shift, max_ranks, max_depth, max_company_slots (the size of cells) }
 		godot::Dictionary get_division_template_limits() const;
 		// The regiment types a cell can hold: [{ cell (the number in cells), identifier, unlocked }]

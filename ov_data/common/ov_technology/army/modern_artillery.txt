@@ -4,6 +4,7 @@ modern_artillery = {
 	branch = army
 	x = 5
 	y = 6
+	icon = "gfx/interface/army_icon_2.dds"   # a temporary picture of the whole branch
 	research_days = 730
 	year_hint = 1895   # a hint for the AI, nothing more
 	prerequisite = { smokeless_powder }

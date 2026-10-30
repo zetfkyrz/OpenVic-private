@@ -4,6 +4,7 @@ advanced_fortifications = {
 	branch = army
 	x = 0
 	y = 7
+	icon = "gfx/interface/army_icon_2.dds"   # a temporary picture of the whole branch
 	research_days = 730
 	year_hint = 1890   # a hint for the AI, nothing more
 	prerequisite = { field_fortifications }

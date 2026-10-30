@@ -4,6 +4,7 @@ motor_logistics = {
 	branch = army
 	x = 1
 	y = 8
+	icon = "gfx/interface/army_icon_2.dds"   # a temporary picture of the whole branch
 	research_days = 730
 	year_hint = 1910   # a hint for the AI, nothing more
 	prerequisite = { rear_services }

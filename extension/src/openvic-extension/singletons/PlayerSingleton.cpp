@@ -25,6 +25,7 @@
 #include <openvic-simulation/politics/PoliticsDynamics.hpp>
 #include <openvic-simulation/country/CountryParty.hpp>
 #include <openvic-simulation/country/Colonisation.hpp>
+#include <openvic-simulation/research/ArmyResearch.hpp>
 #include <openvic-simulation/research/ResearchManager.hpp>
 #include <openvic-simulation/research/Technology.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
@@ -153,6 +154,10 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::delete_army_group, { "group_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group, { "army_id", "group_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_marshal, { "group_id", "leader_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_army_tech_branches);
+	OV_BIND_METHOD(PlayerSingleton::get_army_technologies);
+	OV_BIND_METHOD(PlayerSingleton::start_army_research, { "technology_index" });
+	OV_BIND_METHOD(PlayerSingleton::cancel_army_research, { "technology_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_division_templates);
 	OV_BIND_METHOD(PlayerSingleton::get_division_template_limits);
 	OV_BIND_METHOD(PlayerSingleton::get_division_cell_types);
@@ -2931,6 +2936,13 @@ namespace {
 		result["organisation"] = static_cast<double>(stats.organisation);
 		result["reconnaissance"] = static_cast<double>(stats.reconnaissance);
 		result["occupation_speed"] = static_cast<double>(stats.occupation_speed);
+		result["occupation_weight"] = static_cast<double>(stats.occupation_weight);
+		result["occupation_power"] = static_cast<double>(stats.occupation_power);
+		result["occupation_days"] = static_cast<double>(stats.occupation_days);
+		result["breakthrough"] = static_cast<double>(stats.breakthrough);
+		result["casualties"] = static_cast<double>(stats.casualties_mult);
+		result["raw_density"] = static_cast<double>(stats.raw_density);
+		result["companies"] = static_cast<int32_t>(stats.companies);
 		result["occupation_instant"] = stats.occupation_instant;
 		result["attack"] = static_cast<double>(stats.attack);
 		result["defence"] = static_cast<double>(stats.defence);
@@ -2968,6 +2980,131 @@ namespace {
 		}
 		return true;
 	}
+}
+
+Array PlayerSingleton::get_army_tech_branches() const {
+	Array result;
+	ArmyTechnologyManager const& manager = GameSingleton::get_singleton()->get_definition_manager().get_research_manager().get_army_technology_manager();
+	MenuSingleton* const menu_singleton = MenuSingleton::get_singleton();
+	int32_t index = 0;
+	for (memory::string const& branch : manager.get_branches()) {
+		Dictionary entry;
+		entry["id"] = convert_to<String>(branch);
+		const std::string branch_key = "ARMY_TECH_BRANCH_" + std::string { branch };
+		entry["name"] = menu_singleton->tr(convert_to<String>(std::string_view { branch_key }));
+		entry["index"] = index++;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+Array PlayerSingleton::get_army_technologies() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	ArmyTechnologyManager const& manager = instance_manager->definition_manager.get_research_manager().get_army_technology_manager();
+	MenuSingleton* const menu_singleton = MenuSingleton::get_singleton();
+	for (ArmyTechnology const& technology : manager.get_technologies()) {
+		Dictionary entry;
+		entry["index"] = static_cast<int32_t>(technology.index);
+		entry["id"] = convert_to<String>(technology.identifier);
+		entry["name"] = menu_singleton->tr(convert_to<String>(technology.identifier));
+		entry["branch"] = convert_to<String>(technology.branch);
+		entry["branch_index"] = static_cast<int32_t>(technology.branch_index);
+		entry["era"] = technology.era;
+		entry["icon"] = convert_to<String>(technology.icon);
+		entry["x"] = technology.x;
+		entry["y"] = technology.y;
+		const tech_state_t state = get_army_technology_state(manager, *player_country, technology);
+		entry["state"] = static_cast<int32_t>(state);
+		entry["days_total"] = technology.research_days;
+		const int32_t days_left = get_army_research_days_left(*instance_manager, *player_country, technology.index);
+		entry["days_left"] = days_left;
+		entry["progress"] = state == tech_state_t::RESEARCHED ? 1.0 : 1.0 - static_cast<double>(days_left) / static_cast<double>(std::max(1, technology.research_days));
+		Array prerequisites;
+		for (memory::vector<memory::string> const& block : technology.prerequisites) {
+			Array ids;
+			for (memory::string const& id : block) {
+				ids.push_back(convert_to<String>(id));
+			}
+			prerequisites.push_back(ids);
+		}
+		entry["prerequisites"] = prerequisites;
+		Array prerequisite_indices;
+		for (memory::vector<std::size_t> const& block : manager.get_prerequisite_indices(technology)) {
+			Array indices;
+			for (const std::size_t index : block) {
+				indices.push_back(static_cast<int32_t>(index));
+			}
+			prerequisite_indices.push_back(indices);
+		}
+		entry["prerequisite_indices"] = prerequisite_indices;
+		Array unlocks;
+		for (memory::string const& key : technology.unlocks) {
+			const size_t colon = key.find(':');
+			Dictionary unlock;
+			unlock["kind"] = convert_to<String>(std::string_view { key }.substr(0, colon));
+			const std::string_view unlock_kind = std::string_view { key }.substr(0, colon);
+			const std::string_view unlock_id = colon == memory::string::npos ? std::string_view {} : std::string_view { key }.substr(colon + 1);
+			unlock["id"] = convert_to<String>(unlock_id);
+			// the key of the name in the localisation: a company is called by its file (telegraph -> telegraph_company), a mechanic has a text of its own
+			std::string name_key { unlock_id };
+			if (unlock_kind == "support_company") {
+				name_key += "_company";
+			} else if (unlock_kind == "mechanic") {
+				name_key = "ARMY_MECHANIC_" + name_key;
+			}
+			unlock["name_key"] = convert_to<String>(std::string_view { name_key });
+			unlocks.push_back(unlock);
+		}
+		entry["unlocks"] = unlocks;
+		Array effects;
+		if (technology.modifier.has_value()) {
+			std::vector<std::pair<std::string, fixed_point_t>> values;
+			for (auto const& [effect, value] : technology.modifier->get_values()) {
+				values.emplace_back(std::string { effect->get_identifier() }, value);
+			}
+			std::sort(values.begin(), values.end(), [](auto const& a, auto const& b) { return a.first < b.first; });
+			for (auto const& [identifier, value] : values) {
+				// "attack_mult infantry": the effect and its scope
+				const size_t space = identifier.find(' ');
+				Dictionary effect_entry;
+				effect_entry["key"] = convert_to<String>(std::string_view { identifier }.substr(0, space));
+				effect_entry["scope"] = convert_to<String>(space == std::string::npos ? std::string_view {} : std::string_view { identifier }.substr(space + 1));
+				effect_entry["value"] = static_cast<double>(value);
+				effects.push_back(effect_entry);
+			}
+		}
+		entry["effects"] = effects;
+		const army_research_check_t check = can_start_army_research(*instance_manager, *player_country, technology.index);
+		entry["can_start"] = check == army_research_check_t::OK;
+		// why not: not_allowed (the country is not civilised), slot_busy (another technology of the branch is being researched), prerequisites
+		switch (check) {
+		case army_research_check_t::NOT_ALLOWED: entry["block_reason"] = "not_allowed"; break;
+		case army_research_check_t::SLOT_BUSY: entry["block_reason"] = "slot_busy"; break;
+		case army_research_check_t::PREREQUISITES: entry["block_reason"] = "prerequisites"; break;
+		default: entry["block_reason"] = ""; break;
+		}
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::start_army_research(int32_t technology_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(technology_index < 0, false);
+	return instance_manager->queue_game_action<start_army_research_argument_t>(player_country->index, static_cast<std::uint32_t>(technology_index));
+}
+
+bool PlayerSingleton::cancel_army_research(int32_t technology_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(technology_index < 0, false);
+	return instance_manager->queue_game_action<cancel_army_research_argument_t>(player_country->index, static_cast<std::uint32_t>(technology_index));
 }
 
 Array PlayerSingleton::get_division_templates() const {

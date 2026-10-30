@@ -4,6 +4,7 @@ mobilisation_planning = {
 	branch = army
 	x = 2
 	y = 5
+	icon = "gfx/interface/army_icon_2.dds"   # a temporary picture of the whole branch
 	research_days = 730
 	year_hint = 1870   # a hint for the AI, nothing more
 	prerequisite = { military_telegraph }

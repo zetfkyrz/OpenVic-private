@@ -78,3 +78,56 @@ engineer_company;Engineer company;;;;;;;;;;;Инженерная рота;;x
 signals;Signals;;;;;;;;;;;Связь;;x
 engineering;Engineering;;;;;;;;;;;Инженерное дело;;x
 machinegun;Machine guns;;;;;;;;;;;Пулемёты;;x
+ARMY_EFFECT_attack_mult;Attack;;;;;;;;;;;Атака;;x
+ARMY_EFFECT_defense_mult;Defence;;;;;;;;;;;Защита;;x
+ARMY_EFFECT_breakthrough_mult;Breakthrough;;;;;;;;;;;Прорыв;;x
+ARMY_EFFECT_fortification;Fortification (levels);;;;;;;;;;;Укреплённость (уровни);;x
+ARMY_EFFECT_casualties_taken_mult;Casualties taken (multiplier);;;;;;;;;;;Потери (множитель);;x
+ARMY_EFFECT_mobilisation_speed_pct;Mobilisation speed;;;;;;;;;;;Скорость мобилизации;;x
+ARMY_EFFECT_mobilisation_speed_mult;Mobilisation speed (multiplier);;;;;;;;;;;Скорость мобилизации (множитель);;x
+ARMY_EFFECT_mobilisation_size_pct;Mobilisation size;;;;;;;;;;;Размер мобилизации;;x
+ARMY_EFFECT_occupation_speed_pct;Occupation speed;;;;;;;;;;;Скорость оккупации;;x
+ARMY_EFFECT_occupation_speed_mult;Occupation speed (multiplier);;;;;;;;;;;Скорость оккупации (множитель);;x
+ARMY_EFFECT_supply_national_pct;National supply;;;;;;;;;;;Национальное снабжение;;x
+ARMY_EFFECT_supply_army_pct;Army supply;;;;;;;;;;;Снабжение армии;;x
+ARMY_EFFECT_supply_days_add;Days of supplies;;;;;;;;;;;Дней снабжения;;x
+ARMY_EFFECT_railway_supply_per_level;Supply per level of railway;;;;;;;;;;;Снабжение за уровень железной дороги;;x
+ARMY_EFFECT_density_coefficient_mult;Density (multiplier);;;;;;;;;;;Плотность (множитель);;x
+ARMY_EFFECT_density_excess_reduction;Density excess reduction;;;;;;;;;;;Уменьшение избытка плотности;;x
+ARMY_EFFECT_max_columns_add;Columns of a division template;;;;;;;;;;;Колонн в шаблоне дивизии;;x
+ARMY_EFFECT_max_rows;Rows of a division template;;;;;;;;;;;Рядов в шаблоне дивизии;;x
+ARMY_EFFECT_max_company_slots;Company slots of a rank;;;;;;;;;;;Слотов рот в колонне;;x
+ARMY_EFFECT_organisation_regain;Organisation regain;;;;;;;;;;;Восстановление организации;;x
+ARMY_SCOPE_all;all units;;;;;;;;;;;все войска;;x
+ARMY_SCOPE_infantry;infantry;;;;;;;;;;;пехота;;x
+ARMY_SCOPE_cavalry;cavalry;;;;;;;;;;;кавалерия;;x
+ARMY_SCOPE_artillery;artillery;;;;;;;;;;;артиллерия;;x
+ARMY_UNLOCK_equipment;Weapon;;;;;;;;;;;Оружие;;x
+ARMY_UNLOCK_unit;Unit;;;;;;;;;;;Войска;;x
+ARMY_UNLOCK_building;Building;;;;;;;;;;;Здание;;x
+ARMY_UNLOCK_mechanic;Mechanic;;;;;;;;;;;Механика;;x
+ARMY_UNLOCK_support_company;Support company;;;;;;;;;;;Рота поддержки;;x
+ARMY_MECHANIC_division_templates;Editing of division templates;;;;;;;;;;;Редактирование шаблонов дивизий;;x
+ARMY_MECHANIC_mobilisation;Mobilisation;;;;;;;;;;;Мобилизация;;x
+ARMY_MECHANIC_instant_occupation;Instant occupation;;;;;;;;;;;Мгновенная оккупация;;x
+ARMY_TECH_BRANCH_army;Army;;;;;;;;;;;Армия;;x
+ARMY_TECH_BRANCH_industry;Industry;;;;;;;;;;;Промышленность;;x
+ARMY_TECH_BRANCH_society;Society;;;;;;;;;;;Общество;;x
+ARMY_TECH_BRANCH_navy;Navy;;;;;;;;;;;Флот;;x
+ARMY_TECH_WINDOW;Army technologies;;;;;;;;;;;Технологии армии;;x
+ARMY_TECH_STATE_0;Not available;;;;;;;;;;;Недоступна;;x
+ARMY_TECH_STATE_1;Available: click to research;;;;;;;;;;;Доступна: нажмите, чтобы исследовать;;x
+ARMY_TECH_STATE_2;Being researched (right click cancels, the progress is lost);;;;;;;;;;;Исследуется (правый щелчок отменяет, прогресс теряется);;x
+ARMY_TECH_STATE_3;Researched;;;;;;;;;;;Исследована;;x
+ARMY_TECH_TIME;Time;;;;;;;;;;;Время;;x
+ARMY_TECH_DAYS;days;;;;;;;;;;;дн.;;x
+ARMY_TECH_DAYS_LEFT;left;;;;;;;;;;;осталось;;x
+ARMY_TECH_UNLOCKS;Opens;;;;;;;;;;;Открывает;;x
+ARMY_TECH_EFFECTS;Effects;;;;;;;;;;;Эффекты;;x
+ARMY_TECH_ERA;Era;;;;;;;;;;;Эра;;x
+ARMY_TECH_PREREQUISITES;Needs;;;;;;;;;;;Требует;;x
+ARMY_TECH_ANY_OF;any of;;;;;;;;;;;любая из;;x
+ARMY_TECH_BLOCK_not_allowed;Only civilised countries research;;;;;;;;;;;Исследуют только цивилизованные страны;;x
+ARMY_TECH_BLOCK_slot_busy;Another technology of the branch is being researched;;;;;;;;;;;Идёт исследование другой технологии ветки;;x
+ARMY_TECH_BLOCK_prerequisites;The prerequisites are not researched;;;;;;;;;;;Предпосылки не исследованы;;x
+ARMY_TECH_STUB;This branch comes later;;;;;;;;;;;Эта ветка появится позже;;x
