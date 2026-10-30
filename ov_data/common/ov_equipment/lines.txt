@@ -20,3 +20,12 @@ field_artillery = {
 	slot = special
 	unit_types = { artillery }
 }
+
+# The equipment of the signals (the companies of telegraph and radio, ov_companies): not weapons of a unit, they are goods the factories make and the
+# companies use. The order of the tiers is the order of the factories (the radio factory replaces the telegraph one, the old one stays available).
+signals = {
+	icon = "telephones"
+	name = "EQUIPMENT_LINE_SIGNALS"
+	slot = support
+	unit_types = { }
+}

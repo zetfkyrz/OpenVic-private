@@ -200,3 +200,8 @@ rifle_3_factory = {
 `headless --dump-techtree` рисует сетку.
 
 Исследование: слот на ветку, 730 дней (`research_days` файла), команды `start_army_research` / `cancel_army_research`, простой ИИ — `WAR_ASSUMPTIONS.md`, «Исследование технологий армии». Числа исследований — группа `ov_research` файла `common/openvic_defines.lua`.
+
+## 12. Здания и механики по ключам
+
+Здание, которое открывается ключом слоя разблокировок: `requires_unlock = "building:<id>"` (список — достаточно любого ключа) в здании или в `ov_data/common/ov_buildings/<файл>.txt` для зданий игры (`<id> = { requires_unlock = ... }`). Механики: ключи `mechanic:division_templates`,
+`mechanic:mobilisation`, `mechanic:instant_occupation` выдают технологии (`unlocks = { "mechanic:..." }`). Новый вариант продукции здания — файл в `ov_production_types` (поле `building`), его товар — файл оружия в `ov_equipment` (линия `signals` для связи), ключ — `unlock_key` файла оружия.

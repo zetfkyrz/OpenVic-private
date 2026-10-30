@@ -1,0 +1,18 @@
+# Field telegraph sets. A production type that a factory of radio_factory can make instead of the one of the building (docs/EQUIPMENT_MODDING.md): the
+# older kind of the communications factory, the radio takes over when the country has the field radio and the telegraph stays available. The recipe is an
+# estimate, see docs/WAR_ASSUMPTIONS.md. It is available to a country that has the key of its good (building:telegraph_factory).
+telegraph_factory = {
+	template = factory_template      # the workers, the owners and the efficiency of the factories of the game
+	building = radio_factory
+	input_goods = {
+		machine_parts = 2.0
+		steel = 1.0
+		glass = 0.5
+	}
+	output_goods = telegraph
+	value = 3
+	bonus = {
+		trigger = { has_building = machine_parts_factory }
+		value = 0.1
+	}
+}

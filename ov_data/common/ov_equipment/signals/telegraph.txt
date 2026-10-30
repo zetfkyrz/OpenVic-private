@@ -1,0 +1,21 @@
+# The telegraph: wires, relays and batteries for the field telegraph companies. An estimate, see docs/WAR_ASSUMPTIONS.md.
+# The good is new; the key is the one of the factory that makes it (technology military_telegraph).
+telegraph = {
+	line = signals
+	tier = 1
+	unlock_key = "building:telegraph_factory"
+	attack_mult = 1
+	defense_mult = 1
+	breakthrough_mult = 1
+	weight = 20
+	cost = { telegraph = 1 }
+	flags = { }
+	good = {
+		id = "telegraph"
+		base_price = 12
+		icon = "telephones"
+		name = "telegraph"
+		category = "industrial_goods"
+		colour = { 110 120 130 }
+	}
+}

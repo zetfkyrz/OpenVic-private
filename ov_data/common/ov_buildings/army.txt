@@ -1,0 +1,12 @@
+# The buildings of the base game that need a key of the unlock layer (docs/EQUIPMENT_MODDING.md): a country builds (new buildings and expansions) only with
+# one of the keys, the buildings that are built work without them. The keys come from the technologies of the army (ov_data/common/ov_technology).
+# A building that is not here is unlocked by the technologies of the base game as before.
+
+# The arms factories: arms_making (the civilised have it from the start, the uncivilised do not)
+small_arms_factory = { requires_unlock = "building:small_arms_factory" }
+ammunition_factory = { requires_unlock = "building:ammunition_factory" }
+artillery_factory = { requires_unlock = "building:artillery_factory" }
+explosives_factory = { requires_unlock = "building:explosives_factory" }
+
+# The communications factory: the telegraph (military_telegraph) or the radio (field_radio) is enough
+radio_factory = { requires_unlock = { "building:telegraph_factory" "building:radio_factory" } }

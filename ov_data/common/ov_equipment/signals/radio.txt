@@ -1,0 +1,21 @@
+# The field radio. The good is the radio of the base game (it is not defined again, the price of the base game stays); the key is the one of the
+# factory that makes it (technology field_radio). A factory of radio_factory makes it instead of the telegraph. An estimate, see docs/WAR_ASSUMPTIONS.md.
+radio = {
+	line = signals
+	tier = 2
+	unlock_key = "building:radio_factory"
+	attack_mult = 1
+	defense_mult = 1
+	breakthrough_mult = 1
+	weight = 10
+	cost = { radio = 1 }
+	flags = { }
+	good = {
+		id = "radio"
+		base_price = 16
+		icon = "radio"
+		name = "radio"
+		category = "consumer_goods"
+		colour = { 129 63 6 }
+	}
+}
