@@ -1,0 +1,12 @@
+# General staff (era 1). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+general_staff = {
+	era = 1
+	branch = army
+	x = 1
+	y = 3
+	research_days = 730
+	year_hint = 1855   # a hint for the AI, nothing more
+	prerequisite = { post_napoleonic_tactics }
+	unlocks = { "mechanic:mobilisation" }
+	modifiers = { supply_national_pct = 0.05 attack_mult = { all = 0.05 } occupation_speed_pct = 0.25 }
+}

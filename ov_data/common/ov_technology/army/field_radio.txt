@@ -1,0 +1,12 @@
+# Field radio (era 4). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+field_radio = {
+	era = 4
+	branch = army
+	x = 2
+	y = 7
+	research_days = 730
+	year_hint = 1900   # a hint for the AI, nothing more
+	prerequisite = { military_telegraph }
+	prerequisite = { operational_planning improved_logistics }   # any of them (dashed line)
+	unlocks = { "support_company:radio" "building:radio_factory" }
+}

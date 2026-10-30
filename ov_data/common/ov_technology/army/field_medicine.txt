@@ -1,0 +1,11 @@
+# Field medicine (era 2). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+field_medicine = {
+	era = 2
+	branch = army
+	x = 0
+	y = 4
+	research_days = 730
+	year_hint = 1865   # a hint for the AI, nothing more
+	prerequisite = { general_staff }
+	modifiers = { casualties_taken_mult = { all = 0.80 } }
+}

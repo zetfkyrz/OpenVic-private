@@ -1,0 +1,12 @@
+# Rear services (era 4). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+rear_services = {
+	era = 4
+	branch = army
+	x = 1
+	y = 6
+	research_days = 730
+	year_hint = 1890   # a hint for the AI, nothing more
+	prerequisite = { improved_logistics }
+	unlocks = { "mechanic:instant_occupation" }
+	modifiers = { supply_days_add = 7 }
+}

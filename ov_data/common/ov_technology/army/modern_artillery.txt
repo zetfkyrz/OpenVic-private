@@ -1,0 +1,11 @@
+# Modern artillery (era 5). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+modern_artillery = {
+	era = 5
+	branch = army
+	x = 5
+	y = 6
+	research_days = 730
+	year_hint = 1895   # a hint for the AI, nothing more
+	prerequisite = { smokeless_powder }
+	unlocks = { "equipment:field_gun_4" "unit:fragmentation_artillery" }
+}

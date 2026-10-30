@@ -1,0 +1,12 @@
+# Skirmish order (era 2). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+skirmish_order = {
+	era = 2
+	branch = army
+	x = 3
+	y = 3
+	research_days = 730
+	year_hint = 1860   # a hint for the AI, nothing more
+	prerequisite = { post_napoleonic_tactics rifling }   # any of them (dashed line)
+	unlocks = { "unit:skirmisher_infantry" }
+	modifiers = { density_coefficient_mult = 0.90 density_excess_reduction = 0.15 }
+}

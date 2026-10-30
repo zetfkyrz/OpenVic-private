@@ -46,3 +46,26 @@ napoleonic_artillery;Napoleonic artillery;;;;;;;;;;;Наполеоновская
 artillery;Artillery;;;;;;;;;;;Артиллерия;;x
 rifled_artillery;Rifled artillery;;;;;;;;;;;Нарезная артиллерия;;x
 fragmentation_artillery;Fragmentation artillery;;;;;;;;;;;Осколочная артиллерия;;x
+arms_making;Arms making;;;;;;;;;;;Оружейное производство;;x
+standardized_army;Standardized army;;;;;;;;;;;Стандартизированная армия;;x
+percussion_cap;Percussion cap;;;;;;;;;;;Ударный капсюль;;x
+post_napoleonic_tactics;Post-Napoleonic tactics;;;;;;;;;;;Тактика после Наполеона;;x
+general_staff;General staff;;;;;;;;;;;Генеральный штаб;;x
+rifling;Rifling;;;;;;;;;;;Нарезное оружие;;x
+field_medicine;Field medicine;;;;;;;;;;;Полевая медицина;;x
+military_telegraph;Military telegraph;;;;;;;;;;;Военный телеграф;;x
+skirmish_order;Skirmish order;;;;;;;;;;;Рассыпной строй;;x
+field_fortifications;Field fortifications;;;;;;;;;;;Полевые укрепления;;x
+breech_loading;Breech loading;;;;;;;;;;;Казнозарядное оружие;;x
+mobilisation_planning;Mobilisation planning;;;;;;;;;;;Планирование мобилизации;;x
+operational_planning;Operational planning;;;;;;;;;;;Оперативное планирование;;x
+improved_logistics;Improved logistics;;;;;;;;;;;Улучшенная логистика;;x
+magazine_rifle;Magazine rifle;;;;;;;;;;;Магазинная винтовка;;x
+smokeless_powder;Smokeless powder;;;;;;;;;;;Бездымный порох;;x
+rear_services;Rear services;;;;;;;;;;;Тыловые службы;;x
+field_radio;Field radio;;;;;;;;;;;Полевая радиосвязь;;x
+advanced_fortifications;Advanced fortifications;;;;;;;;;;;Усовершенствованные укрепления;;x
+modern_artillery;Modern artillery;;;;;;;;;;;Современная артиллерия;;x
+artillery_preparation;Artillery preparation;;;;;;;;;;;Артиллерийская подготовка;;x
+barbed_wire_trenches;Barbed wire and trenches;;;;;;;;;;;Колючая проволока и траншеи;;x
+motor_logistics;Motor logistics;;;;;;;;;;;Моторизованная логистика;;x

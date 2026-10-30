@@ -1,0 +1,12 @@
+# Operational planning (era 3). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+operational_planning = {
+	era = 3
+	branch = army
+	x = 3
+	y = 6
+	research_days = 730
+	year_hint = 1880   # a hint for the AI, nothing more
+	prerequisite = { mobilisation_planning }
+	prerequisite = { skirmish_order breech_loading }   # any of them (dashed line)
+	modifiers = { supply_days_add = 7 breakthrough_mult = { all = 0.10 } attack_mult = { all = 0.10 } defense_mult = { all = 0.05 } occupation_speed_mult = 2.0 }
+}

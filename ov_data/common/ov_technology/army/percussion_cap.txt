@@ -1,0 +1,12 @@
+# Percussion cap (era 1). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+percussion_cap = {
+	era = 1
+	branch = army
+	x = 4
+	y = 1
+	research_days = 730
+	year_hint = 1836   # a hint for the AI, nothing more
+	start = civilised   # the civilised countries have it researched from the start
+	prerequisite = { arms_making }
+	unlocks = { "equipment:rifle_1" "unit:infantry" }
+}

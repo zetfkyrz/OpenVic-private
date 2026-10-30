@@ -1,0 +1,11 @@
+# Improved logistics (era 3). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+improved_logistics = {
+	era = 3
+	branch = army
+	x = 1
+	y = 5
+	research_days = 730
+	year_hint = 1870   # a hint for the AI, nothing more
+	prerequisite = { field_medicine military_telegraph }   # any of them (dashed line)
+	modifiers = { supply_army_pct = 0.20 railway_supply_per_level = 0.05 }
+}

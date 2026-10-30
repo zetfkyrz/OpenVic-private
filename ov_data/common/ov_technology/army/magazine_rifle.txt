@@ -1,0 +1,12 @@
+# Magazine rifle (era 4). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+magazine_rifle = {
+	era = 4
+	branch = army
+	x = 5
+	y = 4
+	research_days = 730
+	year_hint = 1885   # a hint for the AI, nothing more
+	prerequisite = { breech_loading }
+	unlocks = { "equipment:rifle_4" "unit:modern_infantry" }
+	modifiers = { breakthrough_mult = { infantry = 0.20 } }
+}

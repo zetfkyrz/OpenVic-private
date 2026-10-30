@@ -1,0 +1,11 @@
+# Breech loading (era 3). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+breech_loading = {
+	era = 3
+	branch = army
+	x = 5
+	y = 3
+	research_days = 730
+	year_hint = 1865   # a hint for the AI, nothing more
+	prerequisite = { rifling }
+	unlocks = { "equipment:rifle_3" "equipment:field_gun_3" }
+}

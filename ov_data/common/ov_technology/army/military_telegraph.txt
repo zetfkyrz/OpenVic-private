@@ -1,0 +1,12 @@
+# Military telegraph (era 2). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+military_telegraph = {
+	era = 2
+	branch = army
+	x = 2
+	y = 4
+	research_days = 730
+	year_hint = 1860   # a hint for the AI, nothing more
+	prerequisite = { general_staff }
+	unlocks = { "support_company:telegraph" "building:telegraph_factory" }
+	modifiers = { mobilisation_speed_mult = 2.0 }
+}

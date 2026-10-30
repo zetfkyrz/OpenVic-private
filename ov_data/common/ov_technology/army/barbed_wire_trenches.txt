@@ -1,0 +1,13 @@
+# Barbed wire and trenches (era 5). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+barbed_wire_trenches = {
+	era = 5
+	branch = army
+	x = 0
+	y = 8
+	research_days = 730
+	year_hint = 1905   # a hint for the AI, nothing more
+	prerequisite = { advanced_fortifications }
+	prerequisite = { modern_artillery operational_planning }   # any of them (dashed line)
+	unlocks = { "support_company:engineer" }
+	modifiers = { fortification = { all = 1 } }
+}

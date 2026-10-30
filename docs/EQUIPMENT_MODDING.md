@@ -192,3 +192,9 @@ rifle_3_factory = {
 
 Тип войск — файл `ov_data/common/ov_units/<id>.txt` (поля и таблица стартового набора — в `WAR_ASSUMPTIONS.md`, «Типы войск в файлах»). Новый тип: файл с `category`, `equipment` (список оружия), `base_stats`; ключ разблокировки `unlock_key = "unit:<id>"`
 выдаёт технология или любая другая система через `grant_unlock`. Названия: `ov_data/localisation/*.csv` (ключ — id типа). Типы Vic2 `infantry`, `cavalry`, `artillery` при чтении армий Vic2 заменяются по `ov_units/aliases.txt`.
+
+## 11. Технологии армии
+
+Технология — файл `ov_data/common/ov_technology/<ветка>/<id>.txt` (поля — в `WAR_ASSUMPTIONS.md`, «Технологии армии»). Новая технология: файл с `era`, `x`, `y`, при необходимости `prerequisite = { ... }` (каждый ключ — блок, внутри блока «или»,
+блоки вместе «и»), `unlocks = { "unit:<id>" "equipment:<id>" ... }` и `modifiers = { ... }`; название — строка с id технологии в `ov_data/localisation/*.csv`. Ошибки дерева (нет предпосылки, цикл, одна клетка, предпосылка не выше) печатаются при загрузке;
+`headless --dump-techtree` рисует сетку.

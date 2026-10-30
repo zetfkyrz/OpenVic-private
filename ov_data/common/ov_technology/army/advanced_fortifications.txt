@@ -1,0 +1,12 @@
+# Advanced fortifications (era 4). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+advanced_fortifications = {
+	era = 4
+	branch = army
+	x = 0
+	y = 7
+	research_days = 730
+	year_hint = 1890   # a hint for the AI, nothing more
+	prerequisite = { field_fortifications }
+	prerequisite = { breech_loading operational_planning }   # any of them (dashed line)
+	modifiers = { fortification = { infantry = 1 } }
+}

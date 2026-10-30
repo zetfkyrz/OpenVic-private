@@ -1,0 +1,11 @@
+# Field fortifications (era 2). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+field_fortifications = {
+	era = 2
+	branch = army
+	x = 0
+	y = 3
+	research_days = 730
+	year_hint = 1855   # a hint for the AI, nothing more
+	prerequisite = { post_napoleonic_tactics }
+	modifiers = { fortification = { infantry = 1 } }
+}

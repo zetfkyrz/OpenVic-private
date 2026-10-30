@@ -1,0 +1,11 @@
+# Mobilisation planning (era 3). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+mobilisation_planning = {
+	era = 3
+	branch = army
+	x = 2
+	y = 5
+	research_days = 730
+	year_hint = 1870   # a hint for the AI, nothing more
+	prerequisite = { military_telegraph }
+	modifiers = { mobilisation_speed_pct = 0.25 mobilisation_size_pct = 0.10 }
+}

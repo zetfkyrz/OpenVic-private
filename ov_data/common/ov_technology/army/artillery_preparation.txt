@@ -1,0 +1,11 @@
+# Artillery preparation (era 5). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+artillery_preparation = {
+	era = 5
+	branch = army
+	x = 5
+	y = 7
+	research_days = 730
+	year_hint = 1900   # a hint for the AI, nothing more
+	prerequisite = { modern_artillery }
+	modifiers = { attack_mult = { artillery = 0.10 } breakthrough_mult = { infantry = 0.10 } }
+}

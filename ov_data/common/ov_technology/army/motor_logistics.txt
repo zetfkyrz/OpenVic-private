@@ -1,0 +1,12 @@
+# Motor logistics (era 5). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+motor_logistics = {
+	era = 5
+	branch = army
+	x = 1
+	y = 8
+	research_days = 730
+	year_hint = 1910   # a hint for the AI, nothing more
+	prerequisite = { rear_services }
+	prerequisite = { field_radio improved_logistics }   # any of them (dashed line)
+	modifiers = { supply_army_pct = 0.25 railway_supply_per_level = 0.05 }
+}

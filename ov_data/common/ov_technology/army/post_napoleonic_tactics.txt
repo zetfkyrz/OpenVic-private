@@ -1,0 +1,12 @@
+# Post-Napoleonic tactics (era 1). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+post_napoleonic_tactics = {
+	era = 1
+	branch = army
+	x = 1
+	y = 2
+	research_days = 730
+	year_hint = 1845   # a hint for the AI, nothing more
+	prerequisite = { standardized_army }
+	unlocks = { "unit:dragoons" "unit:hussars" "unit:cuirassiers" }
+	modifiers = { max_columns_add = 1 }
+}

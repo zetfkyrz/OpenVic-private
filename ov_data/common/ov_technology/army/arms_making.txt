@@ -1,0 +1,11 @@
+# Arms making (era 1). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+arms_making = {
+	era = 1
+	branch = army
+	x = 3
+	y = 0
+	research_days = 730
+	year_hint = 1836   # a hint for the AI, nothing more
+	start = civilised   # the civilised countries have it researched from the start
+	unlocks = { "building:small_arms_factory" "building:ammunition_factory" "building:artillery_factory" "building:explosives_factory" }
+}

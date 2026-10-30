@@ -1,0 +1,11 @@
+# Smokeless powder (era 4). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+smokeless_powder = {
+	era = 4
+	branch = army
+	x = 5
+	y = 5
+	research_days = 730
+	year_hint = 1890   # a hint for the AI, nothing more
+	prerequisite = { magazine_rifle }
+	modifiers = { attack_mult = { all = 0.10 } defense_mult = { all = 0.10 } breakthrough_mult = { all = 0.10 } }
+}

@@ -1,0 +1,11 @@
+# Rifling (era 2). Starting values are estimates, see docs/WAR_ASSUMPTIONS.md. The cell (x, y) is a first layout, edit it freely.
+rifling = {
+	era = 2
+	branch = army
+	x = 4
+	y = 2
+	research_days = 730
+	year_hint = 1850   # a hint for the AI, nothing more
+	prerequisite = { percussion_cap }
+	unlocks = { "equipment:rifle_2" "equipment:field_gun_2" "unit:rifled_artillery" }
+}
