@@ -2,7 +2,7 @@
 # gives the unlocks. See docs/PENDING_PLANS.md: "the provisional unlocks wait for the new system of technologies".
 #
 # Until then every country gets, on the first day of the year of a step: the keys of "unlock" (CountryInstance::grant_unlock) and the modifier of
-# "modifier" (added to the modifier sum of the country; the effects are the ones of the technologies: max_columns, max_rows, max_company_slots,
+# "modifier" (added to the modifier sum of the country; the effects are the ones of the technologies: max_columns_add, max_rows, max_company_slots,
 # density_reduction, row_weight_shift). The years are estimates, see docs/WAR_ASSUMPTIONS.md. The steps are applied by the year, the order inside
 # a year is the order of this file.
 #
@@ -15,11 +15,11 @@ step = { year = 1865 unlock = { "equipment:rifle_3" "equipment:field_gun_3" } }
 step = { year = 1885 unlock = { "equipment:rifle_4" "equipment:field_gun_4" } }
 
 # The limits of the templates: 3 ranks and 2 rows to start, up to 6 and 4; 1 company slot of a rank to start, up to 4
-step = { year = 1845 modifier = { max_columns = 1 } }
-step = { year = 1860 modifier = { max_columns = 1 max_company_slots = 1 } }
+step = { year = 1845 modifier = { max_columns_add = 1 } }
+step = { year = 1860 modifier = { max_columns_add = 1 max_company_slots = 1 } }
 step = { year = 1870 modifier = { max_rows = 1 } }
 step = { year = 1875 modifier = { max_company_slots = 1 } }
-step = { year = 1880 modifier = { max_columns = 1 } }
+step = { year = 1880 modifier = { max_columns_add = 1 } }
 step = { year = 1890 modifier = { max_rows = 1 max_company_slots = 1 } }
 
 # The formation: the second row weighs as the first (the weights of the rows are 1, 1, 1/2, 1/4)

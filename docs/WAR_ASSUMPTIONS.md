@@ -169,3 +169,16 @@
 | 1б. Алиас small_arms → rifle_0, artillery → field_gun_0 | товар Vic2 теперь тир 0 (раньше первое поколение); стартовые полки носят оружие тира 0 (множители 0.7, значит стартовая атака пехоты на 30 % ниже прежней); корабельные пушки на `field_gun_0`; рецепты первого поколения (`rifle_1`, `field_gun_1`) в `ov_production_types`, рецепт Vic2 — тир 0. Версия симуляции 26 | меняется: `default_60_days` 7ba9d3f4c2a60365 → 5400b69e3af80950, `ai_and_wars_30_days` 47875685d0db9cd1 → 0471c4647fa07073 (j1 = j4); причина — множители 0.7 у стартовых полков (бой) и ещё один тип у фабрик |
 
 Рецепты первого поколения (мои оценки): `rifle_1` — боеприпасы 2, сталь 3.5, станки 0.25 (выпуск 2); `field_gun_1` — взрывчатка 1, сталь 8.5, станки 0.25 (выпуск 1.3). Рецепты `rifle_0` и `field_gun_0` — прежние рецепты Vic2 (`small_arms_factory`, `artillery_factory`).
+
+### Модификаторы с областями (подпункт 2, `military/UnitModifiers.*`)
+Запись в файлах технологий, типов войск и рот — существующая форма сложных модификаторов (как `factory_goods_output = { small_arms = 0.1 }`): `attack_mult = { all = 0.05 infantry = 0.10 hussars = 0.02 }`; модификатор без области (`occupation_speed_pct = 0.25`) — для всей страны.
+Области: `all`, `infantry`, `cavalry`, `artillery` и id каждого типа войск (регистрируются, когда известны типы). Область с неизвестным именем ломает шаг/файл (он пропускается с предупреждением).
+Области с весами: у типа есть веса областей (по умолчанию all 1, категория 1, id 1; драгуны: infantry 0.5, cavalry 0.5), значение области учитывается с этим весом.
+Правила сложения: **проценты и обычные бонусы суммируются** (`attack_mult`, `defense_mult`, `breakthrough_mult`, `organisation_regain`, `fortification` (уровни), `*_pct`, `supply_days_add`, `max_columns_add`, `railway_supply_per_level`, `density_excess_reduction`), множитель = 1 + сумма;
+**настоящие множители перемножаются** (`casualties_taken_mult`, `occupation_speed_mult`, `mobilisation_speed_mult`, `density_coefficient_mult`); для множителя области с весом w вклад модификатора считается как 1 + w × (значение − 1).
+Эффекты областей: `attack_mult`, `defense_mult`, `breakthrough_mult`, `fortification`, `casualties_taken_mult`, `organisation_regain`. Без областей: `mobilisation_speed_pct/_mult`, `mobilisation_size_pct`, `occupation_speed_pct/_mult`, `supply_national_pct`, `supply_army_pct`, `supply_days_add`,
+`railway_supply_per_level`, `density_coefficient_mult`, `density_excess_reduction`, `max_columns_add` (прежний `max_columns` переименован), плюс прежние `max_rows`, `max_company_slots`, `density_reduction`, `row_weight_shift`, `division_durability`, `division_reconnaissance`.
+`railway_supply_per_level`: записывается **добавкой** к базе 0.10 (по ТЗ «×1.5» = +0.05, «+0.05» = +0.05).
+Укреплённость: каждый уровень даёт `FORTIFICATION_PER_LEVEL` = 5 % к защите (`ov_war`); укреплённость шаблона — среднее по числу полков (50 % пехоты с 1 и 50 % кавалерии с 0 дают 0.5).
+Условия по местности и по типу противника поддерживаются только в `buffs` типов войск (подпункт 3), в модификаторах технологий — только области.
+Эффекты применяются: показатели шаблона (укреплённость, скорость оккупации) уже читают их; бой, оккупация, снабжение — в подпунктах 6–8; мобилизация — только эффекты и ключ (механика позже, по решению владельца).

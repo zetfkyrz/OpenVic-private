@@ -19,3 +19,18 @@ FORTIFICATION_TECH;Division fortification;;;;;;;;;;;Укреплённость �
 OCCUPATION_SPEED_TECH;Occupation speed;;;;;;;;;;;Скорость оккупации;;x
 DIVISION_DURABILITY_TECH;Division durability;;;;;;;;;;;Прочность дивизии;;x
 DIVISION_RECONNAISSANCE_TECH;Division reconnaissance;;;;;;;;;;;Разведка дивизии;;x
+OCCUPATION_SPEED_MULT_TECH;Occupation speed (multiplier);;;;;;;;;;;Скорость оккупации (множитель);;x
+MOBILISATION_SPEED_PCT_TECH;Mobilisation speed;;;;;;;;;;;Скорость мобилизации;;x
+MOBILISATION_SPEED_MULT_TECH;Mobilisation speed (multiplier);;;;;;;;;;;Скорость мобилизации (множитель);;x
+MOBILISATION_SIZE_PCT_TECH;Mobilisation size;;;;;;;;;;;Размер мобилизации;;x
+SUPPLY_NATIONAL_PCT_TECH;Supply on national territory;;;;;;;;;;;Снабжение на своей территории;;x
+SUPPLY_ARMY_PCT_TECH;Army supply;;;;;;;;;;;Снабжение армии;;x
+SUPPLY_DAYS_ADD_TECH;Days of supplies of a regiment;;;;;;;;;;;Дни припасов полка;;x
+RAILWAY_SUPPLY_PER_LEVEL_TECH;Supply per level of the railway;;;;;;;;;;;Снабжение за уровень железной дороги;;x
+DENSITY_COEFFICIENT_MULT_TECH;Formation density;;;;;;;;;;;Плотность построения;;x
+DENSITY_EXCESS_REDUCTION_TECH;Penalty of a dense formation;;;;;;;;;;;Штраф плотного построения;;x
+ATTACK_MULT_TECH;Attack;;;;;;;;;;;Атака;;x
+DEFENSE_MULT_TECH;Defence;;;;;;;;;;;Защита;;x
+BREAKTHROUGH_MULT_TECH;Breakthrough;;;;;;;;;;;Прорыв;;x
+CASUALTIES_TAKEN_MULT_TECH;Casualties taken;;;;;;;;;;;Получаемые потери;;x
+ORGANISATION_REGAIN_TECH;Organisation regain;;;;;;;;;;;Восстановление организации;;x
