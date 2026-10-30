@@ -1,0 +1,15 @@
+# The engineer company: field fortifications and obstacles. The construction goods are cement and explosives of the base game (my choice, see
+# docs/WAR_ASSUMPTIONS.md). Starting values are estimates.
+engineer_company = {
+	category = engineering
+	unlock_key = "support_company:engineer"   # the key of the unlock layer (technology barbed_wire_trenches)
+	goods = { cement = 0.1 explosives = 0.05 }
+	cost = { cement = 10 explosives = 5 }
+	weight = 600
+	manpower = 0.3
+	buffs = {
+		fortification = { all = 1 }
+		attack_mult = { all = 0.05 }
+		defense_mult = { all = 0.05 }
+	}
+}

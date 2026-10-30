@@ -72,3 +72,9 @@ motor_logistics;Motor logistics;;;;;;;;;;;Моторизованная логи�
 EQUIPMENT_LINE_SIGNALS;Signals equipment;;;;;;;;;;;Средства связи;;x
 telegraph;Telegraph sets;;;;;;;;;;;Телеграфные аппараты;;x
 telegraph_factory;Telegraph sets;;;;;;;;;;;Телеграфные аппараты;;x
+telegraph_company;Telegraph company;;;;;;;;;;;Телеграфная рота;;x
+radio_company;Radio company;;;;;;;;;;;Радиорота;;x
+engineer_company;Engineer company;;;;;;;;;;;Инженерная рота;;x
+signals;Signals;;;;;;;;;;;Связь;;x
+engineering;Engineering;;;;;;;;;;;Инженерное дело;;x
+machinegun;Machine guns;;;;;;;;;;;Пулемёты;;x

@@ -205,3 +205,7 @@ rifle_3_factory = {
 
 Здание, которое открывается ключом слоя разблокировок: `requires_unlock = "building:<id>"` (список — достаточно любого ключа) в здании или в `ov_data/common/ov_buildings/<файл>.txt` для зданий игры (`<id> = { requires_unlock = ... }`). Механики: ключи `mechanic:division_templates`,
 `mechanic:mobilisation`, `mechanic:instant_occupation` выдают технологии (`unlocks = { "mechanic:..." }`). Новый вариант продукции здания — файл в `ov_production_types` (поле `building`), его товар — файл оружия в `ov_equipment` (линия `signals` для связи), ключ — `unlock_key` файла оружия.
+
+## 13. Роты поддержки
+
+Рота — файл `ov_data/common/ov_companies/<id>.txt` (поля — в `WAR_ASSUMPTIONS.md`, «Роты поддержки»); ключ открытия `support_company:<id>` выдаёт технология (`unlocks`). Новая категория — новое слово в `category`. Названия — в `ov_data/localisation/*.csv` (ключ — id роты, id категории).

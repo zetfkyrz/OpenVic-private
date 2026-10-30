@@ -1,0 +1,16 @@
+# The field telegraph company: wires and operators, the signals of a division. Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+# A company stands in a slot of a rank of a division template; a rank holds one company of a category. The buff of a category is the share of the ranks
+# that have the company times the buff, scaled by the share of its goods the stockpile gives.
+telegraph_company = {
+	category = signals
+	unlock_key = "support_company:telegraph"   # the key of the unlock layer (technology military_telegraph)
+	goods = { telegraph = 0.1 }   # what one company uses in a day, from the national stockpile
+	cost = { telegraph = 5 machine_parts = 2 }   # what it is worth in a division (shown in the cost of the template)
+	weight = 400   # kilograms
+	manpower = 0.2   # strength points (a point is ov_war.TEMPLATE_MEN_PER_STRENGTH men)
+	buffs = {
+		attack_mult = { all = 0.05 }
+		defense_mult = { all = 0.05 }
+		breakthrough_mult = { all = 0.05 }
+	}
+}

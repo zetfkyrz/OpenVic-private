@@ -1,0 +1,16 @@
+# The field radio company. Without radio in the national stockpile it works as the telegraph company (and uses the goods of that one).
+# Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+radio_company = {
+	category = signals
+	unlock_key = "support_company:radio"   # the key of the unlock layer (technology field_radio)
+	fallback = telegraph_company   # what it works as while there is no radio in the stockpile at all
+	goods = { radio = 0.1 }
+	cost = { radio = 5 electric_gear = 2 }
+	weight = 300
+	manpower = 0.2
+	buffs = {
+		attack_mult = { all = 0.10 }
+		defense_mult = { all = 0.10 }
+		breakthrough_mult = { all = 0.10 }
+	}
+}
