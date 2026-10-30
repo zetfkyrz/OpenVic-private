@@ -1,0 +1,5 @@
+# The ids of the units of Vic2 that are other units here. Only the files of Vic2 (the armies of the start) use them; the data of OpenVic names the
+# units by their own ids. The types of Vic2 with these ids are not loaded.
+infantry = line_infantry
+cavalry = cavalry
+artillery = napoleonic_artillery

@@ -1,0 +1,21 @@
+# Rifled and breech-loading field artillery.
+# Starting values are estimates (the stats come from the unit of Vic2 of the same kind), see docs/WAR_ASSUMPTIONS.md.
+rifled_artillery = {
+	category = artillery
+	unlock_key = "unit:rifled_artillery"   # the unlock of the country that opens the unit (none: open from the start)
+	equipment = { field_gun_2 field_gun_3 }   # the weapons the unit may have: the best the country has is used, the lowest is what it is built with
+	icon = 3
+	sprite = Artillery
+	occupation_weight = 0.5   # the share of the occupation power of a division (6 regiments of 1 are a whole)
+	base_stats = {
+		attack = 2
+		defense = 3
+		breakthrough = 2
+		organisation = 30
+		speed = 4
+		reconnaissance = 0
+		manpower = 3   # strength points of the regiment (a point is ov_war.TEMPLATE_MEN_PER_STRENGTH men)
+		cost = { field_gun_2 = 10 canned_food = 10 liquor = 10 wine = 10 }
+		supply_cost = { field_gun_2 = 0.1 canned_food = 0.06 }
+	}
+}

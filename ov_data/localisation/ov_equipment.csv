@@ -34,3 +34,15 @@ DEFENSE_MULT_TECH;Defence;;;;;;;;;;;Защита;;x
 BREAKTHROUGH_MULT_TECH;Breakthrough;;;;;;;;;;;Прорыв;;x
 CASUALTIES_TAKEN_MULT_TECH;Casualties taken;;;;;;;;;;;Получаемые потери;;x
 ORGANISATION_REGAIN_TECH;Organisation regain;;;;;;;;;;;Восстановление организации;;x
+line_infantry;Line infantry;;;;;;;;;;;Линейная пехота;;x
+infantry;Infantry;;;;;;;;;;;Пехота;;x
+skirmisher_infantry;Skirmishers;;;;;;;;;;;Стрелки (рассыпной строй);;x
+modern_infantry;Modern infantry;;;;;;;;;;;Современная пехота;;x
+cavalry;Cavalry;;;;;;;;;;;Кавалерия;;x
+hussars;Hussars;;;;;;;;;;;Гусары;;x
+dragoons;Dragoons;;;;;;;;;;;Драгуны;;x
+cuirassiers;Cuirassiers;;;;;;;;;;;Кирасиры;;x
+napoleonic_artillery;Napoleonic artillery;;;;;;;;;;;Наполеоновская артиллерия;;x
+artillery;Artillery;;;;;;;;;;;Артиллерия;;x
+rifled_artillery;Rifled artillery;;;;;;;;;;;Нарезная артиллерия;;x
+fragmentation_artillery;Fragmentation artillery;;;;;;;;;;;Осколочная артиллерия;;x

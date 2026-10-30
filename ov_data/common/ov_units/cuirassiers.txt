@@ -1,0 +1,24 @@
+# Cuirassiers: the armoured cavalry; more durable and with a better breakthrough, slower, with a worse reconnaissance and occupation.
+# Starting values are estimates (the stats come from the unit of Vic2 of the same kind), see docs/WAR_ASSUMPTIONS.md.
+cuirassiers = {
+	category = cavalry
+	unlock_key = "unit:cuirassiers"   # the unlock of the country that opens the unit (none: open from the start)
+	equipment = { rifle_2 rifle_3 }   # the weapons the unit may have: the best the country has is used, the lowest is what it is built with
+	icon = 13
+	sprite = Cuirassier
+	sprite_mount = GenericMount
+	sprite_mount_attach_node = Saddle_Node
+	occupation_weight = 1.5   # the share of the occupation power of a division (6 regiments of 1 are a whole)
+	buffs = { vs_unit = { infantry = { attack_mult = 0.1 } } }
+	base_stats = {
+		attack = 6
+		defense = 4
+		breakthrough = 7
+		organisation = 35
+		speed = 4
+		reconnaissance = 0
+		manpower = 3.5   # strength points of the regiment (a point is ov_war.TEMPLATE_MEN_PER_STRENGTH men)
+		cost = { rifle_2 = 10 canned_food = 10 iron = 20 }
+		supply_cost = { rifle_2 = 0.015 ammunition = 0.05 canned_food = 0.07 }
+	}
+}

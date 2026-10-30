@@ -182,3 +182,34 @@
 Укреплённость: каждый уровень даёт `FORTIFICATION_PER_LEVEL` = 5 % к защите (`ov_war`); укреплённость шаблона — среднее по числу полков (50 % пехоты с 1 и 50 % кавалерии с 0 дают 0.5).
 Условия по местности и по типу противника поддерживаются только в `buffs` типов войск (подпункт 3), в модификаторах технологий — только области.
 Эффекты применяются: показатели шаблона (укреплённость, скорость оккупации) уже читают их; бой, оккупация, снабжение — в подпунктах 6–8; мобилизация — только эффекты и ключ (механика позже, по решению владельца).
+
+### Типы войск в файлах (подпункт 3, `ov_data/common/ov_units/<id>.txt`, `military/OvUnits.cpp`, `military/UnitEquipment.*`)
+Один тип на файл; новый тип добавляется файлом без правки кода (тест `unit types: a new type of unit comes with one file`). Поля: `category` (infantry | cavalry | artillery), `unlock_key` (нет — открыт со старта), `equipment` (список ID допустимых
+видов оружия), `icon`, `sprite` (+ `sprite_mount` для кавалерии), `occupation_weight`, `scope_weights`, `upgrades_to`, `upgrade_cost`, `buffs = { general vs_unit terrain }`, `base_stats` (attack, defense, breakthrough, organisation, speed, reconnaissance, weight, manpower,
+cost, supply_cost, supply_consumption). Битый тип (неизвестное оружие или категория, нет характеристик) пропускается с предупреждением (файл, строка, причина). `manpower` — очки силы полка (как `max_strength` Vic2; очко = `TEMPLATE_MEN_PER_STRENGTH` людей).
+Алиасы Vic2 (`aliases.txt`): `infantry → line_infantry`, `cavalry → cavalry`, `artillery → napoleonic_artillery`; они действуют **только при чтении файлов Vic2** (стартовые армии, `history/units`), типы Vic2 с этими id не загружаются; в данных OpenVic `infantry` — новый тип с `rifle_1`.
+Остальные типы Vic2 (гвардия, нерегулярная, инженеры, `hussar`, `dragoon`, `cuirassier`, танк, самолёт) остаются как были (оружие — по линии `lines.txt`), ключи Vic2 для них прежние; `hussars`, `dragoons`, `cuirassiers` — новые типы, не алиасы.
+Разблокировка: тип с ключом доступен стране, у которой есть этот ключ (`unit:<id>`), без ключа — доступен всем.
+**Оружие типа:** список допустимых видов оружия; тип берёт лучшее оружие списка, на которое у страны есть разблокировка, выше допустимого не берёт; строится с самым низким оружием списка (его товар в `cost`).
+Если у страны нет ни одного допустимого оружия, тип берёт ближайший ниже тир той же линии и получает штраф **25 %** (`EQUIPMENT_BELOW_MIN_PENALTY`) к attack, defense и breakthrough за каждый тир ниже минимального допустимого; организация и скорость не режутся. Штраф за отставание от лучшего поколения линии (3 %) убран.
+Полк получает лучшее допустимое оружие со склада (не больше `EQUIPMENT_UPGRADES_PER_DAY` в день), правительство докупает его на рынке (подпункт 6 прежней задачи).
+**Стартовый набор** (все числа мои оценки; характеристики из юнитов Vic2 того же рода, `breakthrough` = `attack` у обычных типов, у скирмишеров, современной пехоты и кавалерии чуть выше):
+
+| тип | категория | ключ | оружие | att / def / break | орг. | скорость | разв. | прочн. | захват | примечание |
+|---|---|---|---|---|---|---|---|---|---|---|
+| line_infantry | пехота | — | rifle_0 | 4 / 4 / 4 | 30 | 4 | 0 | 3 | 1 | пехота Vic2 |
+| infantry | пехота | unit:infantry | rifle_1 | 4 / 4 / 4 | 30 | 4 | 0 | 3 | 1 | |
+| skirmisher_infantry | пехота | unit:skirmisher_infantry | rifle_2, rifle_3 | 4 / 3.5 / 4.5 | 28 | 4.5 | 0.5 | 3 | 1 | +10 % защиты на холмах |
+| modern_infantry | пехота | unit:modern_infantry | rifle_4 | 5 / 5 / 5.5 | 35 | 4 | 0.5 | 3 | 1 | |
+| cavalry | кавалерия | — | rifle_0, rifle_1 | 3 / 1 / 3.5 | 20 | 5 | 1 | 3 | 2 | upgrades_to hussars |
+| hussars | кавалерия | unit:hussars | rifle_2, rifle_3 | 3 / 3 / 3.5 | 30 | 6 | 2 | 3 | 2.5 | быстрее cavalry |
+| dragoons | кавалерия | unit:dragoons | rifle_2, rifle_3 | 4 / 3 / 4 | 30 | 5 | 1 | 3 | 1.5 | веса областей infantry 0.5 / cavalry 0.5 |
+| cuirassiers | кавалерия | unit:cuirassiers | rifle_2, rifle_3 | 6 / 4 / 7 | 35 | 4 | 0 | 3.5 | 1.5 | в стоимости железо, +10 % атаки против пехоты |
+| napoleonic_artillery | артиллерия | — | field_gun_0 | 1.5 / 3 / 1.5 | 30 | 4 | 0 | 3 | 0.5 | |
+| artillery | артиллерия | unit:artillery | field_gun_1 | 1.5 / 3 / 1.5 | 30 | 4 | 0 | 3 | 0.5 | |
+| rifled_artillery | артиллерия | unit:rifled_artillery | field_gun_2, field_gun_3 | 2 / 3 / 2 | 30 | 4 | 0 | 3 | 0.5 | |
+| fragmentation_artillery | артиллерия | unit:fragmentation_artillery | field_gun_4 | 2.5 / 3 / 2.5 | 30 | 4 | 0 | 3 | 0.5 | |
+
+Стоимость и расход: у кавалерии добавлены винтовки (`rifle_0` 10 в стоимость, расход винтовок и патронов как у драгун Vic2) — раньше кавалерия оружия не расходовала. Дамп `headless --dump-unit` печатает строки `UNIT` со всеми полями.
+Стандартный шаблон теперь 4 `line_infantry` 2×2 и 2 `cavalry` 1×2. Показатели шаблона (`DivisionStats`) получили `breakthrough`.
+| 3. Типы войск в файлах | 12 типов из `ov_units`, алиасы Vic2 при чтении армий, ключи `unit:`, оружие по списку типа со штрафом 25 % вместо отставания. Версия симуляции 27 | меняется: `default_60_days` 5400b69e3af80950 → ba396431cd6fcea0, `ai_and_wars_30_days` 0471c4647fa07073 → ddef63daceaa47ab (j1 = j4); причина — стартовые армии на `line_infantry`/`napoleonic_artillery`, кавалерия расходует винтовки |

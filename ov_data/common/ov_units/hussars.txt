@@ -1,0 +1,23 @@
+# Hussars: the fast light cavalry after the Napoleonic wars; faster, with a better reconnaissance and more occupation.
+# Starting values are estimates (the stats come from the unit of Vic2 of the same kind), see docs/WAR_ASSUMPTIONS.md.
+hussars = {
+	category = cavalry
+	unlock_key = "unit:hussars"   # the unlock of the country that opens the unit (none: open from the start)
+	equipment = { rifle_2 rifle_3 }   # the weapons the unit may have: the best the country has is used, the lowest is what it is built with
+	icon = 15
+	sprite = Hussar
+	sprite_mount = GenericMount
+	sprite_mount_attach_node = Saddle_Node
+	occupation_weight = 2.5   # the share of the occupation power of a division (6 regiments of 1 are a whole)
+	base_stats = {
+		attack = 3
+		defense = 3
+		breakthrough = 3.5
+		organisation = 30
+		speed = 6
+		reconnaissance = 2
+		manpower = 3   # strength points of the regiment (a point is ov_war.TEMPLATE_MEN_PER_STRENGTH men)
+		cost = { rifle_2 = 10 canned_food = 10 luxury_clothes = 5 }
+		supply_cost = { rifle_2 = 0.012 ammunition = 0.075 canned_food = 0.07 }
+	}
+}

@@ -1,0 +1,24 @@
+# Cavalry with the carbines of the old and the new pattern (the cavalry of Vic2); can be made hussars.
+# Starting values are estimates (the stats come from the unit of Vic2 of the same kind), see docs/WAR_ASSUMPTIONS.md.
+cavalry = {
+	category = cavalry
+	equipment = { rifle_0 rifle_1 }   # the weapons the unit may have: the best the country has is used, the lowest is what it is built with
+	icon = 2
+	sprite = Cavalry
+	sprite_mount = GenericMount
+	sprite_mount_attach_node = Saddle_Node
+	occupation_weight = 2   # the share of the occupation power of a division (6 regiments of 1 are a whole)
+	upgrades_to = hussars   # a paid upgrade of a regiment
+	upgrade_cost = { rifle_2 = 10 canned_food = 10 luxury_clothes = 5 }
+	base_stats = {
+		attack = 3
+		defense = 1
+		breakthrough = 3.5
+		organisation = 20
+		speed = 5
+		reconnaissance = 1
+		manpower = 3   # strength points of the regiment (a point is ov_war.TEMPLATE_MEN_PER_STRENGTH men)
+		cost = { wool = 20 wine = 10 rifle_0 = 10 }
+		supply_cost = { wool = 0.2 rifle_0 = 0.012 ammunition = 0.075 }
+	}
+}

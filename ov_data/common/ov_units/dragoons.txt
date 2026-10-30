@@ -1,0 +1,24 @@
+# Dragoons: half infantry, half cavalry (they get half of the bonuses of each).
+# Starting values are estimates (the stats come from the unit of Vic2 of the same kind), see docs/WAR_ASSUMPTIONS.md.
+dragoons = {
+	category = cavalry
+	unlock_key = "unit:dragoons"   # the unlock of the country that opens the unit (none: open from the start)
+	equipment = { rifle_2 rifle_3 }   # the weapons the unit may have: the best the country has is used, the lowest is what it is built with
+	icon = 14
+	sprite = Dragoon
+	sprite_mount = GenericMount
+	sprite_mount_attach_node = Saddle_Node
+	occupation_weight = 1.5   # the share of the occupation power of a division (6 regiments of 1 are a whole)
+	scope_weights = { infantry = 0.5 cavalry = 0.5 }
+	base_stats = {
+		attack = 4
+		defense = 3
+		breakthrough = 4
+		organisation = 30
+		speed = 5
+		reconnaissance = 1
+		manpower = 3   # strength points of the regiment (a point is ov_war.TEMPLATE_MEN_PER_STRENGTH men)
+		cost = { rifle_2 = 10 canned_food = 10 wine = 10 }
+		supply_cost = { rifle_2 = 0.012 ammunition = 0.075 canned_food = 0.07 }
+	}
+}
