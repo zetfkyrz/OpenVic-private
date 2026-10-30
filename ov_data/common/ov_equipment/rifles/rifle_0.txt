@@ -1,0 +1,22 @@
+# Smoothbore flintlock muskets of the Napoleonic wars (Brown Bess, Charleville).
+# Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
+rifle_0 = {
+	line = rifle
+	tier = 0
+	unlock_key = "equipment:rifle_0"   # the unlock of the country that makes the weapon available (the default)
+	attack_mult = 0.7   # what the weapon does to the attack of a unit that has it (1 = the attack of the unit type)
+	defense_mult = 0.7   # the same for the defence
+	breakthrough_mult = 0.7   # the same for the breakthrough
+	ammo_per_day = 0.015   # of ammo_good, per piece
+	ammo_good = "ammunition"   # the generations of the ammunition may come later
+	weight = 4.7   # kilograms of a piece
+	cost = { rifle_0 = 1 }   # what a piece costs in a template, in goods
+	flags = {  }
+	good = {
+		id = "rifle_0"
+		base_price = 37
+		icon = "small_arms"
+		name = "rifle_0"
+		colour = { 170 105 20 }
+	}
+}

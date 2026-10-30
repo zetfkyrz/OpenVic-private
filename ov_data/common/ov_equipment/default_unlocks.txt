@@ -1,0 +1,3 @@
+# The keys that every country has from the start of the game: the weapons of the Napoleonic wars (tier 0). The other weapons come from the
+# technologies of the army (ov_data/common/ov_technology). See docs/EQUIPMENT_MODDING.md.
+unlock = { "equipment:rifle_0" "equipment:field_gun_0" }

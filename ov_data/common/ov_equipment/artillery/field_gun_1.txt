@@ -1,11 +1,12 @@
-# Smoothbore field gun, round shot and canister.
+# Standardised smoothbore field guns (the Napoleon 12-pounder), round shot and canister.
 # Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
 field_gun_1 = {
 	line = field_artillery
 	tier = 1
 	unlock_key = "equipment:field_gun_1"   # the unlock of the country that makes the weapon available (the default)
-	attack = 1.5   # points of a piece, as the attack of the regiment types (tier 1 keeps the attack of the type)
-	defence = 3   # the same for the defence
+	attack_mult = 1   # what the weapon does to the attack of a unit that has it (1 = the attack of the unit type)
+	defense_mult = 1   # the same for the defence
+	breakthrough_mult = 1   # the same for the breakthrough
 	ammo_per_day = 0.15   # of ammo_good, per piece
 	ammo_good = "ammunition"   # the generations of the ammunition may come later
 	weight = 1200   # kilograms of a piece

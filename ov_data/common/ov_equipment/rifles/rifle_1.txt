@@ -1,11 +1,12 @@
-# Smoothbore muzzle-loading musket of the years after the Napoleonic wars (Brown Bess, Charleville), 1836+.
+# Percussion-cap smoothbore muskets after the flintlock (the pattern of 1839, the Springfield of 1842).
 # Starting values are estimates, see docs/WAR_ASSUMPTIONS.md.
 rifle_1 = {
 	line = rifle
 	tier = 1
 	unlock_key = "equipment:rifle_1"   # the unlock of the country that makes the weapon available (the default)
-	attack = 4   # points of a piece, as the attack of the regiment types (tier 1 keeps the attack of the type)
-	defence = 4   # the same for the defence
+	attack_mult = 1   # what the weapon does to the attack of a unit that has it (1 = the attack of the unit type)
+	defense_mult = 1   # the same for the defence
+	breakthrough_mult = 1   # the same for the breakthrough
 	ammo_per_day = 0.020   # of ammo_good, per piece
 	ammo_good = "ammunition"   # the generations of the ammunition may come later
 	weight = 4.7   # kilograms of a piece
