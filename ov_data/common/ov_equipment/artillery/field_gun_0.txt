@@ -14,6 +14,7 @@ field_gun_0 = {
 	flags = { canister }
 	good = {
 		id = "field_gun_0"
+		replaces = "artillery"   # the good of the base game that becomes this one (the old name keeps working in the files of Vic2)
 		base_price = 60
 		icon = "artillery"
 		name = "field_gun_0"

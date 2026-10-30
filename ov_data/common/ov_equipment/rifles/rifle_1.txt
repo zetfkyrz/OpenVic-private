@@ -14,7 +14,6 @@ rifle_1 = {
 	flags = { }
 	good = {
 		id = "rifle_1"
-		replaces = "small_arms"   # the good of the base game that becomes this one
 		base_price = 37
 		icon = "small_arms"
 		name = "rifle_1"
