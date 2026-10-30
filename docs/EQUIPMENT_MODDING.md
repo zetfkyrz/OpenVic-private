@@ -198,3 +198,5 @@ rifle_3_factory = {
 Технология — файл `ov_data/common/ov_technology/<ветка>/<id>.txt` (поля — в `WAR_ASSUMPTIONS.md`, «Технологии армии»). Новая технология: файл с `era`, `x`, `y`, при необходимости `prerequisite = { ... }` (каждый ключ — блок, внутри блока «или»,
 блоки вместе «и»), `unlocks = { "unit:<id>" "equipment:<id>" ... }` и `modifiers = { ... }`; название — строка с id технологии в `ov_data/localisation/*.csv`. Ошибки дерева (нет предпосылки, цикл, одна клетка, предпосылка не выше) печатаются при загрузке;
 `headless --dump-techtree` рисует сетку.
+
+Исследование: слот на ветку, 730 дней (`research_days` файла), команды `start_army_research` / `cancel_army_research`, простой ИИ — `WAR_ASSUMPTIONS.md`, «Исследование технологий армии». Числа исследований — группа `ov_research` файла `common/openvic_defines.lua`.
