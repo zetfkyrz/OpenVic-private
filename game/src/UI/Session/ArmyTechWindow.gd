@@ -48,6 +48,8 @@ var _tab_row: HBoxContainer
 var _scroll: ScrollContainer
 var _canvas: Control
 var _info_label: Label
+var _tip: PanelContainer
+var _tip_label: Label
 var _nodes: Dictionary = {} # technology index -> Button
 var _bars: Dictionary = {} # technology index -> ProgressBar
 
@@ -61,8 +63,14 @@ class _Lines extends Control:
 			window.call(&"draw_lines", self)
 
 
+## The text in Russian (the keys with the ending _RU of ov_data/localisation), the text of the locale if there is none
+func _t(key: String) -> String:
+	var russian: String = tr(key + "_RU")
+	return russian if russian != key + "_RU" else tr(key)
+
+
 func _ready() -> void:
-	setup(_SIZE, tr("ARMY_TECH_WINDOW"))
+	setup(_SIZE, _t("ARMY_TECH_WINDOW"))
 
 	var root := VBoxContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -94,6 +102,27 @@ func _ready() -> void:
 	_canvas = lines
 	_scroll.add_child(_canvas)
 
+	# The tooltip of a node at once, on an opaque black plate with white text
+	_tip = PanelContainer.new()
+	var tip_style := StyleBoxFlat.new()
+	tip_style.bg_color = Color.BLACK
+	tip_style.border_color = Color(0.6, 0.5, 0.25)
+	tip_style.set_border_width_all(1)
+	tip_style.content_margin_left = 10.0
+	tip_style.content_margin_right = 10.0
+	tip_style.content_margin_top = 6.0
+	tip_style.content_margin_bottom = 6.0
+	_tip.add_theme_stylebox_override(&"panel", tip_style)
+	_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tip.visible = false
+	_tip.z_index = 100
+	_tip.top_level = true
+	_tip_label = Label.new()
+	_tip_label.add_theme_color_override(&"font_color", Color.WHITE)
+	_tip_label.add_theme_font_size_override(&"font_size", 14)
+	_tip.add_child(_tip_label)
+	add_child(_tip)
+
 	GameSingleton.gamestate_updated.connect(_on_gamestate_updated)
 
 
@@ -114,6 +143,36 @@ func open_technologies() -> void:
 	_signature = ""
 	open_window()
 	_refresh()
+
+
+func _show_tip(text: String) -> void:
+	_tip_label.text = text
+	_tip.reset_size()
+	_tip.visible = true
+	_move_tip()
+
+
+func _hide_tip() -> void:
+	_tip.visible = false
+
+
+func _move_tip() -> void:
+	var screen: Vector2 = get_viewport_rect().size
+	var at: Vector2 = get_global_mouse_position() + Vector2(18.0, 18.0)
+	at.x = minf(at.x, screen.x - _tip.size.x - 4.0)
+	at.y = minf(at.y, screen.y - _tip.size.y - 4.0)
+	_tip.global_position = at
+
+
+func _process(_delta: float) -> void:
+	if _tip != null and _tip.visible:
+		_move_tip()
+
+
+func close() -> void:
+	if _tip != null:
+		_tip.visible = false
+	super.close()
 
 
 func _on_gamestate_updated() -> void:
@@ -138,16 +197,16 @@ func _build_tabs() -> void:
 		child.queue_free()
 	for branch: Dictionary in _branches:
 		var button := Button.new()
-		button.text = str(branch[&"name"])
+		button.text = _t("ARMY_TECH_BRANCH_" + str(branch[&"id"]))
 		button.toggle_mode = true
 		button.button_pressed = int(branch[&"index"]) == _selected_branch
 		button.pressed.connect(_on_branch_pressed.bind(int(branch[&"index"])))
 		_tab_row.add_child(button)
 	for stub: String in _STUB_BRANCHES:
 		var stub_button := Button.new()
-		stub_button.text = tr("ARMY_TECH_BRANCH_" + stub)
+		stub_button.text = _t("ARMY_TECH_BRANCH_" + stub)
 		stub_button.disabled = true
-		stub_button.tooltip_text = tr("ARMY_TECH_STUB")
+		stub_button.tooltip_text = _t("ARMY_TECH_STUB")
 		_tab_row.add_child(stub_button)
 
 
@@ -180,7 +239,7 @@ func _build_nodes() -> void:
 		if int(technology[&"state"]) == _STATE_RESEARCHED:
 			researched += 1
 	_canvas.custom_minimum_size = _MARGIN * 2.0 + Vector2(float(max_x) * _CELL_WIDTH + _NODE_SIZE.x, float(max_y) * _CELL_HEIGHT + _NODE_SIZE.y)
-	_info_label.text = "%s: %d / %d" % [tr(_branch_name_key()), researched, total]
+	_info_label.text = "%s: %d / %d" % [_t(_branch_name_key()), researched, total]
 
 	for technology: Dictionary in _technologies:
 		if int(technology[&"branch_index"]) != _selected_branch:
@@ -207,7 +266,9 @@ func _create_node(technology: Dictionary) -> void:
 	button.focus_mode = Control.FOCUS_NONE
 	for style_name: StringName in [&"normal", &"hover", &"pressed", &"focus", &"disabled"]:
 		button.add_theme_stylebox_override(style_name, StyleBoxEmpty.new())
-	button.tooltip_text = _tooltip(technology)
+	var tip_text: String = _tooltip(technology)
+	button.mouse_entered.connect(_show_tip.bind(tip_text))
+	button.mouse_exited.connect(_hide_tip)
 	button.pressed.connect(_on_node_pressed.bind(technology))
 	button.gui_input.connect(_on_node_input.bind(technology))
 	_canvas.add_child(button)
@@ -271,7 +332,7 @@ func _create_node(technology: Dictionary) -> void:
 	plate.add_theme_stylebox_override(&"panel", capsule)
 	shown.add_child(plate)
 	var label := Label.new()
-	label.text = str(technology[&"name"])
+	label.text = _t(str(technology[&"id"]))
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -347,36 +408,36 @@ func _on_node_input(event: InputEvent, technology: Dictionary) -> void:
 
 func _tooltip(technology: Dictionary) -> String:
 	var lines: PackedStringArray = []
-	lines.append(str(technology[&"name"]))
-	lines.append("%s %d, %s: %d %s" % [tr("ARMY_TECH_ERA"), int(technology[&"era"]), tr("ARMY_TECH_TIME"), int(technology[&"days_total"]), tr("ARMY_TECH_DAYS")])
+	lines.append(_t(str(technology[&"id"])))
+	lines.append("%s %d, %s: %d %s" % [_t("ARMY_TECH_ERA"), int(technology[&"era"]), _t("ARMY_TECH_TIME"), int(technology[&"days_total"]), _t("ARMY_TECH_DAYS")])
 	var state: int = int(technology[&"state"])
-	lines.append(tr("ARMY_TECH_STATE_%d" % state))
+	lines.append(_t("ARMY_TECH_STATE_%d" % state))
 	if state == _STATE_RESEARCHING:
-		lines.append("%d %s %s" % [int(technology[&"days_left"]), tr("ARMY_TECH_DAYS"), tr("ARMY_TECH_DAYS_LEFT")])
+		lines.append("%d %s %s" % [int(technology[&"days_left"]), _t("ARMY_TECH_DAYS"), _t("ARMY_TECH_DAYS_LEFT")])
 	if state == _STATE_NOT_AVAILABLE or (state == _STATE_AVAILABLE and not bool(technology[&"can_start"])):
 		var reason: String = str(technology[&"block_reason"])
 		if not reason.is_empty():
-			lines.append(tr("ARMY_TECH_BLOCK_" + reason))
+			lines.append(_t("ARMY_TECH_BLOCK_" + reason))
 	var prerequisites: Array = technology[&"prerequisites"]
 	if not prerequisites.is_empty():
 		var parts: PackedStringArray = []
 		for block: Array in prerequisites:
 			var names: PackedStringArray = []
 			for id: String in block:
-				names.append(tr(id))
+				names.append(_t(id))
 			if names.size() > 1:
-				parts.append("%s (%s)" % [tr("ARMY_TECH_ANY_OF"), ", ".join(names)])
+				parts.append("%s (%s)" % [_t("ARMY_TECH_ANY_OF"), ", ".join(names)])
 			else:
 				parts.append(names[0] if not names.is_empty() else "")
-		lines.append("%s: %s" % [tr("ARMY_TECH_PREREQUISITES"), "; ".join(parts)])
+		lines.append("%s: %s" % [_t("ARMY_TECH_PREREQUISITES"), "; ".join(parts)])
 	var unlocks: Array = technology[&"unlocks"]
 	if not unlocks.is_empty():
-		lines.append(tr("ARMY_TECH_UNLOCKS") + ":")
+		lines.append(_t("ARMY_TECH_UNLOCKS") + ":")
 		for unlock: Dictionary in unlocks:
-			lines.append("  %s: %s" % [tr("ARMY_UNLOCK_" + str(unlock[&"kind"])), tr(str(unlock[&"name_key"]))])
+			lines.append("  %s: %s" % [_t("ARMY_UNLOCK_" + str(unlock[&"kind"])), _t(str(unlock[&"name_key"]))])
 	var effects: Array = technology[&"effects"]
 	if not effects.is_empty():
-		lines.append(tr("ARMY_TECH_EFFECTS") + ":")
+		lines.append(_t("ARMY_TECH_EFFECTS") + ":")
 		for effect: Dictionary in effects:
 			lines.append("  " + _effect_text(effect))
 	return "\n".join(lines)
@@ -386,11 +447,11 @@ func _effect_text(effect: Dictionary) -> String:
 	var key: String = str(effect[&"key"])
 	var scope: String = str(effect[&"scope"])
 	var value: float = float(effect[&"value"])
-	var text: String = tr("ARMY_EFFECT_" + key)
+	var text: String = _t("ARMY_EFFECT_" + key)
 	if not scope.is_empty():
-		var scope_text: String = tr("ARMY_SCOPE_" + scope)
+		var scope_text: String = _t("ARMY_SCOPE_" + scope)
 		if scope_text == "ARMY_SCOPE_" + scope:
-			scope_text = tr(scope)
+			scope_text = _t(scope)
 		text += " (%s)" % scope_text
 	if _MULTIPLIER_EFFECTS.has(key):
 		return "%s: x%s" % [text, _number(value)]

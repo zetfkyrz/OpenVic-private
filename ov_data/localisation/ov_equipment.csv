@@ -131,3 +131,136 @@ ARMY_TECH_BLOCK_not_allowed;Only civilised countries research;;;;;;;;;;;Иссл
 ARMY_TECH_BLOCK_slot_busy;Another technology of the branch is being researched;;;;;;;;;;;Идёт исследование другой технологии ветки;;x
 ARMY_TECH_BLOCK_prerequisites;The prerequisites are not researched;;;;;;;;;;;Предпосылки не исследованы;;x
 ARMY_TECH_STUB;This branch comes later;;;;;;;;;;;Эта ветка появится позже;;x
+rifle_0_RU;Кремнёвые ружья;;;;;;;;;;;;;x
+field_gun_0_RU;Наполеоновские гладкоствольные орудия;;;;;;;;;;;;;x
+rifle_1_RU;Гладкоствольные ружья;;;;;;;;;;;;;x
+rifle_2_RU;Нарезные ружья;;;;;;;;;;;;;x
+rifle_3_RU;Казнозарядные винтовки;;;;;;;;;;;;;x
+rifle_4_RU;Магазинные винтовки;;;;;;;;;;;;;x
+field_gun_1_RU;Гладкоствольные полевые орудия;;;;;;;;;;;;;x
+field_gun_2_RU;Нарезные полевые орудия;;;;;;;;;;;;;x
+field_gun_3_RU;Стальные казнозарядные орудия;;;;;;;;;;;;;x
+field_gun_4_RU;Скорострельные орудия;;;;;;;;;;;;;x
+EQUIPMENT_LINE_RIFLE_RU;Винтовки;;;;;;;;;;;;;x
+EQUIPMENT_LINE_FIELD_ARTILLERY_RU;Полевая артиллерия;;;;;;;;;;;;;x
+MAX_COLUMNS_TECH_RU;Шеренги дивизии;;;;;;;;;;;;;x
+MAX_ROWS_TECH_RU;Ряды (глубина) дивизии;;;;;;;;;;;;;x
+MAX_COMPANY_SLOTS_TECH_RU;Слоты рот поддержки у шеренги;;;;;;;;;;;;;x
+DENSITY_REDUCTION_TECH_RU;Снижение плотности построения;;;;;;;;;;;;;x
+ROW_WEIGHT_SHIFT_TECH_RU;Сдвиг весов рядов (построение);;;;;;;;;;;;;x
+FORTIFICATION_TECH_RU;Укреплённость дивизии;;;;;;;;;;;;;x
+OCCUPATION_SPEED_TECH_RU;Скорость оккупации;;;;;;;;;;;;;x
+DIVISION_DURABILITY_TECH_RU;Прочность дивизии;;;;;;;;;;;;;x
+DIVISION_RECONNAISSANCE_TECH_RU;Разведка дивизии;;;;;;;;;;;;;x
+OCCUPATION_SPEED_MULT_TECH_RU;Скорость оккупации (множитель);;;;;;;;;;;;;x
+MOBILISATION_SPEED_PCT_TECH_RU;Скорость мобилизации;;;;;;;;;;;;;x
+MOBILISATION_SPEED_MULT_TECH_RU;Скорость мобилизации (множитель);;;;;;;;;;;;;x
+MOBILISATION_SIZE_PCT_TECH_RU;Размер мобилизации;;;;;;;;;;;;;x
+SUPPLY_NATIONAL_PCT_TECH_RU;Снабжение на своей территории;;;;;;;;;;;;;x
+SUPPLY_ARMY_PCT_TECH_RU;Снабжение армии;;;;;;;;;;;;;x
+SUPPLY_DAYS_ADD_TECH_RU;Дни припасов полка;;;;;;;;;;;;;x
+RAILWAY_SUPPLY_PER_LEVEL_TECH_RU;Снабжение за уровень железной дороги;;;;;;;;;;;;;x
+DENSITY_COEFFICIENT_MULT_TECH_RU;Плотность построения;;;;;;;;;;;;;x
+DENSITY_EXCESS_REDUCTION_TECH_RU;Штраф плотного построения;;;;;;;;;;;;;x
+ATTACK_MULT_TECH_RU;Атака;;;;;;;;;;;;;x
+DEFENSE_MULT_TECH_RU;Защита;;;;;;;;;;;;;x
+BREAKTHROUGH_MULT_TECH_RU;Прорыв;;;;;;;;;;;;;x
+CASUALTIES_TAKEN_MULT_TECH_RU;Получаемые потери;;;;;;;;;;;;;x
+ORGANISATION_REGAIN_TECH_RU;Восстановление организации;;;;;;;;;;;;;x
+line_infantry_RU;Линейная пехота;;;;;;;;;;;;;x
+infantry_RU;Пехота;;;;;;;;;;;;;x
+skirmisher_infantry_RU;Стрелки (рассыпной строй);;;;;;;;;;;;;x
+modern_infantry_RU;Современная пехота;;;;;;;;;;;;;x
+cavalry_RU;Кавалерия;;;;;;;;;;;;;x
+hussars_RU;Гусары;;;;;;;;;;;;;x
+dragoons_RU;Драгуны;;;;;;;;;;;;;x
+cuirassiers_RU;Кирасиры;;;;;;;;;;;;;x
+napoleonic_artillery_RU;Наполеоновская артиллерия;;;;;;;;;;;;;x
+artillery_RU;Артиллерия;;;;;;;;;;;;;x
+rifled_artillery_RU;Нарезная артиллерия;;;;;;;;;;;;;x
+fragmentation_artillery_RU;Осколочная артиллерия;;;;;;;;;;;;;x
+arms_making_RU;Оружейное производство;;;;;;;;;;;;;x
+standardized_army_RU;Стандартизированная армия;;;;;;;;;;;;;x
+percussion_cap_RU;Ударный капсюль;;;;;;;;;;;;;x
+post_napoleonic_tactics_RU;Тактика после Наполеона;;;;;;;;;;;;;x
+general_staff_RU;Генеральный штаб;;;;;;;;;;;;;x
+rifling_RU;Нарезное оружие;;;;;;;;;;;;;x
+field_medicine_RU;Полевая медицина;;;;;;;;;;;;;x
+military_telegraph_RU;Военный телеграф;;;;;;;;;;;;;x
+skirmish_order_RU;Рассыпной строй;;;;;;;;;;;;;x
+field_fortifications_RU;Полевые укрепления;;;;;;;;;;;;;x
+breech_loading_RU;Казнозарядное оружие;;;;;;;;;;;;;x
+mobilisation_planning_RU;Планирование мобилизации;;;;;;;;;;;;;x
+operational_planning_RU;Оперативное планирование;;;;;;;;;;;;;x
+improved_logistics_RU;Улучшенная логистика;;;;;;;;;;;;;x
+magazine_rifle_RU;Магазинная винтовка;;;;;;;;;;;;;x
+smokeless_powder_RU;Бездымный порох;;;;;;;;;;;;;x
+rear_services_RU;Тыловые службы;;;;;;;;;;;;;x
+field_radio_RU;Полевая радиосвязь;;;;;;;;;;;;;x
+advanced_fortifications_RU;Усовершенствованные укрепления;;;;;;;;;;;;;x
+modern_artillery_RU;Современная артиллерия;;;;;;;;;;;;;x
+artillery_preparation_RU;Артиллерийская подготовка;;;;;;;;;;;;;x
+barbed_wire_trenches_RU;Колючая проволока и траншеи;;;;;;;;;;;;;x
+motor_logistics_RU;Моторизованная логистика;;;;;;;;;;;;;x
+EQUIPMENT_LINE_SIGNALS_RU;Средства связи;;;;;;;;;;;;;x
+telegraph_RU;Телеграфные аппараты;;;;;;;;;;;;;x
+telegraph_factory_RU;Телеграфные аппараты;;;;;;;;;;;;;x
+telegraph_company_RU;Телеграфная рота;;;;;;;;;;;;;x
+radio_company_RU;Радиорота;;;;;;;;;;;;;x
+engineer_company_RU;Инженерная рота;;;;;;;;;;;;;x
+signals_RU;Связь;;;;;;;;;;;;;x
+engineering_RU;Инженерное дело;;;;;;;;;;;;;x
+machinegun_RU;Пулемёты;;;;;;;;;;;;;x
+ARMY_EFFECT_attack_mult_RU;Атака;;;;;;;;;;;;;x
+ARMY_EFFECT_defense_mult_RU;Защита;;;;;;;;;;;;;x
+ARMY_EFFECT_breakthrough_mult_RU;Прорыв;;;;;;;;;;;;;x
+ARMY_EFFECT_fortification_RU;Укреплённость (уровни);;;;;;;;;;;;;x
+ARMY_EFFECT_casualties_taken_mult_RU;Потери (множитель);;;;;;;;;;;;;x
+ARMY_EFFECT_mobilisation_speed_pct_RU;Скорость мобилизации;;;;;;;;;;;;;x
+ARMY_EFFECT_mobilisation_speed_mult_RU;Скорость мобилизации (множитель);;;;;;;;;;;;;x
+ARMY_EFFECT_mobilisation_size_pct_RU;Размер мобилизации;;;;;;;;;;;;;x
+ARMY_EFFECT_occupation_speed_pct_RU;Скорость оккупации;;;;;;;;;;;;;x
+ARMY_EFFECT_occupation_speed_mult_RU;Скорость оккупации (множитель);;;;;;;;;;;;;x
+ARMY_EFFECT_supply_national_pct_RU;Национальное снабжение;;;;;;;;;;;;;x
+ARMY_EFFECT_supply_army_pct_RU;Снабжение армии;;;;;;;;;;;;;x
+ARMY_EFFECT_supply_days_add_RU;Дней снабжения;;;;;;;;;;;;;x
+ARMY_EFFECT_railway_supply_per_level_RU;Снабжение за уровень железной дороги;;;;;;;;;;;;;x
+ARMY_EFFECT_density_coefficient_mult_RU;Плотность (множитель);;;;;;;;;;;;;x
+ARMY_EFFECT_density_excess_reduction_RU;Уменьшение избытка плотности;;;;;;;;;;;;;x
+ARMY_EFFECT_max_columns_add_RU;Колонн в шаблоне дивизии;;;;;;;;;;;;;x
+ARMY_EFFECT_max_rows_RU;Рядов в шаблоне дивизии;;;;;;;;;;;;;x
+ARMY_EFFECT_max_company_slots_RU;Слотов рот в колонне;;;;;;;;;;;;;x
+ARMY_EFFECT_organisation_regain_RU;Восстановление организации;;;;;;;;;;;;;x
+ARMY_SCOPE_all_RU;все войска;;;;;;;;;;;;;x
+ARMY_SCOPE_infantry_RU;пехота;;;;;;;;;;;;;x
+ARMY_SCOPE_cavalry_RU;кавалерия;;;;;;;;;;;;;x
+ARMY_SCOPE_artillery_RU;артиллерия;;;;;;;;;;;;;x
+ARMY_UNLOCK_equipment_RU;Оружие;;;;;;;;;;;;;x
+ARMY_UNLOCK_unit_RU;Войска;;;;;;;;;;;;;x
+ARMY_UNLOCK_building_RU;Здание;;;;;;;;;;;;;x
+ARMY_UNLOCK_mechanic_RU;Механика;;;;;;;;;;;;;x
+ARMY_UNLOCK_support_company_RU;Рота поддержки;;;;;;;;;;;;;x
+ARMY_MECHANIC_division_templates_RU;Редактирование шаблонов дивизий;;;;;;;;;;;;;x
+ARMY_MECHANIC_mobilisation_RU;Мобилизация;;;;;;;;;;;;;x
+ARMY_MECHANIC_instant_occupation_RU;Мгновенная оккупация;;;;;;;;;;;;;x
+ARMY_TECH_BRANCH_army_RU;Армия;;;;;;;;;;;;;x
+ARMY_TECH_BRANCH_industry_RU;Промышленность;;;;;;;;;;;;;x
+ARMY_TECH_BRANCH_society_RU;Общество;;;;;;;;;;;;;x
+ARMY_TECH_BRANCH_navy_RU;Флот;;;;;;;;;;;;;x
+ARMY_TECH_WINDOW_RU;Технологии армии;;;;;;;;;;;;;x
+ARMY_TECH_STATE_0_RU;Недоступна;;;;;;;;;;;;;x
+ARMY_TECH_STATE_1_RU;Доступна: нажмите, чтобы исследовать;;;;;;;;;;;;;x
+ARMY_TECH_STATE_2_RU;Исследуется (правый щелчок отменяет, прогресс теряется);;;;;;;;;;;;;x
+ARMY_TECH_STATE_3_RU;Исследована;;;;;;;;;;;;;x
+ARMY_TECH_TIME_RU;Время;;;;;;;;;;;;;x
+ARMY_TECH_DAYS_RU;дн.;;;;;;;;;;;;;x
+ARMY_TECH_DAYS_LEFT_RU;осталось;;;;;;;;;;;;;x
+ARMY_TECH_UNLOCKS_RU;Открывает;;;;;;;;;;;;;x
+ARMY_TECH_EFFECTS_RU;Эффекты;;;;;;;;;;;;;x
+ARMY_TECH_ERA_RU;Эра;;;;;;;;;;;;;x
+ARMY_TECH_PREREQUISITES_RU;Требует;;;;;;;;;;;;;x
+ARMY_TECH_ANY_OF_RU;любая из;;;;;;;;;;;;;x
+ARMY_TECH_BLOCK_not_allowed_RU;Исследуют только цивилизованные страны;;;;;;;;;;;;;x
+ARMY_TECH_BLOCK_slot_busy_RU;Идёт исследование другой технологии ветки;;;;;;;;;;;;;x
+ARMY_TECH_BLOCK_prerequisites_RU;Предпосылки не исследованы;;;;;;;;;;;;;x
+ARMY_TECH_STUB_RU;Эта ветка появится позже;;;;;;;;;;;;;x

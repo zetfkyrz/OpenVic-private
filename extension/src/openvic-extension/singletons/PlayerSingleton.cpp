@@ -154,6 +154,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::delete_army_group, { "group_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group, { "army_id", "group_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_marshal, { "group_id", "leader_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_group_orders, { "group_id", "execute" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_tech_branches);
 	OV_BIND_METHOD(PlayerSingleton::get_army_technologies);
 	OV_BIND_METHOD(PlayerSingleton::start_army_research, { "technology_index" });
@@ -191,6 +192,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_ship_types, { "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::start_ship_building, { "ship_type_index", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::get_blockade_info);
+	OV_BIND_METHOD(PlayerSingleton::get_boardable_navies, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_mergeable_armies, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_leader_settings);
 	OV_BIND_METHOD(PlayerSingleton::set_leader_auto, { "auto_create", "auto_assign" });
@@ -2865,10 +2867,20 @@ Array PlayerSingleton::get_army_groups() const {
 			}
 		}
 		entry["army_count"] = static_cast<int32_t>(army_ids.size());
+		entry["execute_orders"] = group.execute_orders;
+		entry["max_attached"] = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war.marshal_max_attached;
 		entry["army_ids"] = army_ids;
 		result.push_back(entry);
 	}
 	return result;
+}
+
+bool PlayerSingleton::set_army_group_orders(int32_t group_id, bool execute) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(group_id < 0, false);
+	return instance_manager->queue_game_action<set_army_group_orders_argument_t>(player_country->index, static_cast<std::uint32_t>(group_id), execute);
 }
 
 bool PlayerSingleton::create_army_group() const {
@@ -3264,6 +3276,28 @@ Array PlayerSingleton::get_admirals() const {
 	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
 	ERR_FAIL_NULL_V(menu_singleton, Array {});
 	return make_leader_list(player_country, menu_singleton, unit_branch_t::NAVAL);
+}
+
+Array PlayerSingleton::get_boardable_navies(int64_t army_id) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	ArmyInstance* const army = get_player_army(*instance_manager, player_country, army_id);
+	if (army == nullptr || army->get_transport_navy() != nullptr || army->is_moving() || army->is_in_combat()) {
+		return result;
+	}
+	for (NavyInstance const& navy : army->get_location().get_navies()) {
+		if (&navy.get_country() != player_country || navy.is_moving() || navy.is_in_combat()) {
+			continue;
+		}
+		Dictionary entry;
+		entry["id"] = static_cast<int64_t>(navy.unique_id);
+		entry["name"] = convert_to<String>(navy.get_name());
+		entry["ships"] = static_cast<int32_t>(navy.get_unit_count());
+		result.push_back(entry);
+	}
+	return result;
 }
 
 Array PlayerSingleton::get_mergeable_armies(int64_t army_id) const {

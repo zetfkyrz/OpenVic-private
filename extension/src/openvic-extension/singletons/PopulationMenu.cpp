@@ -19,6 +19,7 @@
 #include "openvic-extension/classes/GUINode.hpp"
 #include "openvic-extension/core/Convert.hpp"
 #include "openvic-extension/singletons/GameSingleton.hpp"
+#include "openvic-extension/singletons/PlayerSingleton.hpp"
 #include "openvic-extension/utility/MapHelpers.hpp"
 #include "openvic-extension/utility/Utilities.hpp"
 
@@ -41,21 +42,22 @@ godot::Error MenuSingleton::_population_menu_update_provinces() {
 
 	MapInstance const& map_instance = instance_manager->get_map_instance();
 
-	for (CountryInstance const* country :
-	     // Example Country
-	     { instance_manager->get_country_instance_manager().get_country_instance_by_identifier("ENG") }) {
+	// The population of the country of the player: its states and the provinces it owns in them (not of the whole world)
+	PlayerSingleton const* const player_singleton = PlayerSingleton::get_singleton();
+	CountryInstance const* const player_country = player_singleton != nullptr ? player_singleton->get_player_country() : nullptr;
+	for (CountryInstance const* country : { player_country }) {
 		ERR_CONTINUE(country == nullptr);
 
 		population_menu.province_list_entries.emplace_back(population_menu_t::country_entry_t { *country });
 		population_menu.visible_province_list_entries++;
 
-		for (StateSet const& state_set : map_instance.get_state_manager().get_state_sets()) {
-			for (State const& state : state_set.get_states()) {
+		for (State const* state_pointer : country->get_states()) {
+			State const& state = *state_pointer;
+			population_menu.province_list_entries.emplace_back(population_menu_t::state_entry_t { state });
+			population_menu.visible_province_list_entries++;
 
-				population_menu.province_list_entries.emplace_back(population_menu_t::state_entry_t { state });
-				population_menu.visible_province_list_entries++;
-
-				for (ProvinceInstance const& province : state.get_provinces()) {
+			for (ProvinceInstance const& province : state.get_provinces()) {
+				if (province.get_owner() == country) {
 					population_menu.province_list_entries.emplace_back(population_menu_t::province_entry_t { province });
 				}
 			}
@@ -164,7 +166,10 @@ TypedArray<Dictionary> MenuSingleton::get_population_menu_province_list_rows(int
 
 				province_dict[type_key] = LIST_ENTRY_PROVINCE;
 				province_dict[index_key] = index;
-				province_dict[name_key] = convert_to<String>(province_entry.province.get_identifier());
+				// The name of the province of the game (PROV<number> of the localisation), the identifier if there is none
+				const String province_key = "PROV" + String::num_int64(province_entry.province.province_definition.get_province_number());
+				const String province_name = menu_singleton.tr(province_key);
+				province_dict[name_key] = province_name != province_key ? province_name : convert_to<String>(province_entry.province.get_identifier());
 				province_dict[size_key] = type_safe::get(province_entry.province.get_total_population());
 				province_dict[change_key] = 0;
 				province_dict[selected_key] = province_entry.selected;

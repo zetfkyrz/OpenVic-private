@@ -228,6 +228,8 @@ namespace OpenVic {
 		bool set_army_group(int64_t army_id, int32_t group_id) const;
 		// leader_id 0 takes the marshal off
 		bool set_army_group_marshal(int32_t group_id, int64_t leader_id) const;
+		// A group also has execute_orders (the switch of the orders) and max_attached (how many armies it can hold)
+		bool set_army_group_orders(int32_t group_id, bool execute) const;
 		int32_t get_global_supply_priority() const;
 		// Generals of the country: [{ leader_id, name, picture, tooltip, personality, background, prestige, army_id, army_name }]
 		godot::Array get_generals() const;
@@ -295,6 +297,8 @@ namespace OpenVic {
 		// + docked, capacity, carried_regiments, carried: [{ id, name, regiments }], loadable: [{ id, name, regiments }] (armies in
 		//   the port), landing_targets: [{ number, name, hostile }], blockading, units: [{ ..., hull, gun_power, is_transport }]
 		bool load_army(int64_t army_id, int64_t navy_id) const;
+		// The fleets of the player that stand in the port where the army stands: [{ id, name, ships }] (the army can board one: load_army)
+		godot::Array get_boardable_navies(int64_t army_id) const;
 		bool unload_army(int64_t army_id) const;
 		bool land_army(int64_t army_id, int32_t province_number) const;
 		// Ship types with the reason that one cannot be built in the port of the province (empty if it can):

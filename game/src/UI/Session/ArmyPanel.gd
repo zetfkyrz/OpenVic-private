@@ -48,6 +48,9 @@ var _groups_signature: String = ""
 # does not close every day
 var _general_signature: String = ""
 var _merge_signature: String = ""
+var _board_option: OptionButton
+var _board_button: Button
+var _board_signature: String = ""
 
 var _recruitment_window: Control
 
@@ -222,6 +225,23 @@ func _ready() -> void:
 	_merge_button.text = "Объединить"
 	_merge_button.pressed.connect(_on_merge_pressed)
 	merge_row.add_child(_merge_button)
+
+	# Boarding a fleet that stands in the same port (for now without a limit of the regiments)
+	var board_row := HBoxContainer.new()
+	board_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(board_row)
+	var board_caption := Label.new()
+	board_caption.text = "Сесть на флот:"
+	board_caption.tooltip_text = "Флот должен стоять в порту этой же провинции"
+	board_row.add_child(board_caption)
+	_board_option = OptionButton.new()
+	_board_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_board_option.clip_text = true
+	board_row.add_child(_board_option)
+	_board_button = Button.new()
+	_board_button.text = "Сесть"
+	_board_button.pressed.connect(_on_board_pressed)
+	board_row.add_child(_board_button)
 
 	var bottom_row := HBoxContainer.new()
 	bottom_row.add_theme_constant_override(&"separation", 6)
@@ -554,6 +574,16 @@ func _update_merge_list() -> void:
 			_merge_option.set_item_metadata(_merge_option.item_count - 1, army[&"id"])
 	_merge_option.disabled = _merge_option.item_count == 0
 	_merge_button.disabled = _merge_option.item_count == 0 or _details[&"in_combat"]
+	var navies: Array = PlayerSingleton.get_boardable_navies(_army_ids[_index])
+	var board_signature: String = str(navies)
+	if board_signature != _board_signature:
+		_board_signature = board_signature
+		_board_option.clear()
+		for navy: Dictionary in navies:
+			_board_option.add_item("%s (кораблей: %d)" % [navy[&"name"], navy[&"ships"]])
+			_board_option.set_item_metadata(_board_option.item_count - 1, navy[&"id"])
+	_board_option.disabled = _board_option.item_count == 0
+	_board_button.disabled = _board_option.item_count == 0 or _details[&"in_combat"]
 
 
 func _on_nav_pressed(step: int) -> void:
@@ -610,6 +640,12 @@ func _on_merge_pressed() -> void:
 		return
 	var source_id: int = _merge_option.get_item_metadata(_merge_option.selected)
 	PlayerSingleton.merge_armies(_army_ids[_index], source_id)
+
+
+func _on_board_pressed() -> void:
+	if _board_option.item_count == 0 or _board_option.selected < 0:
+		return
+	PlayerSingleton.load_army(_army_ids[_index], _board_option.get_item_metadata(_board_option.selected))
 
 
 func _on_assign_pressed() -> void:
