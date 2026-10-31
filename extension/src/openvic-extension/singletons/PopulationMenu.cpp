@@ -42,24 +42,28 @@ godot::Error MenuSingleton::_population_menu_update_provinces() {
 
 	MapInstance const& map_instance = instance_manager->get_map_instance();
 
-	// The population of the country of the player: its states and the provinces it owns in them (not of the whole world)
+	// The population of the country of the player (ENG until the player has chosen): the states it owns and the provinces of them
 	PlayerSingleton const* const player_singleton = PlayerSingleton::get_singleton();
-	CountryInstance const* const player_country = player_singleton != nullptr ? player_singleton->get_player_country() : nullptr;
-	for (CountryInstance const* country : { player_country }) {
-		ERR_CONTINUE(country == nullptr);
+	CountryInstance const* country = player_singleton != nullptr ? player_singleton->get_player_country() : nullptr;
+	if (country == nullptr) {
+		country = instance_manager->get_country_instance_manager().get_country_instance_by_identifier("ENG");
+	}
+	ERR_FAIL_NULL_V(country, FAILED);
 
-		population_menu.province_list_entries.emplace_back(population_menu_t::country_entry_t { *country });
-		population_menu.visible_province_list_entries++;
+	population_menu.province_list_entries.emplace_back(population_menu_t::country_entry_t { *country });
+	population_menu.visible_province_list_entries++;
 
-		for (State const* state_pointer : country->get_states()) {
-			State const& state = *state_pointer;
+	for (StateSet const& state_set : map_instance.get_state_manager().get_state_sets()) {
+		for (State const& state : state_set.get_states()) {
+			if (state.get_owner() != country) {
+				continue;
+			}
+
 			population_menu.province_list_entries.emplace_back(population_menu_t::state_entry_t { state });
 			population_menu.visible_province_list_entries++;
 
 			for (ProvinceInstance const& province : state.get_provinces()) {
-				if (province.get_owner() == country) {
-					population_menu.province_list_entries.emplace_back(population_menu_t::province_entry_t { province });
-				}
+				population_menu.province_list_entries.emplace_back(population_menu_t::province_entry_t { province });
 			}
 		}
 	}
