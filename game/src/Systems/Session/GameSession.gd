@@ -107,6 +107,11 @@ func _ready() -> void:
 	tech_window.set_script(_ArmyTechWindow)
 	ui.add_child(tech_window)
 	_army_panel.set_tech_window(tech_window)
+	var tech_button := Button.new()
+	tech_button.text = "Технологии армии (F5)"
+	tech_button.position = Vector2(8, 130)
+	tech_button.pressed.connect(tech_window.open_technologies)
+	ui.add_child(tech_button)
 	var groups_window := Control.new()
 	groups_window.set_script(_ArmyGroupsWindow)
 	ui.add_child(groups_window)
