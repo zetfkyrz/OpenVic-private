@@ -50,6 +50,10 @@ defines = {
 		SURPLUS_DEATH_SHARE = 0.8, -- fraction 0 to 1
 		IMMIGRATION_FILL_SHARE = 0.5, -- fraction 0 to 1
 		STARVATION_MIN_SURPLUS = 1, -- whole number 0 to 1000000
+		JOB_MIGRATION_ENABLED = 1, -- whole number 0 to 1
+		JOB_MIGRATION_UNEMPLOYED_SHARE = 0.05, -- fraction 0 to 1
+		JOB_MIGRATION_PROFIT_SHARE = 0.002, -- fraction 0 to 1
+		JOB_MIGRATION_PROFIT_RATIO = 1.5, -- number 1 to 100
 	},
 	ov_politics = {
 		LEANING_ARISTOCRATS_REACTIONARY = 0.45, -- number 0 to 1
