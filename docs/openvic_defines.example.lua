@@ -189,7 +189,7 @@ defines = {
 		TEMPLATE_DEPTH_MAX = 4, -- whole number 1 to 8
 		TEMPLATE_COMPANY_SLOTS_DEFAULT = 1, -- whole number 0 to 8
 		TEMPLATE_COMPANY_SLOTS_MAX = 4, -- whole number 0 to 8
-		PROVISIONAL_UNLOCKS_ENABLED = 0, -- whole number 0 to 1
+		PROVISIONAL_UNLOCKS_ENABLED = 1, -- whole number 0 to 1
 		TEMPLATE_MEN_PER_STRENGTH = 1000, -- whole number 1 to 100000
 		TEMPLATE_KIT_WEIGHT_PER_STRENGTH = 100000, -- whole number 0 to 10000000
 		OCCUPATION_REFERENCE_REGIMENTS = 6, -- whole number 1 to 1000
@@ -256,7 +256,7 @@ defines = {
 		INVENTION_BASE_CHANCE_PER_MONTH = 0.03, -- fraction 0 to 1
 		INVENTION_LITERACY_CHANCE = 0.06, -- fraction 0 to 1
 		ARMY_RESEARCH_CIVILISED_ONLY = 1, -- whole number 0 to 1
-		ARMY_RESEARCH_AI_ENABLED = 1, -- whole number 0 to 1
+		ARMY_RESEARCH_AI_ENABLED = 0, -- whole number 0 to 1
 		VIC2_TECHNOLOGIES_ENABLED = 1, -- whole number 0 to 1
 	},
 	ov_economy = {
