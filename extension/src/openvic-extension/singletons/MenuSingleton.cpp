@@ -10,6 +10,8 @@
 #include <openvic-simulation/core/object/FixedPoint.hpp>
 #include <openvic-simulation/core/object/FixedPoint/Math.hpp>
 #include <openvic-simulation/economy/GoodDefinition.hpp>
+#include <openvic-simulation/economy/production/RgoBuilding.hpp>
+#include <openvic-simulation/defines/OpenVicDefines.hpp>
 #include <openvic-simulation/military/SupplyTerritory.hpp>
 #include <openvic-simulation/modifier/Modifier.hpp>
 #include <openvic-simulation/politics/PartyPolicy.hpp>
@@ -464,6 +466,13 @@ Dictionary MenuSingleton::get_province_info_from_number(int32_t province_number)
 	static const StringName province_info_pop_cultures_key = "pop_cultures";
 	static const StringName province_info_cores_key = "cores";
 	static const StringName province_info_buildings_key = "buildings";
+	// The building of the RGO of the province (docs/RGO_BUILDINGS.md)
+	static const StringName province_info_rgo_building_name_key = "rgo_building_name";
+	static const StringName province_info_rgo_building_level_key = "rgo_building_level";
+	static const StringName province_info_rgo_building_max_level_key = "rgo_building_max_level";
+	static const StringName province_info_rgo_building_state_key = "rgo_building_state"; // 0 none to show, 1 can be built, 2 cannot (the tooltip says why), 3 being built
+	static const StringName province_info_rgo_building_progress_key = "rgo_building_progress";
+	static const StringName province_info_rgo_building_tooltip_key = "rgo_building_tooltip";
 	static const StringName province_info_supply_limit_text_key = "supply_limit_text";
 	static const StringName province_info_supply_limit_tooltip_key = "supply_limit_tooltip";
 
@@ -897,6 +906,72 @@ Dictionary MenuSingleton::get_province_info_from_number(int32_t province_number)
 		    tr(province_size_localisation_key),
 		    static_cast<int32_t>(rgo.get_size_multiplier()) // TODO - remove cast once variable is an int32_t
 		);
+
+		// The building of the RGO: the name, the level, the state of the button and the tooltip with what a level gives and costs
+		if (rgo.is_valid() && province->get_owner() != nullptr) {
+			DefinitionManager const& definitions = game_singleton->get_definition_manager();
+			OpenVicEconomyDefines const& economy_defines = definitions.get_define_manager().get_openvic_defines().economy;
+			RgoBuildingType const* const rgo_building = definitions.get_economy_manager().get_production_type_manager().get_rgo_buildings().get_type_for_good(
+				production_type.output_good
+			);
+			if (rgo_building != nullptr && economy_defines.rgo_building_enabled != 0) {
+				CountryInstance const& owner = *province->get_owner();
+				const int32_t level = rgo.get_building_level();
+				const int32_t max_level = RgoBuildingData::get_max_level(*rgo_building, economy_defines, owner);
+				const int32_t days_left = rgo.get_building_days_left();
+				const int32_t build_days = RgoBuildingData::get_build_days(*rgo_building, economy_defines);
+				const fixed_point_t lumber = RgoBuildingData::get_lumber(*rgo_building, economy_defines);
+				GoodDefinition const* const lumber_good =
+				    definitions.get_economy_manager().get_good_definition_manager().get_good_definition_by_identifier("lumber");
+				const bool is_player_province = &owner == PlayerSingleton::get_singleton()->get_player_country();
+				const bool has_lumber = lumber_good == nullptr || owner.get_good_data(*lumber_good).stockpile_amount >= lumber;
+
+				static const StringName name_prefix = "RGO_BUILDING_";
+				// The text in Russian (the keys with the ending _RU of ov_data/localisation), the text of the locale if there is none
+				const auto rgo_tr = [this](String const& key) -> String {
+					const String russian_key = key + String { "_RU" };
+					const String russian = tr(russian_key);
+					return russian != russian_key ? russian : tr(key);
+				};
+				ret[province_info_rgo_building_name_key] =
+				    rgo_tr(String { name_prefix } + convert_to<String>(rgo_building->identifier).to_upper());
+				ret[province_info_rgo_building_level_key] = level;
+				ret[province_info_rgo_building_max_level_key] = max_level;
+				int32_t state = 2;
+				String why;
+				if (days_left > 0) {
+					state = 3;
+				} else if (level >= max_level) {
+					why = rgo_tr("RGO_BUILDING_MAX_LEVEL_REACHED");
+				} else if (!is_player_province) {
+					why = rgo_tr("RGO_BUILDING_NOT_YOURS");
+				} else if (!has_lumber) {
+					why = rgo_tr("RGO_BUILDING_NO_LUMBER");
+				} else {
+					state = 1;
+				}
+				ret[province_info_rgo_building_state_key] = state;
+				ret[province_info_rgo_building_progress_key] =
+				    days_left > 0 ? 1.0f - static_cast<float>(days_left) / static_cast<float>(std::max(1, build_days)) : 0.0f;
+				String tooltip = rgo_tr(String { name_prefix } + convert_to<String>(rgo_building->identifier).to_upper()) + "\n" +
+				    rgo_tr("RGO_BUILDING_LEVEL_LINE").replace("$LEVEL$", String::num_int64(level)).replace("$MAX$", String::num_int64(max_level)) +
+				    "\n" +
+				    rgo_tr("RGO_BUILDING_EFFECT_LINE")
+				        .replace("$STAFF$", String::num_int64(static_cast<int64_t>(100.0f * static_cast<float>(economy_defines.rgo_building_staff_per_level.fixed()))))
+				        .replace("$OUTPUT$", String::num_int64(static_cast<int64_t>(100.0f * static_cast<float>(economy_defines.rgo_building_output_per_level.fixed())))) +
+				    "\n" +
+				    rgo_tr("RGO_BUILDING_COST_LINE")
+				        .replace("$LUMBER$", Utilities::fixed_point_to_string_dp(lumber, 0))
+				        .replace("$DAYS$", String::num_int64(build_days));
+				if (days_left > 0) {
+					tooltip += "\n" + rgo_tr("RGO_BUILDING_DAYS_LEFT_LINE").replace("$DAYS$", String::num_int64(days_left));
+				}
+				if (!why.is_empty()) {
+					tooltip += "\n" + why;
+				}
+				ret[province_info_rgo_building_tooltip_key] = tooltip;
+			}
+		}
 	}
 
 	Crime const* crime = province->get_crime();

@@ -40,6 +40,8 @@ var _cores_overlapping_elements_box: GUIOverlappingElementsBox
 # Buildings
 var _buildings_panel: Panel
 var _building_slots: Array[BuildingSlot]
+# The building of the RGO of the province (docs/RGO_BUILDINGS.md): one more slot under the buildings of the game
+var _rgo_building_slot: RgoBuildingSlot
 var _selected_province_number: int:
 	get: return _selected_province_number
 	set(v):
@@ -152,6 +154,20 @@ func _ready() -> void:
 					target_slot_count,
 				)
 				break
+		# The window of the game ends at the bottom of the screen with no room for one more row: the slot stands in a dark strip above the window
+		var rgo_slot := GUINode.generate_gui_element("province_interface", "building", "rgo_building_slot")
+		var province_view: Control = get_node_or_null(^"./province_view") as Control
+		if rgo_slot and province_view:
+			var strip := ColorRect.new()
+			strip.name = "rgo_building_strip"
+			strip.color = Color(0.84, 0.77, 0.58, 0.96)
+			strip.size = Vector2(300.0, 34.0)
+			strip.position = Vector2(8.0, -40.0)
+			strip.mouse_filter = Control.MOUSE_FILTER_STOP
+			province_view.add_child(strip)
+			strip.add_child(rgo_slot)
+			rgo_slot.set_position(Vector2(-4.0, 3.0))
+			_rgo_building_slot = RgoBuildingSlot.new(rgo_slot, strip)
 
 	hide_nodes([
 		^"./province_view/province_view_header/state_modifiers",
@@ -367,6 +383,8 @@ func _update_info() -> void:
 				_building_slots[slot_index].update_info(buildings[slot_index])
 			for slot_index: int in range(buildings.size(), _building_slots.size()):
 				_building_slots[slot_index].update_info({})
+			if _rgo_building_slot:
+				_rgo_building_slot.update_info(_province_info)
 
 		# The panel overlaps the nation management screens, so it stays hidden while one is open
 		if _nation_management_screen_open:
@@ -483,3 +501,95 @@ class BuildingSlot:
 
 		if _expanding_label:
 			_expanding_label.visible = expansion_in_progress
+
+
+# The building of the RGO: the name and the level, the button "build the next level" (the state pays, the pops build by themselves every month), the
+# progress of the construction. The tooltip says what a level gives and costs and why the button is off (the keys of get_province_info_from_number)
+class RgoBuildingSlot:
+	enum State { Hidden = 0, CanBuild = 1, CannotBuild = 2, Building = 3 }
+
+
+	var _slot_node: Control
+
+
+	var _icon: GUIIcon
+
+
+	var _name_label: GUILabel
+
+
+	var _build_button: GUIIconButton
+
+
+	var _building_icon: GUIIcon
+
+
+	var _progress_bar: GUIProgressBar
+
+
+	var _building_label: GUILabel
+
+
+	var _strip: Control
+
+
+	func _init(new_slot_node: Control, new_strip: Control) -> void:
+		_slot_node = new_slot_node
+		_strip = new_strip
+		# the strips of the buildings of the game: the one of the infrastructure stands in until the building has its own picture
+		for icon_index: int in MenuSingleton.get_province_building_count():
+			var icon := _slot_node.get_node("build_icon%d" % icon_index)
+			if icon:
+				if icon_index == 2:
+					_icon = GUINode.get_gui_icon_from_node(icon)
+				else:
+					icon.hide()
+		_name_label = GUINode.get_gui_label_from_node(_slot_node.get_node(^"./description"))
+		_build_button = GUINode.get_gui_icon_button_from_node(_slot_node.get_node(^"./expand"))
+		if _build_button:
+			_build_button.pressed.connect(func() -> void: PlayerSingleton.build_selected_province_rgo_building())
+		_building_icon = GUINode.get_gui_icon_from_node(_slot_node.get_node(^"./underconstruction_icon"))
+		_progress_bar = GUINode.get_gui_progress_bar_from_node(_slot_node.get_node(^"./building_progress"))
+		if _progress_bar:
+			_progress_bar.max_value = 1.0
+			_progress_bar.step = _progress_bar.max_value / 100
+		_building_label = GUINode.get_gui_label_from_node(_slot_node.get_node(^"./expand_text"))
+		if _building_label:
+			_building_label.text = _ru(&"RGO_BUILDING_BUILDING")
+
+
+	# The text in Russian (the keys with the ending _RU of ov_data/localisation), the text of the locale if there is none
+	func _ru(key: StringName) -> String:
+		var russian: String = _slot_node.tr(String(key) + "_RU")
+		return russian if russian != String(key) + "_RU" else _slot_node.tr(key)
+
+
+	func update_info(info: Dictionary) -> void:
+		var state: int = info.get(&"rgo_building_state", State.Hidden)
+		_strip.visible = state != State.Hidden
+		if state == State.Hidden:
+			return
+		var level: int = info.get(&"rgo_building_level", 0)
+		var tooltip: String = info.get(&"rgo_building_tooltip", "")
+		if _icon:
+			_icon.set_icon_index(level + 1)
+			_icon.set_tooltip_string(tooltip)
+		if _name_label:
+			_name_label.text = "%s %d/%d" % [
+				info.get(&"rgo_building_name", ""),
+				level,
+				info.get(&"rgo_building_max_level", 0),
+			]
+			_name_label.set_tooltip_string(tooltip)
+		var building: bool = state == State.Building
+		if _build_button:
+			_build_button.visible = not building
+			_build_button.disabled = state != State.CanBuild
+			_build_button.set_tooltip_string(tooltip)
+		if _building_icon:
+			_building_icon.visible = building
+		if _progress_bar:
+			_progress_bar.visible = building
+			_progress_bar.value = info.get(&"rgo_building_progress", 0.0)
+		if _building_label:
+			_building_label.visible = building

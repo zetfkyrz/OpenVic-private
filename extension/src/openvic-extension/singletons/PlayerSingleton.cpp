@@ -84,6 +84,7 @@ void PlayerSingleton::_bind_methods() {
 
 	// Production
 	OV_BIND_METHOD(PlayerSingleton::expand_selected_province_building, { "building_index" });
+	OV_BIND_METHOD(PlayerSingleton::build_selected_province_rgo_building);
 
 	// Budget
 
@@ -413,6 +414,16 @@ void PlayerSingleton::expand_selected_province_building(int32_t province_buildin
 	instance_manager->queue_game_action<expand_province_building_argument_t>(
 	    player_country->index, selected_province->index, province_building_index_t(province_building_index)
 	);
+}
+
+void PlayerSingleton::build_selected_province_rgo_building() const {
+	ERR_FAIL_NULL(selected_province);
+
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL(instance_manager);
+	ERR_FAIL_NULL(player_country);
+
+	instance_manager->queue_game_action<build_rgo_building_argument_t>(player_country->index, selected_province->index);
 }
 
 // Budget

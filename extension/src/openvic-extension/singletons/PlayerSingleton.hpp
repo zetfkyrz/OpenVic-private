@@ -68,6 +68,8 @@ namespace OpenVic {
 
 		// Production
 		void expand_selected_province_building(int32_t building_index) const;
+		// The state starts the next level of the building of the RGO of the selected province (docs/RGO_BUILDINGS.md)
+		void build_selected_province_rgo_building() const;
 
 		// Budget
 		void set_administration_spending_slider_value(fixed_point_t const value) const;

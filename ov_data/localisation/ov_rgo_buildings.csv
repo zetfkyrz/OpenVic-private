@@ -1,0 +1,30 @@
+RGO_BUILDING_FISHING_HARBOUR;Fishing harbour;;;;;;;;;;;Рыболовная гавань;;x
+RGO_BUILDING_FISHING_HARBOUR_RU;Рыболовная гавань;;;;;;;;;;;;;x
+RGO_BUILDING_FARM;Farm;;;;;;;;;;;Ферма;;x
+RGO_BUILDING_FARM_RU;Ферма;;;;;;;;;;;;;x
+RGO_BUILDING_HARVEST_FIELD;Harvest field;;;;;;;;;;;Урожайное поле;;x
+RGO_BUILDING_HARVEST_FIELD_RU;Урожайное поле;;;;;;;;;;;;;x
+RGO_BUILDING_PLANTATION;Plantation;;;;;;;;;;;Плантация;;x
+RGO_BUILDING_PLANTATION_RU;Плантация;;;;;;;;;;;;;x
+RGO_BUILDING_FORESTRY;Forestry;;;;;;;;;;;Лесной участок;;x
+RGO_BUILDING_FORESTRY_RU;Лесной участок;;;;;;;;;;;;;x
+RGO_BUILDING_MINE_SHAFT;Mine shaft;;;;;;;;;;;Рудник;;x
+RGO_BUILDING_MINE_SHAFT_RU;Рудник;;;;;;;;;;;;;x
+RGO_BUILDING_LEVEL_LINE;Level $LEVEL$ of $MAX$;;;;;;;;;;;Уровень $LEVEL$ из $MAX$;;x
+RGO_BUILDING_LEVEL_LINE_RU;Уровень $LEVEL$ из $MAX$;;;;;;;;;;;;;x
+RGO_BUILDING_EFFECT_LINE;Each level: +$STAFF$% workplaces, +$OUTPUT$% output;;;;;;;;;;;Каждый уровень: +$STAFF$% рабочих мест, +$OUTPUT$% выпуска;;x
+RGO_BUILDING_EFFECT_LINE_RU;Каждый уровень: +$STAFF$% рабочих мест, +$OUTPUT$% выпуска;;;;;;;;;;;;;x
+RGO_BUILDING_COST_LINE;A level costs $LUMBER$ lumber and takes $DAYS$ days;;;;;;;;;;;Уровень стоит $LUMBER$ пиломатериалов и строится $DAYS$ дней;;x
+RGO_BUILDING_COST_LINE_RU;Уровень стоит $LUMBER$ пиломатериалов и строится $DAYS$ дней;;;;;;;;;;;;;x
+RGO_BUILDING_DAYS_LEFT_LINE;$DAYS$ days left;;;;;;;;;;;Осталось дней: $DAYS$;;x
+RGO_BUILDING_DAYS_LEFT_LINE_RU;Осталось дней: $DAYS$;;;;;;;;;;;;;x
+RGO_BUILDING_MAX_LEVEL_REACHED;The highest level that the technologies allow is built;;;;;;;;;;;Построен высший уровень, который открывают технологии;;x
+RGO_BUILDING_MAX_LEVEL_REACHED_RU;Построен высший уровень, который открывают технологии;;;;;;;;;;;;;x
+RGO_BUILDING_NOT_YOURS;Only your own provinces can be built up;;;;;;;;;;;Строить можно только в своих провинциях;;x
+RGO_BUILDING_NOT_YOURS_RU;Строить можно только в своих провинциях;;;;;;;;;;;;;x
+RGO_BUILDING_NO_LUMBER;There is no lumber in the national stockpile;;;;;;;;;;;На национальном складе нет пиломатериалов;;x
+RGO_BUILDING_NO_LUMBER_RU;На национальном складе нет пиломатериалов;;;;;;;;;;;;;x
+RGO_BUILDING_BUILD;Build;;;;;;;;;;;Построить;;x
+RGO_BUILDING_BUILD_RU;Построить;;;;;;;;;;;;;x
+RGO_BUILDING_BUILDING;Building;;;;;;;;;;;Строится;;x
+RGO_BUILDING_BUILDING_RU;Строится;;;;;;;;;;;;;x
