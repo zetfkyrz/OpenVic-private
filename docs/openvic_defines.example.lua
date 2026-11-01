@@ -196,6 +196,7 @@ defines = {
 		OCCUPATION_BASE_DAYS = 10, -- whole number 1 to 3650
 		MARSHAL_MAX_ATTACHED = 12, -- whole number 1 to 64
 		MARSHAL_MAX_ATTACHED_LIMIT = 48, -- whole number 1 to 64
+		THEATRES_MAX = 8, -- whole number 1 to 32
 		TRANSPORT_UNLIMITED = 1, -- whole number 0 to 1
 		EQUIPMENT_UPGRADES_PER_DAY = 1, -- whole number 0 to 1000
 		EQUIPMENT_BELOW_MIN_PENALTY = 0.25, -- fraction 0 to 1

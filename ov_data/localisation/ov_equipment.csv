@@ -284,3 +284,7 @@ ATTACHED_GENERALS_TECH;Generals under a field marshal;;;;;;;;;;;Генерало
 ARMY_EFFECT_attached_generals_add;Generals under a field marshal;;;;;;;;;;;Генералов под фельдмаршалом;;x
 ATTACHED_GENERALS_TECH_RU;Генералов под фельдмаршалом;;;;;;;;;;;;;x
 ARMY_EFFECT_attached_generals_add_RU;Генералов под фельдмаршалом;;;;;;;;;;;;;x
+THEATRE_MAIN;Main;;;;;;;;;;;Основной;;x
+THEATRE_DEFAULT_NAME;Theatre $N$;;;;;;;;;;;Театр $N$;;x
+THEATRE_MAIN_RU;Основной;;;;;;;;;;;;;x
+THEATRE_DEFAULT_NAME_RU;Театр $N$;;;;;;;;;;;;;x

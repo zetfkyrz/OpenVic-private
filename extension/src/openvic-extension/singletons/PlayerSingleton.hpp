@@ -241,6 +241,16 @@ namespace OpenVic {
 		bool set_army_group_front(int32_t group_id, int32_t front_id, bool held) const;
 		bool set_army_group_plan(int32_t group_id, int32_t front_id, int32_t mode) const;
 		bool set_army_group_plan_active(int32_t group_id, bool active) const;
+		// The theatres of the player (B4): [{ id, is_main, name (empty: the default of the interface), colour_index, colour, focus_province (0: none), group_ids,
+		// marshal_count, army_count, division_count }]; a group of get_army_groups() has theatre_id. The theatre that the panel shows is chosen by the interface
+		godot::Array get_theatres() const;
+		bool create_theatre() const;
+		bool delete_theatre(int32_t theatre_id) const;
+		bool rename_theatre(int32_t theatre_id, godot::String const& name) const;
+		bool set_theatre_colour(int32_t theatre_id, int32_t colour_index) const;
+		// province_number 0 takes the camera focus away
+		bool set_theatre_focus(int32_t theatre_id, int32_t province_number) const;
+		bool set_army_group_theatre(int32_t group_id, int32_t theatre_id) const;
 		int32_t get_global_supply_priority() const;
 		// Generals of the country: [{ leader_id, name, picture, tooltip, personality, background, prestige, army_id, army_name }]
 		godot::Array get_generals() const;

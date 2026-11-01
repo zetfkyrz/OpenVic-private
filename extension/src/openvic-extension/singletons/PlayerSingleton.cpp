@@ -163,6 +163,13 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_front, { "group_id", "front_id", "held" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_plan, { "group_id", "front_id", "mode" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_plan_active, { "group_id", "active" });
+	OV_BIND_METHOD(PlayerSingleton::get_theatres);
+	OV_BIND_METHOD(PlayerSingleton::create_theatre);
+	OV_BIND_METHOD(PlayerSingleton::delete_theatre, { "theatre_id" });
+	OV_BIND_METHOD(PlayerSingleton::rename_theatre, { "theatre_id", "name" });
+	OV_BIND_METHOD(PlayerSingleton::set_theatre_colour, { "theatre_id", "colour_index" });
+	OV_BIND_METHOD(PlayerSingleton::set_theatre_focus, { "theatre_id", "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_group_theatre, { "group_id", "theatre_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_tech_branches);
 	OV_BIND_METHOD(PlayerSingleton::get_army_technologies);
 	OV_BIND_METHOD(PlayerSingleton::start_army_research, { "technology_index" });
@@ -2905,6 +2912,7 @@ Array PlayerSingleton::get_army_groups() const {
 		entry["execute_orders"] = group.execute_orders;
 		entry["max_attached"] = static_cast<int32_t>(get_marshal_max_attached(*instance_manager, *player_country));
 		entry["colour_index"] = static_cast<int32_t>(group.colour_index);
+		entry["theatre_id"] = static_cast<int32_t>(group.theatre_id);
 		entry["plan_front_id"] = static_cast<int32_t>(group.plan_front_id);
 		entry["plan_mode"] = static_cast<int32_t>(group.plan_mode);
 		entry["plan_active"] = group.plan_active;
@@ -2920,6 +2928,111 @@ Array PlayerSingleton::get_army_groups() const {
 		result.push_back(entry);
 	}
 	return result;
+}
+
+Array PlayerSingleton::get_theatres() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* const game_singleton = GameSingleton::get_singleton();
+	DefinitionManager const& definition_manager = game_singleton->get_definition_manager();
+	const auto colours = definition_manager.get_military_manager().get_command_palette().get_colours();
+	const std::uint32_t main_id = get_main_theatre_id(*player_country);
+	for (Theatre const& theatre : player_country->get_theatres()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(theatre.id);
+		entry["is_main"] = theatre.id == main_id;
+		// An empty name: the interface shows the default one ("Основной" for the main theatre, "Театр N")
+		entry["name"] = String::utf8(reinterpret_cast<const char*>(theatre.name.data()));
+		entry["colour_index"] = static_cast<int32_t>(theatre.colour_index);
+		entry["colour"] = theatre.colour_index < colours.size() ? convert_to<Color>(colours[theatre.colour_index]) : Color { 0.55f, 0.55f, 0.55f };
+		entry["focus_province"] = static_cast<int32_t>(theatre.focus_province);
+		PackedInt32Array group_ids;
+		int32_t marshal_count = 0;
+		int32_t army_count = 0;
+		int32_t division_count = 0;
+		for (ArmyGroup const& group : player_country->get_army_groups()) {
+			if (group.theatre_id != theatre.id) {
+				continue;
+			}
+			group_ids.push_back(static_cast<int32_t>(group.id));
+			marshal_count += group.marshal_id != 0;
+			for (ArmyInstance const& army : player_country->get_armies()) {
+				if (army.get_army_group_id() == group.id) {
+					army_count++;
+					division_count += static_cast<int32_t>(army.get_divisions().size());
+				}
+			}
+		}
+		entry["group_ids"] = group_ids;
+		entry["marshal_count"] = marshal_count;
+		entry["army_count"] = army_count;
+		entry["division_count"] = division_count;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::create_theatre() const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<create_theatre_argument_t>(player_country->index);
+}
+
+bool PlayerSingleton::delete_theatre(int32_t theatre_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(theatre_id <= 0, false);
+	return instance_manager->queue_game_action<delete_theatre_argument_t>(player_country->index, static_cast<std::uint32_t>(theatre_id));
+}
+
+bool PlayerSingleton::rename_theatre(int32_t theatre_id, String const& name) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(theatre_id <= 0, false);
+	// UTF-8 in THEATRE_NAME_BYTES - 1 bytes, cut at the border of a character
+	const CharString utf8 = name.strip_edges().utf8();
+	std::size_t length = std::min<std::size_t>(static_cast<std::size_t>(utf8.length()), THEATRE_NAME_BYTES - 1);
+	while (length > 0 && length < static_cast<std::size_t>(utf8.length()) && (static_cast<std::uint8_t>(utf8[static_cast<int64_t>(length)]) & 0xC0) == 0x80) {
+		--length;
+	}
+	theatre_name_t bytes {};
+	for (std::size_t index = 0; index < length; ++index) {
+		bytes[index] = static_cast<std::uint8_t>(utf8[static_cast<int64_t>(index)]);
+	}
+	return instance_manager->queue_game_action<rename_theatre_argument_t>(player_country->index, static_cast<std::uint32_t>(theatre_id), bytes);
+}
+
+bool PlayerSingleton::set_theatre_colour(int32_t theatre_id, int32_t colour_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(theatre_id <= 0 || colour_index < 0, false);
+	return instance_manager->queue_game_action<set_theatre_colour_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(theatre_id), static_cast<std::uint32_t>(colour_index)
+	);
+}
+
+bool PlayerSingleton::set_theatre_focus(int32_t theatre_id, int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(theatre_id <= 0 || province_number < 0, false);
+	return instance_manager->queue_game_action<set_theatre_focus_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(theatre_id), static_cast<std::uint32_t>(province_number)
+	);
+}
+
+bool PlayerSingleton::set_army_group_theatre(int32_t group_id, int32_t theatre_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(group_id <= 0 || theatre_id <= 0, false);
+	return instance_manager->queue_game_action<set_army_group_theatre_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(group_id), static_cast<std::uint32_t>(theatre_id)
+	);
 }
 
 bool PlayerSingleton::set_army_group_front(int32_t group_id, int32_t front_id, bool held) const {
