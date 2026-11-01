@@ -255,7 +255,7 @@ defines = {
 	ov_research = {
 		INVENTION_BASE_CHANCE_PER_MONTH = 0.03, -- fraction 0 to 1
 		INVENTION_LITERACY_CHANCE = 0.06, -- fraction 0 to 1
-		ARMY_RESEARCH_CIVILISED_ONLY = 1, -- whole number 0 to 1
+		ARMY_RESEARCH_CIVILISED_ONLY = 0, -- whole number 0 to 1
 		ARMY_RESEARCH_AI_ENABLED = 0, -- whole number 0 to 1
 		VIC2_TECHNOLOGIES_ENABLED = 1, -- whole number 0 to 1
 	},
