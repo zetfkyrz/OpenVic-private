@@ -20,6 +20,12 @@ defines = {
 		MIN_WAR_REGIMENTS = 3, -- whole number 0 to 1000
 		MAX_RECRUITS_PER_MONTH = 3, -- whole number 0 to 1000
 		COLONISE_MIN_POINTS_DIVISOR = 2, -- whole number 1 to 100
+		BUDGET_ENABLED = 1, -- whole number 0 to 1
+		BUDGET_STEP = 0.05, -- fraction 0 to 1
+		BUDGET_RESERVE_DAYS = 30, -- whole number 0 to 3650
+		BUDGET_MAX_TAX = 0.8, -- fraction 0 to 1
+		BUDGET_MIN_SPENDING = 0.2, -- fraction 0 to 1
+		BUDGET_SURPLUS_RATIO = 1.3, -- fraction 1 to 100
 	},
 	ov_population = {
 		GROWTH_BREAKEVEN_LIFE_NEEDS = 0.2, -- fraction 0 to 1
