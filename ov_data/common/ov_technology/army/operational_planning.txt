@@ -9,5 +9,5 @@ operational_planning = {
 	year_hint = 1880   # a hint for the AI, nothing more
 	prerequisite = { mobilisation_planning }
 	prerequisite = { skirmish_order breech_loading }   # any of them (dashed line)
-	modifiers = { supply_days_add = 7 breakthrough_mult = { all = 0.10 } attack_mult = { all = 0.10 } defense_mult = { all = 0.05 } occupation_speed_mult = 2.0 }
+	modifiers = { supply_days_add = 7 breakthrough_mult = { all = 0.10 } attack_mult = { all = 0.10 } defense_mult = { all = 0.05 } occupation_speed_mult = 2.0 attached_generals_add = 12 }
 }

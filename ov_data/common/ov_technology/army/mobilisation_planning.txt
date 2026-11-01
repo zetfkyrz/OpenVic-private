@@ -8,5 +8,5 @@ mobilisation_planning = {
 	research_days = 730
 	year_hint = 1870   # a hint for the AI, nothing more
 	prerequisite = { military_telegraph }
-	modifiers = { mobilisation_speed_pct = 0.25 mobilisation_size_pct = 0.10 }
+	modifiers = { mobilisation_speed_pct = 0.25 mobilisation_size_pct = 0.10 attached_generals_add = 12 }
 }

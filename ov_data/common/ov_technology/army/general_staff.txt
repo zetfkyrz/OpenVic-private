@@ -9,5 +9,5 @@ general_staff = {
 	year_hint = 1855   # a hint for the AI, nothing more
 	prerequisite = { post_napoleonic_tactics }
 	unlocks = { "mechanic:mobilisation" }
-	modifiers = { supply_national_pct = 0.05 attack_mult = { all = 0.05 } occupation_speed_pct = 0.25 }
+	modifiers = { supply_national_pct = 0.05 attack_mult = { all = 0.05 } occupation_speed_pct = 0.25 attached_generals_add = 12 }
 }
