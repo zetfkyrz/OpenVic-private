@@ -264,3 +264,19 @@ ARMY_TECH_BLOCK_not_allowed_RU;Исследуют только цивилизо�
 ARMY_TECH_BLOCK_slot_busy_RU;Идёт исследование другой технологии ветки;;;;;;;;;;;;;x
 ARMY_TECH_BLOCK_prerequisites_RU;Предпосылки не исследованы;;;;;;;;;;;;;x
 ARMY_TECH_STUB_RU;Эта ветка появится позже;;;;;;;;;;;;;x
+TECH_PLATE_DAYS_LEFT;$DAYS$ days left;;;;;;;;;;;осталось дней: $DAYS$;;x
+TECH_PLATE_OPEN_TREE;Click (F5): the tree of the technologies;;;;;;;;;;;Нажмите (F5): дерево технологий;;x
+TECH_PLATE_NONE;No research;;;;;;;;;;;Исследование не выбрано;;x
+TECH_PLATE_NONE_TOOLTIP;No technology is being researched. Click (F5) to open the tree and choose one;;;;;;;;;;;Ни одна технология не исследуется. Нажмите (F5), чтобы открыть дерево и выбрать;;x
+TECH_PLATE_UNCIVILISED;Uncivilised;;;;;;;;;;;Нецивилизованная страна;;x
+TECH_PLATE_UNCIVILISED_TOOLTIP;An uncivilised country cannot research the technologies of the tree;;;;;;;;;;;Нецивилизованная страна не может исследовать технологии дерева;;x
+TECH_PLATE_DAYS_LEFT_RU;осталось дней: $DAYS$;;;;;;;;;;;;;x
+TECH_PLATE_OPEN_TREE_RU;Нажмите (F5): дерево технологий;;;;;;;;;;;;;x
+TECH_PLATE_NONE_RU;Исследование не выбрано;;;;;;;;;;;;;x
+TECH_PLATE_NONE_TOOLTIP_RU;Ни одна технология не исследуется. Нажмите (F5), чтобы открыть дерево и выбрать;;;;;;;;;;;;;x
+TECH_PLATE_UNCIVILISED_RU;Нецивилизованная страна;;;;;;;;;;;;;x
+TECH_PLATE_UNCIVILISED_TOOLTIP_RU;Нецивилизованная страна не может исследовать технологии дерева;;;;;;;;;;;;;x
+TECH_VIC2_SCREEN;Technologies of Victoria 2;;;;;;;;;;;Технологии Vic2;;x
+TECH_VIC2_SCREEN_TOOLTIP;The old technologies of Victoria 2 still work (their effects are in the economy) until the new branches replace them;;;;;;;;;;;Старые технологии Vic2 пока работают (их эффекты в экономике), пока их не заменят новые ветки;;x
+TECH_VIC2_SCREEN_RU;Технологии Vic2;;;;;;;;;;;;;x
+TECH_VIC2_SCREEN_TOOLTIP_RU;Старые технологии Vic2 пока работают (их эффекты в экономике), пока их не заменят новые ветки;;;;;;;;;;;;;x

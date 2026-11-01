@@ -15,6 +15,7 @@
 #include <openvic-simulation/military/SupplyTerritory.hpp>
 #include <openvic-simulation/modifier/Modifier.hpp>
 #include <openvic-simulation/politics/PartyPolicy.hpp>
+#include <openvic-simulation/research/ArmyResearch.hpp>
 #include <openvic-simulation/population/PopType.hpp>
 #include <openvic-simulation/types/PopSprite.hpp>
 
@@ -1282,51 +1283,39 @@ Dictionary MenuSingleton::get_topbar_info() const {
 		static const StringName research_points_key = "research_points";
 		static const StringName research_points_tooltip_key = "research_points_tooltip";
 
-		Technology const* current_research = country.get_current_research_untracked();
-		if (current_research != nullptr) {
-			static const StringName research_localisation_key = "TECHNOLOGYVIEW_RESEARCH_TOOLTIP";
-			static const String tech_replace_key = "$TECH$";
-			static const String date_replace_key = "$DATE$";
-			static const StringName research_invested_localisation_key = "TECHNOLOGYVIEW_RESEARCH_INVESTED_TOOLTIP";
-			static const String invested_replace_key = "$INVESTED$";
-			static const String cost_replace_key = "$COST$";
-
-			String current_tech_localised = tr(convert_to<String>(current_research->get_identifier()));
-
-			ret[research_tooltip_key] =
-			    tr(research_localisation_key)
-			        .replace(tech_replace_key, current_tech_localised)
-			        .replace(
-			            date_replace_key,
-			            Utilities::date_to_formatted_string(country.get_expected_research_completion_date_untracked(), false)
-			        ) +
-			    "\n" +
-			    tr(research_invested_localisation_key)
-			        .replace(
-			            invested_replace_key,
-			            String::num_uint64(country.get_invested_research_points_untracked().truncate<int64_t>())
-			        )
-			        .replace(
-			            cost_replace_key, String::num_uint64(country.get_current_research_cost_untracked().truncate<int64_t>())
-			        );
-
-			ret[research_key] = std::move(current_tech_localised);
-
-			ret[research_progress_key] = static_cast<real_t>(country.research_progress.get_untracked());
-		} else if (country.is_civilised()) {
-			static const StringName civilised_no_research_localisation_key = "TB_TECH_NO_CURRENT";
-			static const StringName civilised_no_research_tooltip_localisation_key = "TECHNOLOGYVIEW_NO_RESEARCH_TOOLTIP";
-
-			ret[research_key] = tr(civilised_no_research_localisation_key);
-			ret[research_tooltip_key] = tr(civilised_no_research_tooltip_localisation_key);
+		// The plate shows the research of OpenVic (the technologies of the army, one slot a branch); the technologies of Victoria 2 are researched in
+		// their own window (a button in the window of the tree), they are not shown here
+		const auto research_tr = [this](String const& key) -> String {
+			const String russian_key = key + String { "_RU" };
+			const String russian = tr(russian_key);
+			return russian != russian_key ? russian : tr(key);
+		};
+		ArmyTechnologyManager const& army_technologies = definition_manager.get_research_manager().get_army_technology_manager();
+		ArmyResearchProgress const* nearest = nullptr;
+		int32_t nearest_days_left = 0;
+		String research_list;
+		for (ArmyResearchProgress const& progress : country.get_army_research()) {
+			ArmyTechnology const& technology = army_technologies.at(progress.technology);
+			const int32_t days_left = std::max(0, technology.research_days - progress.days_done);
+			research_list += research_tr(convert_to<String>(technology.identifier)) + String { " (" } + research_tr("ARMY_TECH_BRANCH_" + convert_to<String>(technology.branch)) +
+				String { "): " } + research_tr("TECH_PLATE_DAYS_LEFT").replace("$DAYS$", String::num_int64(days_left)) + "\n";
+			if (nearest == nullptr || days_left < nearest_days_left) {
+				nearest = &progress;
+				nearest_days_left = days_left;
+			}
+		}
+		if (nearest != nullptr) {
+			ArmyTechnology const& technology = army_technologies.at(nearest->technology);
+			ret[research_key] = research_tr(convert_to<String>(technology.identifier));
+			ret[research_tooltip_key] = research_list + research_tr("TECH_PLATE_OPEN_TREE");
+			ret[research_progress_key] = static_cast<real_t>(nearest->days_done) / static_cast<real_t>(std::max(1, technology.research_days));
+		} else if (army_technologies.size() > 0 && (country.is_civilised() || definition_manager.get_define_manager().get_openvic_defines().research.army_research_civilised_only == 0)) {
+			ret[research_key] = research_tr("TECH_PLATE_NONE");
+			ret[research_tooltip_key] = research_tr("TECH_PLATE_NONE_TOOLTIP");
 		} else {
 			static const String red_prefix_text = GUILabel::get_colour_marker() + String { "R" };
-			static const StringName uncivilised_no_research_localisation_key = "unciv_nation";
-			static const StringName uncivilised_no_research_tooltip_localisation_key =
-			    "TECHNOLOGYVIEW_NO_RESEARCH_UNCIV_TOOLTIP";
-
-			ret[research_key] = red_prefix_text + tr(uncivilised_no_research_localisation_key);
-			ret[research_tooltip_key] = tr(uncivilised_no_research_tooltip_localisation_key);
+			ret[research_key] = red_prefix_text + research_tr("TECH_PLATE_UNCIVILISED");
+			ret[research_tooltip_key] = research_tr("TECH_PLATE_UNCIVILISED_TOOLTIP");
 		}
 
 		ret[literacy_key] = static_cast<real_t>(country.get_average_literacy());

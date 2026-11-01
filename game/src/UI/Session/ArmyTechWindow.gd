@@ -4,7 +4,7 @@ extends "res://src/UI/Session/Vic2Window.gd"
 ## The style is the one of the focus trees of Hearts of Iron: a dark field, a round emblem over a dark plate with the name. Grey-blue: not researched; a node that is
 ## available has a light plate, one that is being researched has an orange rim and a bar of the progress, a researched one has a yellow rim and the line that leads to it is yellow. A click on an available node starts the research, a right click on the node that is being
 ## researched cancels it (the progress is lost). The data are the ones of the simulation (PlayerSingleton.get_army_technologies), nothing is counted here.
-## Opened with F5 or with the button of the panel of the army.
+## Opened with F5, with the plate "Technology" of the top bar or with the button of the panel of the army.
 
 const _SIZE: Vector2 = Vector2(1240, 760)
 const _TOGGLE_KEY: Key = KEY_F5
@@ -124,6 +124,7 @@ func _ready() -> void:
 	add_child(_tip)
 
 	GameSingleton.gamestate_updated.connect(_on_gamestate_updated)
+	Events.NationManagementScreens.army_tech_window_toggle_requested.connect(_on_toggle_requested)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -208,6 +209,27 @@ func _build_tabs() -> void:
 		stub_button.disabled = true
 		stub_button.tooltip_text = _t("ARMY_TECH_STUB")
 		_tab_row.add_child(stub_button)
+	# The technologies of Victoria 2 still work (their effects are in the economy); they are researched in their own screen
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tab_row.add_child(spacer)
+	var vic2_button := Button.new()
+	vic2_button.text = _t("TECH_VIC2_SCREEN")
+	vic2_button.tooltip_text = _t("TECH_VIC2_SCREEN_TOOLTIP")
+	vic2_button.pressed.connect(_on_vic2_screen_pressed)
+	_tab_row.add_child(vic2_button)
+
+
+func _on_vic2_screen_pressed() -> void:
+	close()
+	Events.NationManagementScreens.open_nation_management_screen(NationManagement.Screen.TECHNOLOGY)
+
+
+func _on_toggle_requested() -> void:
+	if visible:
+		close()
+	else:
+		open_technologies()
 
 
 func _on_branch_pressed(index: int) -> void:

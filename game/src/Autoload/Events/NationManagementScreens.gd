@@ -2,6 +2,8 @@ class_name NationManagementScreensEventsObject
 extends RefCounted
 
 signal update_active_nation_management_screen(screen: NationManagement.Screen)
+## The plate "Technology" of the top bar opens the tree of OpenVic (ArmyTechWindow), not the screen of Victoria 2
+signal army_tech_window_toggle_requested
 
 var _current_screen: NationManagement.Screen = NationManagement.Screen.NONE
 

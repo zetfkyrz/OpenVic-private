@@ -135,9 +135,13 @@ func _ready() -> void:
 	for screen: NationManagement.Screen in screen_nodepaths:
 		var button: GUIIconButton = get_gui_icon_button_from_nodepath(screen_nodepaths[screen])
 		if button:
-			button.pressed.connect(
-				Events.NationManagementScreens.toggle_nation_management_screen.bind(screen)
-			)
+			if screen == NationManagement.Screen.TECHNOLOGY:
+				# Our tree of the technologies (F5); the screen of Victoria 2 is opened with a button of that window
+				button.pressed.connect(Events.NationManagementScreens.army_tech_window_toggle_requested.emit)
+			else:
+				button.pressed.connect(
+					Events.NationManagementScreens.toggle_nation_management_screen.bind(screen)
+				)
 			# TODO - test tooltip, replace with actual shortcut strings
 			button.set_tooltip_string(tr(&"SHORTCUT") + "F3")
 			_nation_management_buttons[screen] = button
