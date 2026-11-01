@@ -160,6 +160,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_orders, { "group_id", "execute" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_colour, { "group_id", "colour_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_command_palette);
+	OV_BIND_METHOD(PlayerSingleton::set_army_group_front, { "group_id", "front_id", "held" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_group_plan, { "group_id", "front_id", "mode" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_group_plan_active, { "group_id", "active" });
 	OV_BIND_METHOD(PlayerSingleton::get_army_tech_branches);
 	OV_BIND_METHOD(PlayerSingleton::get_army_technologies);
 	OV_BIND_METHOD(PlayerSingleton::start_army_research, { "technology_index" });
@@ -1623,6 +1626,8 @@ Dictionary PlayerSingleton::get_war_overview() const {
 		Dictionary entry;
 		entry["id"] = static_cast<int32_t>(front.id);
 		entry["mode"] = static_cast<int32_t>(front.mode);
+		entry["group_id"] = static_cast<int32_t>(front.group_id);
+		entry["commanded"] = war_manager.is_front_commanded(front);
 		entry["enemy_index"] = front.enemy != nullptr ? static_cast<int32_t>(type_safe::get(front.enemy->index)) : -1;
 		entry["enemy_name"] = front.enemy != nullptr ? Utilities::get_country_name(*menu_singleton, *front.enemy) : String {};
 
@@ -1891,6 +1896,8 @@ Array PlayerSingleton::get_front_summaries() const {
 		entry["id"] = static_cast<int32_t>(front.id);
 		entry["mode"] = static_cast<int32_t>(front.mode);
 		entry["army_count"] = static_cast<int32_t>(front.army_ids.size());
+		entry["group_id"] = static_cast<int32_t>(front.group_id);
+		entry["commanded"] = instance_manager->get_war_manager().is_front_commanded(front);
 		PackedInt32Array province_numbers;
 		for (ProvinceInstance const* const province : front.provinces) {
 			province_numbers.push_back(static_cast<int32_t>(province->province_definition.get_province_number()));
@@ -2898,11 +2905,49 @@ Array PlayerSingleton::get_army_groups() const {
 		entry["execute_orders"] = group.execute_orders;
 		entry["max_attached"] = static_cast<int32_t>(get_marshal_max_attached(*instance_manager, *player_country));
 		entry["colour_index"] = static_cast<int32_t>(group.colour_index);
+		entry["plan_front_id"] = static_cast<int32_t>(group.plan_front_id);
+		entry["plan_mode"] = static_cast<int32_t>(group.plan_mode);
+		entry["plan_active"] = group.plan_active;
+		PackedInt32Array held_front_ids;
+		for (Front const& front : instance_manager->get_war_manager().get_fronts()) {
+			if (front.country == player_country && front.group_id == group.id) {
+				held_front_ids.push_back(static_cast<int32_t>(front.id));
+			}
+		}
+		entry["front_ids"] = held_front_ids;
 		entry["colour"] = make_command_colour(&group);
 		entry["army_ids"] = army_ids;
 		result.push_back(entry);
 	}
 	return result;
+}
+
+bool PlayerSingleton::set_army_group_front(int32_t group_id, int32_t front_id, bool held) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(group_id <= 0 || front_id <= 0, false);
+	return instance_manager->queue_game_action<set_army_group_front_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(group_id), static_cast<std::uint32_t>(front_id), held
+	);
+}
+
+bool PlayerSingleton::set_army_group_plan(int32_t group_id, int32_t front_id, int32_t mode) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(group_id <= 0 || front_id <= 0 || mode < 0, false);
+	return instance_manager->queue_game_action<set_army_group_plan_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(group_id), static_cast<std::uint32_t>(front_id), static_cast<std::uint32_t>(mode)
+	);
+}
+
+bool PlayerSingleton::set_army_group_plan_active(int32_t group_id, bool active) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(group_id <= 0, false);
+	return instance_manager->queue_game_action<set_army_group_plan_active_argument_t>(player_country->index, static_cast<std::uint32_t>(group_id), active);
 }
 
 bool PlayerSingleton::set_army_group_colour(int32_t group_id, int32_t colour_index) const {
