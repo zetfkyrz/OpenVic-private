@@ -1,0 +1,26 @@
+# The natural growth of the population (docs/POPULATION.md, A2): the yearly growth of a pop as a share (0.012 = 1.2 % a year), before the life needs (a pop
+# whose life needs are not met grows less or shrinks) and the modifiers of the country (medicine, sanitation). All the numbers are starting values (estimates
+# of the owner, see docs/POPULATION.md), a mod overrides this file as a whole.
+#
+#   rule = { tag = ENG yearly = 0.012 }            the pops of a country
+#   rule = { group = germanic yearly = 0.010 }     the pops of a culture group
+#   rule = { tag = X culture = Y periods = { 1836 = 0.012 1846 = -0.02 } }   from the year on the rate holds (the last one goes on)
+#   rule = { region = ENG_263 yearly = 0.01 }      a region of the map
+# Of the rules that hold for a pop the most specific one counts: region 8, culture 4, tag 2, group 1 are added up (the later one wins a tie).
+
+default = 0.007
+
+rule = { tag = ENG yearly = 0.012 }
+rule = { tag = RUS yearly = 0.013 }
+rule = { group = germanic yearly = 0.010 }   # the German lands
+rule = { tag = AUS yearly = 0.008 }
+rule = { group = italian yearly = 0.006 }
+rule = { tag = FRA yearly = 0.004 }
+rule = { tag = USA yearly = 0.025 }   # with the immigration (the migration itself is a mechanic of its own)
+rule = { tag = JAP periods = { 1836 = 0.0015 1868 = 0.007 } }
+rule = { tag = CHI yearly = 0.003 }
+rule = { group = south_asian yearly = 0.003 }   # India
+
+# Ireland: the growth before 1845, the famine and the leaving of 1846-1851 (a negative rate), the slow recovery after. Ireland is told by the culture:
+# the regions of the map of the game have no Irish one of their own. The emigration itself (to America) is a mechanic of the migration.
+rule = { tag = ENG culture = irish periods = { 1836 = 0.012 1846 = -0.02 1852 = 0.003 } }
