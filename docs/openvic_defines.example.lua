@@ -321,6 +321,7 @@ defines = {
 		TIMBER_PER_CEMENT_BUILDING = 100, -- whole number 0 to 100000
 		EXPANSION_CHECK_MONTHS = 3, -- whole number 1 to 120
 		FISH_OUTPUT_MULTIPLIER = 2, -- number 0.1 to 20
+		SHIP_LUMBER_PER_PIECE = 4, -- number 0 to 100
 	},
 	ov_credit = {
 		TERM_SHORT_DAYS = 1825, -- whole number 30 to 36500
