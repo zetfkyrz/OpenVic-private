@@ -19,6 +19,8 @@
 #include <openvic-simulation/economy/production/ProductionType.hpp>
 #include <openvic-simulation/economy/trading/MarketInstance.hpp>
 #include <openvic-simulation/map/State.hpp>
+#include <openvic-simulation/military/ArmyGroup.hpp>
+#include <openvic-simulation/military/MilitaryManager.hpp>
 #include <openvic-simulation/military/UnitInstanceGroup.hpp>
 #include <openvic-simulation/military/War.hpp>
 #include <openvic-simulation/politics/Government.hpp>
@@ -156,6 +158,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_army_group, { "army_id", "group_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_marshal, { "group_id", "leader_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_orders, { "group_id", "execute" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_group_colour, { "group_id", "colour_index" });
+	OV_BIND_METHOD(PlayerSingleton::get_command_palette);
 	OV_BIND_METHOD(PlayerSingleton::get_army_tech_branches);
 	OV_BIND_METHOD(PlayerSingleton::get_army_technologies);
 	OV_BIND_METHOD(PlayerSingleton::start_army_research, { "technology_index" });
@@ -2702,6 +2706,18 @@ namespace {
 	}
 }
 
+namespace {
+	// The colour of a group of armies (the palette of the command); the armies and the generals without a group are grey
+	Color make_command_colour(ArmyGroup const* group) {
+		static const Color grey { 0.55f, 0.55f, 0.55f };
+		if (group == nullptr) {
+			return grey;
+		}
+		const auto colours = GameSingleton::get_singleton()->get_definition_manager().get_military_manager().get_command_palette().get_colours();
+		return group->colour_index < colours.size() ? convert_to<Color>(colours[group->colour_index]) : grey;
+	}
+}
+
 Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	Dictionary result;
 	ERR_FAIL_NULL_V(player_country, result);
@@ -2845,6 +2861,7 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	}
 	result["divisions"] = divisions;
 	result["army_group_id"] = static_cast<int32_t>(army.get_army_group_id());
+	result["army_group_colour"] = make_command_colour(army.get_country().find_army_group(army.get_army_group_id()));
 	result["supply_leader_bonus"] = static_cast<float>(army.get_supply_leader_bonus());
 
 	return result;
@@ -2879,9 +2896,29 @@ Array PlayerSingleton::get_army_groups() const {
 		}
 		entry["army_count"] = static_cast<int32_t>(army_ids.size());
 		entry["execute_orders"] = group.execute_orders;
-		entry["max_attached"] = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war.marshal_max_attached;
+		entry["max_attached"] = static_cast<int32_t>(get_marshal_max_attached(*instance_manager, *player_country));
+		entry["colour_index"] = static_cast<int32_t>(group.colour_index);
+		entry["colour"] = make_command_colour(&group);
 		entry["army_ids"] = army_ids;
 		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::set_army_group_colour(int32_t group_id, int32_t colour_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(group_id <= 0 || colour_index < 0, false);
+	return instance_manager->queue_game_action<set_army_group_colour_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(group_id), static_cast<std::uint32_t>(colour_index)
+	);
+}
+
+Array PlayerSingleton::get_command_palette() const {
+	Array result;
+	for (colour_t const colour : GameSingleton::get_singleton()->get_definition_manager().get_military_manager().get_command_palette().get_colours()) {
+		result.push_back(convert_to<Color>(colour));
 	}
 	return result;
 }
@@ -3263,6 +3300,23 @@ namespace {
 				}
 				entry["army_id"] = group != nullptr ? static_cast<int64_t>(group->unique_id) : 0;
 				entry["army_name"] = group != nullptr ? convert_to<String>(group->get_name()) : String {};
+				// The colour of the command: the field marshal and the generals of his group have the colour of the group, the others are grey
+				ArmyGroup const* command_group = nullptr;
+				if (leader.is_marshal()) {
+					for (ArmyGroup const& army_group : player->get_army_groups()) {
+						if (army_group.marshal_id == leader.unique_id) {
+							command_group = &army_group;
+						}
+					}
+				} else if (group != nullptr) {
+					for (ArmyInstance const& army : player->get_armies()) {
+						if (army.unique_id == group->unique_id) {
+							command_group = player->find_army_group(army.get_army_group_id());
+						}
+					}
+				}
+				entry["command_colour"] = make_command_colour(command_group);
+				entry["command_group_id"] = command_group != nullptr ? static_cast<int32_t>(command_group->id) : 0;
 				result.push_back(entry);
 			}
 		};

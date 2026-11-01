@@ -1,0 +1,20 @@
+# The colours of the field marshals (B1 of the command system, docs/COMMAND.md). A new group of armies of a country takes the first colour of this
+# list that no other group of the country has, so the colours are the same in every run; the player may recolour his marshal with any of them.
+# The generals (the armies) of a group have the colour of their marshal, the armies without a group are grey. One line a colour: colour = { r g b }.
+# The colours are chosen to differ from each other on the map and on the dark panel; add more (up to a few dozen), keep them all different.
+colour = { 214 62 62 }
+colour = { 62 120 214 }
+colour = { 70 170 84 }
+colour = { 224 168 40 }
+colour = { 150 84 190 }
+colour = { 54 176 176 }
+colour = { 224 112 40 }
+colour = { 200 80 150 }
+colour = { 130 170 40 }
+colour = { 90 90 200 }
+colour = { 170 120 70 }
+colour = { 120 200 140 }
+colour = { 230 230 90 }
+colour = { 140 40 60 }
+colour = { 40 90 120 }
+colour = { 210 150 200 }

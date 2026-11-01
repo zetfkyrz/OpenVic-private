@@ -232,6 +232,10 @@ namespace OpenVic {
 		bool set_army_group_marshal(int32_t group_id, int64_t leader_id) const;
 		// A group also has execute_orders (the switch of the orders) and max_attached (how many armies it can hold)
 		bool set_army_group_orders(int32_t group_id, bool execute) const;
+		// The colour of the command (B1): a group also has colour_index and colour (a Color), get_army_details has army_group_colour, a general has
+		// command_colour and command_group_id (grey, 0: not in a command). The player recolours his marshal with an index of get_command_palette().
+		bool set_army_group_colour(int32_t group_id, int32_t colour_index) const;
+		godot::Array get_command_palette() const;
 		int32_t get_global_supply_priority() const;
 		// Generals of the country: [{ leader_id, name, picture, tooltip, personality, background, prestige, army_id, army_name }]
 		godot::Array get_generals() const;
