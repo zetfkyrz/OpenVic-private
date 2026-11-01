@@ -348,24 +348,26 @@ func _update_info() -> void:
 	## Population
 	if _population_total_size_label:
 		# TODO - suffixes on both numbers should be white!
-		var total_population: int = 16_000_000
-		var growth: int = 1500
+		var total_population: int = int(topbar_info.get(&"population", 0))
+		var growth: int = int(topbar_info.get(&"population_change", 0))
 		_population_total_size_label.set_text("§Y%s§!(§%s%s§!)" % [
 			GUINode.int_to_string_suffixed(total_population),
 			"G" if growth >= 0 else "R",
-			GUINode.int_to_string_suffixed(growth),
+			GUINode.int_to_string_suffixed(absi(growth)),
 		])
+		_population_total_size_label.set_tooltip_string(str(topbar_info.get(&"population_tooltip", "")))
 
 	if _population_national_foci_label:
-		var foci_used: int = 1
-		var max_foci: int = 1
+		# The national foci are not in the project yet (docs/QUESTIONS.md)
+		var foci_used: int = int(topbar_info.get(&"national_foci_used", 0))
+		var max_foci: int = int(topbar_info.get(&"national_foci_max", 0))
 		_population_national_foci_label.set_text("§%s%d/%d" % ["R" if foci_used < max_foci else "G", foci_used, max_foci])
 
 	if _population_militancy_label:
-		_population_militancy_label.set_text("§Y%s" % GUINode.float_to_string_dp(1.5, 2))
+		_population_militancy_label.set_text("§Y%s" % GUINode.float_to_string_dp(float(topbar_info.get(&"population_militancy", 0.0)), 2))
 
 	if _population_consciousness_label:
-		_population_consciousness_label.set_text("§Y%s" % GUINode.float_to_string_dp(0.05, 2))
+		_population_consciousness_label.set_text("§Y%s" % GUINode.float_to_string_dp(float(topbar_info.get(&"population_consciousness", 0.0)), 2))
 
 	## Trade
 	for idx: int in _trade_imported_icons.size():

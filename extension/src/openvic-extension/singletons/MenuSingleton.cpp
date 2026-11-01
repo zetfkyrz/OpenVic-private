@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <vector>
 #include "MenuSingleton.hpp"
 
 #include <span>
@@ -1139,6 +1141,57 @@ Dictionary MenuSingleton::get_topbar_info() const {
 	ret[country_key] = convert_to<String>(country.get_identifier());
 	ret[country_status_key] = static_cast<int32_t>(country.get_country_status());
 	ret[total_rank_key] = static_cast<uint64_t>(country.get_total_rank());
+
+	// Population: the real numbers of the country (the sum of its pops, with the colonies), what the month changed, the averages weighted by the size of
+	// the pops, and the tooltip with the breakdown by the pop types and by the states
+	{
+		static const StringName population_key = "population";
+		static const StringName population_change_key = "population_change";
+		static const StringName population_militancy_key = "population_militancy";
+		static const StringName population_consciousness_key = "population_consciousness";
+		static const StringName population_tooltip_key = "population_tooltip";
+		static const StringName national_foci_used_key = "national_foci_used";
+		static const StringName national_foci_max_key = "national_foci_max";
+
+		const int64_t total = type_safe::get(country.get_total_population());
+		const int64_t change = type_safe::get(country.get_population_last_monthly_change());
+		ret[population_key] = total;
+		ret[population_change_key] = change;
+		ret[population_militancy_key] = static_cast<double>(country.get_average_militancy());
+		ret[population_consciousness_key] = static_cast<double>(country.get_average_consciousness());
+		// The national foci are not in the project (docs/QUESTIONS.md): 0 of 0
+		ret[national_foci_used_key] = 0;
+		ret[national_foci_max_key] = 0;
+
+		String tooltip = String::utf8("Население: ") + String::num_int64(total) + String::utf8("\nИзменение за прошлый месяц: ") + (change >= 0 ? "+" : "") + String::num_int64(change) + "\n";
+		tooltip += String::utf8("\nПо типам населения:\n");
+		std::vector<std::pair<int64_t, String>> by_type;
+		for (PopType const& pop_type : definition_manager.get_pop_manager().get_pop_types()) {
+			const int64_t size = type_safe::get(country.get_population_by_type()[pop_type.index]);
+			if (size > 0) {
+				by_type.emplace_back(size, tr(convert_to<String>(pop_type.get_identifier())));
+			}
+		}
+		std::sort(by_type.begin(), by_type.end(), [](auto const& a, auto const& b) { return a.first > b.first; });
+		for (auto const& [size, name] : by_type) {
+			tooltip += "  " + name + ": " + String::num_int64(size) + " (" + String::num(total > 0 ? 100.0 * static_cast<double>(size) / static_cast<double>(total) : 0.0, 1) + " %)\n";
+		}
+		tooltip += String::utf8("\nПо регионам (штатам):\n");
+		std::vector<std::pair<int64_t, String>> by_state;
+		for (State const* state : country.get_states()) {
+			by_state.emplace_back(type_safe::get(state->get_total_population()), Utilities::get_state_name(*this, *state));
+		}
+		std::sort(by_state.begin(), by_state.end(), [](auto const& a, auto const& b) { return a.first > b.first; });
+		size_t shown = 0;
+		for (auto const& [size, name] : by_state) {
+			if (shown++ >= 15) {
+				tooltip += String::utf8("  ... ещё ") + String::num_int64(static_cast<int64_t>(by_state.size() - 15)) + String::utf8(" регионов\n");
+				break;
+			}
+			tooltip += "  " + name + ": " + String::num_int64(size) + "\n";
+		}
+		ret[population_tooltip_key] = tooltip;
+	}
 
 	// Production
 

@@ -81,3 +81,6 @@ extension/src/gen/*
 # CMake out-of-source build directory
 out/
 CMakeUserPresets.json
+
+# Reference screenshots of the owner (not committed)
+/docs/reference/
