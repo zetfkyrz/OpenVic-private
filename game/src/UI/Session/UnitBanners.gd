@@ -92,6 +92,14 @@ func has_selection() -> bool:
 	return not _get_selected_army_ids().is_empty()
 
 
+## Selects the given armies of the player (the divisions of a field marshal), the others are deselected
+func select_armies(army_ids: Array) -> void:
+	_selected_armies.clear()
+	for army_id: Variant in army_ids:
+		_selected_armies[int(army_id)] = true
+	_update_all_selection_visuals()
+
+
 func clear_selection() -> void:
 	if _selected_armies.is_empty():
 		return

@@ -244,6 +244,23 @@ func look_at_map_position(pos: Vector2) -> void:
 	_camera.position.z += pos_delta.z
 
 
+## The number of the province in the middle of the view (0 if there is none): the region a theatre is tied to
+func get_view_centre_province_number() -> int:
+	var viewport_centre: Vector2 = Vector2(0.5, 0.5) * _viewport_dims / get_tree().root.content_scale_factor
+	return GameSingleton.get_province_number_from_uv_coords(_viewport_to_map_coords(viewport_centre))
+
+
+## Turns the camera to a province by its number (the centre of the province); false if there is no such province
+func look_at_province_number(province_number: int) -> bool:
+	var positions: PackedVector2Array = MapItemSingleton.get_province_positions()
+	if province_number <= 0 or province_number > positions.size():
+		return false
+	look_at_map_position(positions[province_number - 1])
+	_clamp_over_map()
+	queue_province_hover_update()
+	return true
+
+
 ## Position on the ground (on the displaced relief) of a map position (0..1 on both axes)
 func get_ground_position(pos: Vector2) -> Vector3:
 	return _map_to_ground_coords(pos)

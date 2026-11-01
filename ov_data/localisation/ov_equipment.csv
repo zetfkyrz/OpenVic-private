@@ -288,3 +288,71 @@ THEATRE_MAIN;Main;;;;;;;;;;;Основной;;x
 THEATRE_DEFAULT_NAME;Theatre $N$;;;;;;;;;;;Театр $N$;;x
 THEATRE_MAIN_RU;Основной;;;;;;;;;;;;;x
 THEATRE_DEFAULT_NAME_RU;Театр $N$;;;;;;;;;;;;;x
+CMD_NO_MARSHAL;No field marshal (click to appoint one);;;;;;;;;;;Нет фельдмаршала (нажмите, чтобы назначить);;x
+CMD_NO_GENERAL;No general;;;;;;;;;;;Генерала нет;;x
+CMD_MARSHAL_TOOLTIP;Click: select all his divisions. Right click: menu. Drop a general here to attach him;;;;;;;;;;;Нажатие: выделить все его дивизии. Правая кнопка: меню. Перетащите сюда генерала, чтобы прикрепить его;;x
+CMD_ATTACHED_TOOLTIP;Attached generals / maximum (the technologies raise it);;;;;;;;;;;Прикреплено генералов / максимум (растёт с технологиями);;x
+CMD_DIVISIONS_TOOLTIP;Divisions under this general;;;;;;;;;;;Дивизий под этим генералом;;x
+CMD_DETACH;Detach: $NAME$;;;;;;;;;;;Открепить: $NAME$;;x
+CMD_ADD_GENERAL;Attach a free general;;;;;;;;;;;Прикрепить свободного генерала;;x
+CMD_NEW_MARSHAL;New field marshal;;;;;;;;;;;Новый фельдмаршал;;x
+CMD_NO_FREE_GENERALS;No free generals;;;;;;;;;;;Свободных генералов нет;;x
+CMD_MOVE_TO_THEATRE;Move to the theatre: $NAME$;;;;;;;;;;;Перенести в театр: $NAME$;;x
+CMD_REMOVE_MARSHAL;Take the marshal off;;;;;;;;;;;Снять фельдмаршала;;x
+CMD_DELETE_COMMAND;Delete the command (the generals stay free);;;;;;;;;;;Расформировать командование (генералы остаются свободными);;x
+CMD_PLAN;Plan;;;;;;;;;;;План;;x
+CMD_PLAN_TOOLTIP;The front the marshal holds and the order for it;;;;;;;;;;;Фронт, который держит фельдмаршал, и приказ для него;;x
+CMD_PLAN_ATTACK;Front $F$ ($N$ provinces): attack;;;;;;;;;;;Фронт $F$ ($N$ пров.): наступление;;x
+CMD_PLAN_HOLD;Front $F$ ($N$ provinces): hold;;;;;;;;;;;Фронт $F$ ($N$ пров.): удержание;;x
+CMD_PLAN_CLEAR;Drop the plan and let the front go;;;;;;;;;;;Снять план и отпустить фронт;;x
+CMD_NO_FRONTS;No fronts: make them in the military window;;;;;;;;;;;Фронтов нет: создайте их в военном окне;;x
+CMD_COLOUR;Colour;;;;;;;;;;;Цвет;;x
+CMD_COLOUR_TOOLTIP;The colour of the marshal, of his generals and of his front lines;;;;;;;;;;;Цвет фельдмаршала, его генералов и линий его фронтов;;x
+CMD_CHECK_ACTIVE;The plan is running. Click to stop it (the armies stay where they are);;;;;;;;;;;План выполняется. Нажмите, чтобы остановить (армии остаются на местах);;x
+CMD_CHECK_IDLE;The plan is not running. Click to start it;;;;;;;;;;;План не выполняется. Нажмите, чтобы запустить;;x
+CMD_CHECK_NO_PLAN;No plan: choose a front in the Plan menu;;;;;;;;;;;Плана нет: выберите фронт в меню «План»;;x
+CMD_CHECK_NO_MARSHAL;A plan needs a field marshal;;;;;;;;;;;Для плана нужен фельдмаршал;;x
+THEATRE_TITLE;Theatres;;;;;;;;;;;Театры;;x
+THEATRE_NEW;New theatre;;;;;;;;;;;Новый театр;;x
+THEATRE_NEW_TOOLTIP;A theatre is a named group of field marshals and of their fronts;;;;;;;;;;;Театр — именованная группа фельдмаршалов и их фронтов;;x
+THEATRE_NAME_PROMPT;Name of the theatre;;;;;;;;;;;Название театра;;x
+THEATRE_RENAME;Rename;;;;;;;;;;;Переименовать;;x
+THEATRE_FOCUS;Tie the region to the present position of the camera;;;;;;;;;;;Привязать регион к текущему положению камеры;;x
+THEATRE_FOCUS_SET;Tied to the province $N$;;;;;;;;;;;Привязан к провинции $N$;;x
+THEATRE_DELETE;Delete (its marshals go to the main theatre);;;;;;;;;;;Удалить (фельдмаршалы перейдут в основной театр);;x
+THEATRE_COUNTS;Marshals: $M$   Divisions: $D$;;;;;;;;;;;Фельдмаршалов: $M$   Дивизий: $D$;;x
+THEATRE_ROW_TOOLTIP;Click: show the theatre and turn the camera to its region. Drop a field marshal here to move him. Marshals: $M$, divisions: $D$;;;;;;;;;;;Нажатие: показать театр и повернуть камеру к его региону. Перетащите сюда фельдмаршала, чтобы перенести его. Фельдмаршалов: $M$, дивизий: $D$;;x
+CMD_NO_MARSHAL_RU;Нет фельдмаршала (нажмите, чтобы назначить);;;;;;;;;;;;;x
+CMD_NO_GENERAL_RU;Генерала нет;;;;;;;;;;;;;x
+CMD_MARSHAL_TOOLTIP_RU;Нажатие: выделить все его дивизии. Правая кнопка: меню. Перетащите сюда генерала, чтобы прикрепить его;;;;;;;;;;;;;x
+CMD_ATTACHED_TOOLTIP_RU;Прикреплено генералов / максимум (растёт с технологиями);;;;;;;;;;;;;x
+CMD_DIVISIONS_TOOLTIP_RU;Дивизий под этим генералом;;;;;;;;;;;;;x
+CMD_DETACH_RU;Открепить: $NAME$;;;;;;;;;;;;;x
+CMD_ADD_GENERAL_RU;Прикрепить свободного генерала;;;;;;;;;;;;;x
+CMD_NEW_MARSHAL_RU;Новый фельдмаршал;;;;;;;;;;;;;x
+CMD_NO_FREE_GENERALS_RU;Свободных генералов нет;;;;;;;;;;;;;x
+CMD_MOVE_TO_THEATRE_RU;Перенести в театр: $NAME$;;;;;;;;;;;;;x
+CMD_REMOVE_MARSHAL_RU;Снять фельдмаршала;;;;;;;;;;;;;x
+CMD_DELETE_COMMAND_RU;Расформировать командование (генералы остаются свободными);;;;;;;;;;;;;x
+CMD_PLAN_RU;План;;;;;;;;;;;;;x
+CMD_PLAN_TOOLTIP_RU;Фронт, который держит фельдмаршал, и приказ для него;;;;;;;;;;;;;x
+CMD_PLAN_ATTACK_RU;Фронт $F$ ($N$ пров.): наступление;;;;;;;;;;;;;x
+CMD_PLAN_HOLD_RU;Фронт $F$ ($N$ пров.): удержание;;;;;;;;;;;;;x
+CMD_PLAN_CLEAR_RU;Снять план и отпустить фронт;;;;;;;;;;;;;x
+CMD_NO_FRONTS_RU;Фронтов нет: создайте их в военном окне;;;;;;;;;;;;;x
+CMD_COLOUR_RU;Цвет;;;;;;;;;;;;;x
+CMD_COLOUR_TOOLTIP_RU;Цвет фельдмаршала, его генералов и линий его фронтов;;;;;;;;;;;;;x
+CMD_CHECK_ACTIVE_RU;План выполняется. Нажмите, чтобы остановить (армии остаются на местах);;;;;;;;;;;;;x
+CMD_CHECK_IDLE_RU;План не выполняется. Нажмите, чтобы запустить;;;;;;;;;;;;;x
+CMD_CHECK_NO_PLAN_RU;Плана нет: выберите фронт в меню «План»;;;;;;;;;;;;;x
+CMD_CHECK_NO_MARSHAL_RU;Для плана нужен фельдмаршал;;;;;;;;;;;;;x
+THEATRE_TITLE_RU;Театры;;;;;;;;;;;;;x
+THEATRE_NEW_RU;Новый театр;;;;;;;;;;;;;x
+THEATRE_NEW_TOOLTIP_RU;Театр — именованная группа фельдмаршалов и их фронтов;;;;;;;;;;;;;x
+THEATRE_NAME_PROMPT_RU;Название театра;;;;;;;;;;;;;x
+THEATRE_RENAME_RU;Переименовать;;;;;;;;;;;;;x
+THEATRE_FOCUS_RU;Привязать регион к текущему положению камеры;;;;;;;;;;;;;x
+THEATRE_FOCUS_SET_RU;Привязан к провинции $N$;;;;;;;;;;;;;x
+THEATRE_DELETE_RU;Удалить (фельдмаршалы перейдут в основной театр);;;;;;;;;;;;;x
+THEATRE_COUNTS_RU;Фельдмаршалов: $M$   Дивизий: $D$;;;;;;;;;;;;;x
+THEATRE_ROW_TOOLTIP_RU;Нажатие: показать театр и повернуть камеру к его региону. Перетащите сюда фельдмаршала, чтобы перенести его. Фельдмаршалов: $M$, дивизий: $D$;;;;;;;;;;;;;x

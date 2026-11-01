@@ -9,6 +9,9 @@ const WIDTH_PER_CAMERA_HEIGHT: float = 0.014
 const MIN_WIDTH: float = 0.003
 const COLOUR_ATTACK: Color = Color(0.95, 0.05, 0.03, 1.0)
 const COLOUR_DEFEND: Color = Color(0.05, 0.3, 1.0, 1.0)
+
+## The colours of the groups of armies (field marshals) by id, for the fronts they hold
+var _group_colours: Dictionary = {}
 ## The borders change when provinces are taken: the lines are made again every this many updates of the game state
 const REFRESH_EVERY_UPDATES: int = 30
 
@@ -55,14 +58,23 @@ func _on_gamestate_updated() -> void:
 	_updates += 1
 	var summaries: Array = PlayerSingleton.get_front_summaries()
 	var signature: String = str(summaries)
+	for group: Dictionary in PlayerSingleton.get_army_groups():
+		signature += "%d:%s;" % [int(group[&"id"]), str(group[&"colour"])]
 	if signature == _signature and _updates % REFRESH_EVERY_UPDATES != 0:
 		return
 	_signature = signature
+	# The fronts that a field marshal holds are drawn in his colour (dimmer while his plan does not run)
+	var group_colours: Dictionary = {}
+	for group: Dictionary in PlayerSingleton.get_army_groups():
+		group_colours[int(group[&"id"])] = group[&"colour"]
+	_group_colours = group_colours
 	var lines: Dictionary = {}
 	for summary: Dictionary in summaries:
 		var front_id: int = summary[&"id"]
 		lines[front_id] = {
 			&"mode": summary[&"mode"],
+			&"group_id": int(summary.get(&"group_id", 0)),
+			&"commanded": bool(summary.get(&"commanded", true)),
 			&"polylines": PlayerSingleton.get_front_lines(front_id),
 		}
 	_lines = lines
@@ -79,6 +91,10 @@ func _rebuild_mesh() -> void:
 	for front_id: int in _lines:
 		var entry: Dictionary = _lines[front_id]
 		var colour: Color = COLOUR_ATTACK if int(entry[&"mode"]) == 1 else COLOUR_DEFEND
+		if int(entry[&"group_id"]) != 0 and _group_colours.has(int(entry[&"group_id"])):
+			colour = _group_colours[int(entry[&"group_id"])]
+			if not bool(entry[&"commanded"]):
+				colour.a = 0.45
 		for polyline: PackedVector2Array in entry[&"polylines"]:
 			_add_ribbon(polyline, half_width, colour, vertices, colours, indices)
 

@@ -224,7 +224,7 @@ func _make_card(general: Dictionary, fallback_name: String, card_size: Vector2, 
 
 func _make_row(group: Dictionary) -> Control:
 	var group_id: int = int(group[&"id"])
-	var colour: Color = _PALETTE[_colour_index(_group_key(group))]
+	var colour: Color = group[&"colour"] # the colour of the simulation (the palette of the command)
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.13, 0.14, 0.16) if group_id != _selected_id else Color(0.2, 0.2, 0.17)
@@ -294,7 +294,7 @@ func _make_row(group: Dictionary) -> Control:
 	var colour_button := Button.new()
 	colour_button.text = "Цвет"
 	colour_button.tooltip_text = "Сменить цвет подсветки группы"
-	colour_button.pressed.connect(_on_colour_pressed.bind(_group_key(group)))
+	colour_button.pressed.connect(_on_colour_pressed.bind(group_id, int(group[&"colour_index"])))
 	side.add_child(colour_button)
 	return panel
 
@@ -307,11 +307,10 @@ func _on_row_input(event: InputEvent, group_id: int) -> void:
 		_refresh()
 
 
-func _on_colour_pressed(key: int) -> void:
-	_colours[key] = (_colour_index(key) + 1) % _PALETTE.size()
-	_save_colours()
-	_signature = ""
-	_refresh()
+func _on_colour_pressed(group_id: int, colour_index: int) -> void:
+	var palette_size: int = PlayerSingleton.get_command_palette().size()
+	if palette_size > 0:
+		PlayerSingleton.set_army_group_colour(group_id, (colour_index + 1) % palette_size)
 
 
 func _update_buttons() -> void:
