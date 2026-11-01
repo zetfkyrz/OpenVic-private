@@ -1,0 +1,11 @@
+# The buildings of the resource gathering operations (docs/RGO_BUILDINGS.md). A level gives +5 % workplaces and +5 % output to the RGO of the province
+# (ov_economy RGO_BUILDING_STAFF_PER_LEVEL, RGO_BUILDING_OUTPUT_PER_LEVEL), takes 90 days and 10 lumber, the pops of the province and the AI of the state
+# start it. The first 2 levels are open to all; the next ones come with the technologies (the unlock keys "rgo_level:<building>:<level>").
+# Optional keys of a building: max_level, build_days, lumber. A good is in one building (the later file wins).
+
+fishing_harbour = { goods = { fish } }
+farm = { goods = { cattle wool silk } }
+harvest_field = { goods = { grain } }
+plantation = { goods = { tea coffee fruit tobacco cotton dye opium rubber } }
+forestry = { goods = { timber tropical_wood } }
+mine_shaft = { goods = { coal iron sulphur precious_metal oil } }

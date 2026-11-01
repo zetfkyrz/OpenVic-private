@@ -322,6 +322,14 @@ defines = {
 		EXPANSION_CHECK_MONTHS = 3, -- whole number 1 to 120
 		FISH_OUTPUT_MULTIPLIER = 2, -- number 0.1 to 20
 		SHIP_LUMBER_PER_PIECE = 4, -- number 0 to 100
+		RGO_BUILDING_ENABLED = 1, -- whole number 0 to 1
+		RGO_BUILDING_STAFF_PER_LEVEL = 0.05, -- fraction 0 to 10
+		RGO_BUILDING_OUTPUT_PER_LEVEL = 0.05, -- fraction 0 to 10
+		RGO_BUILDING_MAX_LEVEL = 2, -- whole number 0 to 100
+		RGO_BUILDING_BUILD_DAYS = 90, -- whole number 1 to 3650
+		RGO_BUILDING_LUMBER = 10, -- number 0 to 100000
+		RGO_BUILDING_STOCK_STARTS = 4, -- whole number 0 to 1000
+		RGO_BUILDING_STARTS_PER_MONTH = 30, -- whole number 0 to 10000
 	},
 	ov_credit = {
 		TERM_SHORT_DAYS = 1825, -- whole number 30 to 36500
