@@ -22,7 +22,7 @@ defines = {
 		COLONISE_MIN_POINTS_DIVISOR = 2, -- whole number 1 to 100
 	},
 	ov_population = {
-		GROWTH_BREAKEVEN_LIFE_NEEDS = 0.35, -- fraction 0 to 1
+		GROWTH_BREAKEVEN_LIFE_NEEDS = 0.2, -- fraction 0 to 1
 		GROWTH_FULL_LIFE_NEEDS = 0.8, -- fraction 0 to 1
 		GROWTH_PER_YEAR = 0.007, -- fraction 0 to 10
 		DECLINE_PER_YEAR = 0.06, -- fraction 0 to 10
@@ -41,7 +41,7 @@ defines = {
 		HUNGER_LIFE_NEEDS_THRESHOLD = 0.5, -- fraction 0 to 1
 		HUNGER_DAYS_BEFORE_DEATH = 28, -- whole number 1 to 31
 		EMIGRATION_SHARE = 0.01, -- fraction 0 to 1
-		SURPLUS_DEATH_SHARE = 0.99, -- fraction 0 to 1
+		SURPLUS_DEATH_SHARE = 0.8, -- fraction 0 to 1
 		IMMIGRATION_FILL_SHARE = 0.5, -- fraction 0 to 1
 		STARVATION_MIN_SURPLUS = 1, -- whole number 0 to 1000000
 	},
@@ -314,6 +314,7 @@ defines = {
 		LUMBER_PER_CEMENT = 0.5, -- number 0 to 100
 		TIMBER_PER_CEMENT_BUILDING = 100, -- whole number 0 to 100000
 		EXPANSION_CHECK_MONTHS = 3, -- whole number 1 to 120
+		FISH_OUTPUT_MULTIPLIER = 2, -- number 0.1 to 20
 	},
 	ov_credit = {
 		TERM_SHORT_DAYS = 1825, -- whole number 30 to 36500

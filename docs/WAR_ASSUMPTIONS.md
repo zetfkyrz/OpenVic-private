@@ -308,3 +308,11 @@ cost, supply_cost, supply_consumption). Битый тип (неизвестно�
 (ключи: оружие, войска, здания, механики, роты), эффекты (с областями). Вкладки ветки: «Армия» активна, «Промышленность», «Общество», «Флот» — заглушки. Иконка узла — путь в поле `icon` файла технологии (временная общая картинка ветки `gfx/interface/army_icon_2.dds`).
 Числа и тексты считает симуляция (`PlayerSingleton.get_army_technologies`, `start_army_research`, `cancel_army_research`), подписи — из `ov_data/localisation/ov_equipment.csv` (ключи `ARMY_*`). Открывается клавишей **F5** и кнопкой «Технологии армии…» панели армии. **Окно не принято владельцем: ждём скриншот и подтверждение.**
 Дамп без интерфейса: `headless --dump-techtree`; стенд `tools/dev_harness/bodies/army_tech_window.gd`.
+
+## Голод и рыба (A2-б, допущения владельца)
+| Параметр | Было | Стало | Откуда |
+|---|---|---|---|
+| `ov_population.GROWTH_BREAKEVEN_LIFE_NEEDS` | 0.35 | 0.20 | решение владельца: убыль от голода начинается с 0.20 |
+| `ov_population.SURPLUS_DEATH_SHARE` | 0.99 | 0.80 | решение владельца: не все безработные голодающие умирают |
+| `ov_economy.FISH_OUTPUT_MULTIPLIER` | — (1) | 2 | решение владельца: рыба всегда была дешёвой, вылов ×2 для всего мира |
+Значения по умолчанию в `OpenVicDefines.hpp`, переопределяются в `common/openvic_defines.lua`; CHECKSUM и базы `docs/perf/baseline_checksums.json` сняты заново (изменение осознанное).
