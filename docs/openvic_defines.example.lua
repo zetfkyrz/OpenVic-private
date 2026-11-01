@@ -257,6 +257,7 @@ defines = {
 		INVENTION_LITERACY_CHANCE = 0.06, -- fraction 0 to 1
 		ARMY_RESEARCH_CIVILISED_ONLY = 1, -- whole number 0 to 1
 		ARMY_RESEARCH_AI_ENABLED = 1, -- whole number 0 to 1
+		VIC2_TECHNOLOGIES_ENABLED = 1, -- whole number 0 to 1
 	},
 	ov_economy = {
 		MAX_FACTORIES_PER_STATE = 12, -- whole number 1 to 64
