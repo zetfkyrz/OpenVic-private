@@ -116,12 +116,14 @@ func _rebuild_mesh() -> void:
 		var colour: Color = COLOUR_ATTACK if int(entry[&"mode"]) == 1 else COLOUR_DEFEND
 		if int(entry[&"group_id"]) != 0 and _group_colours.has(int(entry[&"group_id"])):
 			colour = _group_colours[int(entry[&"group_id"])]
-			if not bool(entry[&"commanded"]):
-				colour.a = 0.45
 		for polyline: PackedVector2Array in entry[&"polylines"]:
 			_add_ribbon(polyline, half_width, colour, vertices, colours, indices)
 		if bool(entry[&"arrows"]):
-			_add_arrows(entry[&"polylines"], entry[&"centres"], half_width, colour, vertices, colours, indices)
+			# The line has the pure colour of the marshal; the arrows are paler while his plan does not run
+			var arrow_colour: Color = colour
+			if not bool(entry[&"commanded"]):
+				arrow_colour.a = 0.5
+			_add_arrows(entry[&"polylines"], entry[&"centres"], half_width, arrow_colour, vertices, colours, indices)
 
 	if vertices.is_empty():
 		mesh = null
