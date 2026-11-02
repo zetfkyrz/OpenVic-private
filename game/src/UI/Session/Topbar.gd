@@ -142,8 +142,8 @@ func _ready() -> void:
 				button.pressed.connect(
 					Events.NationManagementScreens.toggle_nation_management_screen.bind(screen)
 				)
-			# TODO - test tooltip, replace with actual shortcut strings
-			button.set_tooltip_string(tr(&"SHORTCUT") + "F3")
+			# The keys F1-F8 of Victoria 2 are not bound to the screens: F5-F7 belong to our windows (technologies, wars, recruitment)
+			button.shortcut = null
 			_nation_management_buttons[screen] = button
 	Events.NationManagementScreens.update_active_nation_management_screen.connect(
 		_on_update_active_nation_management_screen
