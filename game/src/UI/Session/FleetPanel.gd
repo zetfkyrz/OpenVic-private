@@ -172,6 +172,12 @@ func _ready() -> void:
 	_shipyard_button.pressed.connect(_on_shipyard_pressed)
 	bottom_row.add_child(_shipyard_button)
 
+	# A drop-down must not widen the window to its longest item
+	for option: OptionButton in [_admiral_option, _load_option, _landing_option]:
+		option.fit_to_longest_item = false
+		option.custom_minimum_size.x = 120.0
+	content.clip_contents = true
+
 	GameSingleton.gamestate_updated.connect(_refresh)
 
 

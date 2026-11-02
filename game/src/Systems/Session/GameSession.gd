@@ -32,6 +32,12 @@ const _AUTOSAVE_SECONDS: float = 300.0
 var _unit_banners: Control
 var _army_panel: Control
 var _fleet_panel: Control
+var _command_panel: Control
+var _theatre_panel: Control
+## The windows over the map that hide the panels of the command and of the theatres while they are open
+var _blocking_windows: Array[Control] = []
+var _screen_open: bool = false
+var _panels_suppressed: bool = false
 var _recruitment_window: Control
 var _save_window: Control
 var _replaying: bool = false
@@ -47,25 +53,32 @@ func _ready() -> void:
 	var war_panel: PanelContainer = PanelContainer.new()
 	war_panel.set_script(_WarPanel)
 	_game_session_menu.get_parent().add_child(war_panel)
+	_blocking_windows.append(war_panel)
 	var peace_window := Control.new()
 	peace_window.set_script(_PeaceWindow)
 	_game_session_menu.get_parent().add_child(peace_window)
 	war_panel.peace_window = peace_window
+	_blocking_windows.append(peace_window)
 	var market_window := Control.new()
 	market_window.set_script(_MarketWindow)
 	_game_session_menu.get_parent().add_child(market_window)
+	_blocking_windows.append(market_window)
 	var politics_window := Control.new()
 	politics_window.set_script(_PoliticsWindow)
 	_game_session_menu.get_parent().add_child(politics_window)
+	_blocking_windows.append(politics_window)
 	var colonisation_window := Control.new()
 	colonisation_window.set_script(_ColonisationWindow)
 	_game_session_menu.get_parent().add_child(colonisation_window)
+	_blocking_windows.append(colonisation_window)
 	var ranking_window := Control.new()
 	ranking_window.set_script(_RankingWindow)
 	_game_session_menu.get_parent().add_child(ranking_window)
+	_blocking_windows.append(ranking_window)
 	_save_window = Control.new()
 	_save_window.set_script(_SaveGameWindow)
 	_game_session_menu.get_parent().add_child(_save_window)
+	_blocking_windows.append(_save_window)
 	var replay_loader := Node.new()
 	replay_loader.set_script(_ReplayLoader)
 	add_child(replay_loader)
@@ -97,36 +110,47 @@ func _ready() -> void:
 	_recruitment_window = Control.new()
 	_recruitment_window.set_script(_RecruitmentWindow)
 	ui.add_child(_recruitment_window)
+	_blocking_windows.append(_recruitment_window)
 	_army_panel = Control.new()
 	_army_panel.set_script(_ArmyPanel)
 	ui.add_child(_army_panel)
+	_blocking_windows.append(_army_panel)
 	_army_panel.set_recruitment_window(_recruitment_window)
 	var templates_window := Control.new()
 	templates_window.set_script(_DivisionTemplatesWindow)
 	ui.add_child(templates_window)
+	_blocking_windows.append(templates_window)
 	_army_panel.set_templates_window(templates_window)
 	var tech_window := Control.new()
 	tech_window.set_script(_ArmyTechWindow)
 	ui.add_child(tech_window)
+	_blocking_windows.append(tech_window)
 	_army_panel.set_tech_window(tech_window)
 	var groups_window := Control.new()
 	groups_window.set_script(_ArmyGroupsWindow)
 	ui.add_child(groups_window)
+	_blocking_windows.append(groups_window)
 	_army_panel.set_groups_window(groups_window)
 	# The panel of the command (bottom, middle) and the panel of the theatres (right, above the middle)
-	var theatre_panel := PanelContainer.new()
-	theatre_panel.set_script(_TheatrePanel)
-	ui.add_child(theatre_panel)
-	theatre_panel.setup(_map_view)
-	var command_panel := PanelContainer.new()
-	command_panel.set_script(_CommandPanel)
-	ui.add_child(command_panel)
-	command_panel.setup(_unit_banners, theatre_panel)
+	_theatre_panel = PanelContainer.new()
+	_theatre_panel.set_script(_TheatrePanel)
+	ui.add_child(_theatre_panel)
+	_theatre_panel.setup(_map_view)
+	_command_panel = PanelContainer.new()
+	_command_panel.set_script(_CommandPanel)
+	ui.add_child(_command_panel)
+	_command_panel.setup(_unit_banners, _theatre_panel)
+	Events.NationManagementScreens.update_active_nation_management_screen.connect(
+		func(screen: NationManagement.Screen) -> void: _screen_open = screen != NationManagement.Screen.NONE
+	)
 	_fleet_panel = Control.new()
 	_fleet_panel.set_script(_FleetPanel)
 	ui.add_child(_fleet_panel)
+	_blocking_windows.append(_fleet_panel)
 	_fleet_panel.set_recruitment_window(_recruitment_window)
-	_unit_banners.selection_changed.connect(_on_units_selected)
+	# A single click only selects, the panel of the army opens on a double click (and follows the selection while it is open)
+	_unit_banners.selection_changed.connect(_on_units_selected.bind(false))
+	_unit_banners.open_requested.connect(_on_units_selected.bind(true))
 
 	# Performance debugger (F12)
 	var perf_debugger := CanvasLayer.new()
@@ -161,6 +185,24 @@ func _process(_delta: float) -> void:
 		PerfProbe.begin("GameSession.update_clock")
 		GameSingleton.update_clock()
 		PerfProbe.end("GameSession.update_clock")
+	_update_command_panels()
+
+
+## The panels of the command and of the theatres give way to any other window or screen of the interface that is open
+func _update_command_panels() -> void:
+	var blocked: bool = _screen_open or (_game_session_menu != null and _game_session_menu.visible)
+	if not blocked:
+		for window: Control in _blocking_windows:
+			if is_instance_valid(window) and window.visible:
+				blocked = true
+				break
+	if blocked == _panels_suppressed:
+		return
+	_panels_suppressed = blocked
+	if _command_panel != null:
+		_command_panel.set_suppressed(blocked)
+	if _theatre_panel != null:
+		_theatre_panel.set_suppressed(blocked)
 
 
 ## Loads a save game: the game is set up again from the bookmark and the player country of the save, then the scene is
@@ -206,7 +248,7 @@ func _run_pending_replay() -> void:
 
 
 # Armies go to the panel of the army, fleets to the panel of the fleet
-func _on_units_selected(group_ids: Array[int]) -> void:
+func _on_units_selected(group_ids: Array[int], open: bool) -> void:
 	var army_ids: Array[int] = []
 	var fleet_ids: Array[int] = []
 	for group_id: int in group_ids:
@@ -217,8 +259,10 @@ func _on_units_selected(group_ids: Array[int]) -> void:
 			fleet_ids.append(group_id)
 		else:
 			army_ids.append(group_id)
-	_army_panel.show_armies(army_ids)
-	_fleet_panel.show_fleets(fleet_ids)
+	if open or _army_panel.visible:
+		_army_panel.show_armies(army_ids)
+	if open or _fleet_panel.visible:
+		_fleet_panel.show_fleets(fleet_ids)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

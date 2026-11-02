@@ -18,6 +18,9 @@ var _rows: VBoxContainer
 var _dialog: ConfirmationDialog
 var _name_edit: LineEdit
 var _renaming_id: int = 0
+var _suppressed: bool = false
+## The panel has something to show (the country has the organisation of the army and a theatre)
+var _wanted: bool = false
 
 
 ## One row of the list: takes a field marshal dropped on it
@@ -114,8 +117,15 @@ func _theatre_name(theatre: Dictionary, index: int) -> String:
 	return _t("THEATRE_DEFAULT_NAME").replace("$N$", str(index))
 
 
+## Another window of the interface is open: the panel is hidden until it is closed
+func set_suppressed(suppressed: bool) -> void:
+	_suppressed = suppressed
+	visible = _wanted and not _suppressed
+
+
 func _refresh() -> void:
 	if not PlayerSingleton.has_army_organisation():
+		_wanted = false
 		visible = false
 		return
 	var theatres: Array = PlayerSingleton.get_theatres()
@@ -133,7 +143,8 @@ func _refresh() -> void:
 	if signature == _signature:
 		return
 	_signature = signature
-	visible = not theatres.is_empty()
+	_wanted = not theatres.is_empty()
+	visible = _wanted and not _suppressed
 	for child: Node in _rows.get_children():
 		child.queue_free()
 	var index: int = 0

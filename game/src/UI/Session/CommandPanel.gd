@@ -15,6 +15,8 @@ const _GREEN: Color = Color(0.25, 0.8, 0.3)
 ## Ids of the items of the menus that are not an index or a theatre
 const _MENU_REMOVE: int = 100000
 const _MENU_DELETE: int = 100001
+## A new front: this id minus one is an empty front, this id plus the index of the enemy country a front against him
+const _MENU_NEW_FRONT_BASE: int = 200000
 
 var _unit_banners: Node
 var _theatre_panel: Node
@@ -24,6 +26,12 @@ var _row: HBoxContainer
 ## Groups that already existed when the player pressed "new field marshal": the new one goes to the shown theatre
 var _known_group_ids: Dictionary = {}
 var _waiting_for_group: bool = false
+## Fronts that existed when the player asked for a new one; the new front goes to the group in _front_for_group (0: none is awaited)
+var _known_front_ids: Dictionary = {}
+var _front_for_group: int = 0
+var _suppressed: bool = false
+## The panel has something to show (the country has the organisation of the army)
+var _wanted: bool = false
 
 
 ## One card (a field marshal or a general): a glow of the colour of the command behind a frame with the portrait. A general can be dragged, a card of a
@@ -127,8 +135,15 @@ func _general_of_army(generals: Array, army_id: int) -> Dictionary:
 	return {}
 
 
+## Another window of the interface is open: the panel is hidden until it is closed
+func set_suppressed(suppressed: bool) -> void:
+	_suppressed = suppressed
+	visible = _wanted and not _suppressed
+
+
 func _refresh() -> void:
 	if not PlayerSingleton.has_army_organisation():
+		_wanted = false
 		visible = false
 		return
 	var groups: Array = PlayerSingleton.get_army_groups()
@@ -151,13 +166,23 @@ func _refresh() -> void:
 				_waiting_for_group = false
 				if int(group[&"theatre_id"]) != _active_theatre and _active_theatre != 0:
 					PlayerSingleton.set_army_group_theatre(int(group[&"id"]), _active_theatre)
+	# A front that the player just made goes to the marshal whose menu he used
+	if _front_for_group != 0:
+		for front: Dictionary in PlayerSingleton.get_front_summaries():
+			if not _known_front_ids.has(int(front[&"id"])):
+				var front_group: int = _front_for_group
+				_front_for_group = 0
+				PlayerSingleton.set_army_group_front(front_group, int(front[&"id"]), true)
+				PlayerSingleton.set_army_group_plan(front_group, int(front[&"id"]), 0)
+				break
 	var signature: String = str(_active_theatre) + str(groups) + str(theatres.size())
 	for general: Dictionary in generals:
 		signature += "%d:%d:%d;" % [int(general[&"leader_id"]), int(general[&"army_id"]), int(general[&"command_group_id"])]
 	if signature == _signature:
 		return
 	_signature = signature
-	visible = true
+	_wanted = true
+	visible = not _suppressed
 	for child: Node in _row.get_children():
 		child.queue_free()
 	for group: Dictionary in groups:
@@ -250,11 +275,11 @@ func _make_group(group: Dictionary, generals: Array, theatres: Array) -> Control
 		marshal_card.on_click = func() -> void:
 			if _unit_banners != null:
 				_unit_banners.select_armies(army_ids)
-		marshal_card.on_context = _show_marshal_menu.bind(group_id, int(group[&"theatre_id"]), theatres)
+		marshal_card.on_context = _on_card_context.bind(group_id, int(group[&"theatre_id"]), theatres)
 		marshal_card.tooltip_text = "%s\n%s" % [str(marshal.get(&"leader_name", "")), _t("CMD_MARSHAL_TOOLTIP")]
 	else:
 		marshal_card.on_click = _show_free_generals_menu.bind(group_id, true)
-		marshal_card.on_context = _show_marshal_menu.bind(group_id, int(group[&"theatre_id"]), theatres)
+		marshal_card.on_context = _on_card_context.bind(group_id, int(group[&"theatre_id"]), theatres)
 		marshal_card.tooltip_text = _t("CMD_NO_MARSHAL")
 	marshal_box.add_child(marshal_card)
 	marshal_box.add_child(_small_label("%d/%d" % [army_ids.size(), max_attached], _t("CMD_ATTACHED_TOOLTIP")))
@@ -274,6 +299,7 @@ func _make_group(group: Dictionary, generals: Array, theatres: Array) -> Control
 		var card: _Card = _make_card(general, _SMALL, colour, str(details.get(&"name", "?")))
 		card.drag_data = { &"type": "ov_general", &"army_id": army_id, &"group_id": group_id, &"caption": str(general.get(&"leader_name", details.get(&"name", ""))) }
 		card.tooltip_text = "%s\n%s" % [str(general.get(&"leader_name", _t("CMD_NO_GENERAL"))), str(details.get(&"name", ""))]
+		card.on_context = _attach_selected_to_group.bind(group_id)
 		slot.add_child(card)
 		var detach := Button.new()
 		detach.text = "×"
@@ -386,6 +412,28 @@ func _make_new_marshal_slot(groups: Array) -> Control:
 	return box
 
 
+## A right click on a card of a marshal: the divisions that are selected on the map are attached to him, with none selected the menu opens
+func _on_card_context(group_id: int, current_theatre: int, theatres: Array) -> void:
+	if _attach_selected_to_group(group_id):
+		return
+	_show_marshal_menu(group_id, current_theatre, theatres)
+
+
+## Attaches the armies selected on the map (those not in the command yet) to it; false if there is none to attach
+func _attach_selected_to_group(group_id: int) -> bool:
+	if _unit_banners == null:
+		return false
+	var to_attach: Array[int] = []
+	for army_id: int in _unit_banners.get_selected_armies():
+		if int(PlayerSingleton.get_army_details(army_id).get(&"army_group_id", 0)) != group_id:
+			to_attach.append(army_id)
+	if to_attach.is_empty():
+		return false # nothing selected, or only his own divisions: the menu of the marshal opens
+	for army_id: int in to_attach:
+		PlayerSingleton.set_army_group(army_id, group_id)
+	return true
+
+
 func _new_menu() -> PopupMenu:
 	var menu := PopupMenu.new()
 	add_child(menu)
@@ -480,12 +528,29 @@ func _show_plan_menu(group: Dictionary) -> void:
 	if entries.is_empty():
 		menu.add_item(_t("CMD_NO_FRONTS"))
 		menu.set_item_disabled(0, true)
+	# New fronts: against an enemy the player is at war with (the line is drawn by itself) or an empty one (its provinces are chosen in the war window, F6)
+	menu.add_separator()
+	var enemy_indices: Array[int] = []
+	for war: Dictionary in PlayerSingleton.get_war_overview().get("wars", []):
+		for enemy: Dictionary in (war["defenders"] if war["we_attack"] else war["attackers"]):
+			if not enemy_indices.has(int(enemy["index"])):
+				enemy_indices.append(int(enemy["index"]))
+				menu.add_item(_t("CMD_NEW_FRONT_VS").replace("$NAME$", str(enemy["name"])), _MENU_NEW_FRONT_BASE + int(enemy["index"]))
+	menu.add_item(_t("CMD_NEW_FRONT_EMPTY"), _MENU_NEW_FRONT_BASE - 1)
 	if int(group[&"plan_front_id"]) != 0:
 		menu.add_separator()
 		menu.add_item(_t("CMD_PLAN_CLEAR"), _MENU_REMOVE)
 	menu.id_pressed.connect(func(id: int) -> void:
 		if id == _MENU_REMOVE:
 			PlayerSingleton.set_army_group_front(group_id, int(group[&"plan_front_id"]), false)
+			return
+		if id >= _MENU_NEW_FRONT_BASE - 1:
+			# The front appears on the next update of the state, then it goes to this marshal with the order to attack
+			_known_front_ids.clear()
+			for front: Dictionary in PlayerSingleton.get_front_summaries():
+				_known_front_ids[int(front[&"id"])] = true
+			_front_for_group = group_id
+			PlayerSingleton.create_front(id - _MENU_NEW_FRONT_BASE if id >= _MENU_NEW_FRONT_BASE else -1)
 			return
 		var entry: Dictionary = entries[id]
 		if not bool(entry[&"held"]):

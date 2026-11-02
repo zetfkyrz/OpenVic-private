@@ -34,6 +34,12 @@ const _NAVY_TINT: Color = Color(0.55, 0.8, 1.4)
 
 ## The armies that are selected changed (ids of the armies of the player)
 signal selection_changed(army_ids: Array[int])
+## A double click on an icon: the panel of the army (the division menu) is wanted, a single click only selects
+signal open_requested(army_ids: Array[int])
+
+const _DOUBLE_CLICK_MSEC: int = 400
+var _last_press_key: String = ""
+var _last_press_msec: int = 0
 
 var _map_view: MapView
 # The selection that was last announced with the signal
@@ -90,6 +96,11 @@ func _ready() -> void:
 
 func has_selection() -> bool:
 	return not _get_selected_army_ids().is_empty()
+
+
+## The armies of the player that are selected now
+func get_selected_armies() -> Array[int]:
+	return _get_selected_army_ids()
 
 
 ## Selects the given armies of the player (the divisions of a field marshal), the others are deselected
@@ -474,6 +485,19 @@ func _on_icon_pressed(key: String) -> void:
 	var all_selected: bool = true
 	for army_id: int in army_ids:
 		all_selected = all_selected and _selected_armies.has(army_id)
+
+	# A double click opens the panel of the armies of the icon (the first click has already selected them)
+	var now: int = Time.get_ticks_msec()
+	var is_double: bool = key == _last_press_key and now - _last_press_msec < _DOUBLE_CLICK_MSEC and not Input.is_key_pressed(KEY_SHIFT)
+	_last_press_key = "" if is_double else key
+	_last_press_msec = now
+	if is_double:
+		_selected_armies.clear()
+		for army_id: int in army_ids:
+			_selected_armies[army_id] = true
+		_update_all_selection_visuals()
+		open_requested.emit(_get_selected_army_ids())
+		return
 
 	if Input.is_key_pressed(KEY_SHIFT):
 		# Add to or remove from the selection

@@ -259,6 +259,13 @@ func _ready() -> void:
 	_disband_army_button.pressed.connect(_on_disband_army_pressed)
 	bottom_row.add_child(_disband_army_button)
 
+	# A drop-down must not widen the window to its longest item (a long template or general name stretched every row after a button press)
+	for option: OptionButton in [_priority_option, _global_priority_option, _general_option, _template_option, _group_option, _merge_option, _board_option]:
+		option.fit_to_longest_item = false
+		option.clip_text = true
+		option.custom_minimum_size.x = 120.0
+	content.clip_contents = true
+
 	GameSingleton.gamestate_updated.connect(_refresh)
 
 
