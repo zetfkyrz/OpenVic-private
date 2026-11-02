@@ -9,6 +9,11 @@ const WIDTH_PER_CAMERA_HEIGHT: float = 0.014
 const MIN_WIDTH: float = 0.003
 const COLOUR_ATTACK: Color = Color(0.95, 0.05, 0.03, 1.0)
 const COLOUR_DEFEND: Color = Color(0.05, 0.3, 1.0, 1.0)
+## The arrows of an attack plan: one every this many widths of the line (at most MAX_ARROWS per front), as long as ARROW_LENGTH widths
+const ARROW_SPACING_WIDTHS: float = 40.0
+const ARROW_LENGTH_WIDTHS: float = 12.0
+const ARROW_HEAD_WIDTHS: float = 5.0
+const MAX_ARROWS: int = 10
 
 ## The colours of the groups of armies (field marshals) by id, for the fronts they hold
 var _group_colours: Dictionary = {}
@@ -59,7 +64,7 @@ func _on_gamestate_updated() -> void:
 	var summaries: Array = PlayerSingleton.get_front_summaries()
 	var signature: String = str(summaries)
 	for group: Dictionary in PlayerSingleton.get_army_groups():
-		signature += "%d:%s;" % [int(group[&"id"]), str(group[&"colour"])]
+		signature += "%d:%s:%d:%d;" % [int(group[&"id"]), str(group[&"colour"]), int(group[&"plan_front_id"]), int(group[&"plan_mode"])]
 	if signature == _signature and _updates % REFRESH_EVERY_UPDATES != 0:
 		return
 	_signature = signature
@@ -68,6 +73,12 @@ func _on_gamestate_updated() -> void:
 	for group: Dictionary in PlayerSingleton.get_army_groups():
 		group_colours[int(group[&"id"])] = group[&"colour"]
 	_group_colours = group_colours
+	# The fronts with an attack plan of a marshal get arrows (the plan mode 0 is the attack)
+	var attack_fronts: Dictionary = {}
+	for group: Dictionary in PlayerSingleton.get_army_groups():
+		if int(group[&"plan_front_id"]) != 0 and int(group[&"plan_mode"]) == 0:
+			attack_fronts[int(group[&"plan_front_id"])] = true
+	var province_positions: PackedVector2Array = MapItemSingleton.get_province_positions()
 	var lines: Dictionary = {}
 	for summary: Dictionary in summaries:
 		var front_id: int = summary[&"id"]
@@ -76,9 +87,21 @@ func _on_gamestate_updated() -> void:
 			&"group_id": int(summary.get(&"group_id", 0)),
 			&"commanded": bool(summary.get(&"commanded", true)),
 			&"polylines": PlayerSingleton.get_front_lines(front_id),
+			&"arrows": attack_fronts.has(front_id),
+			&"centres": _province_centres(summary, province_positions),
 		}
 	_lines = lines
 	_rebuild_mesh()
+
+
+## The map positions of the provinces of the line of a front (an arrow starts on the side of them)
+func _province_centres(summary: Dictionary, province_positions: PackedVector2Array) -> PackedVector2Array:
+	var centres := PackedVector2Array()
+	for number: Variant in summary.get(&"province_numbers", []):
+		var index: int = int(number) - 1
+		if index >= 0 and index < province_positions.size():
+			centres.append(province_positions[index])
+	return centres
 
 
 func _rebuild_mesh() -> void:
@@ -97,6 +120,8 @@ func _rebuild_mesh() -> void:
 				colour.a = 0.45
 		for polyline: PackedVector2Array in entry[&"polylines"]:
 			_add_ribbon(polyline, half_width, colour, vertices, colours, indices)
+		if bool(entry[&"arrows"]):
+			_add_arrows(entry[&"polylines"], entry[&"centres"], half_width, colour, vertices, colours, indices)
 
 	if vertices.is_empty():
 		mesh = null
@@ -142,3 +167,63 @@ func _add_ribbon(
 		if i > 0:
 			var a: int = first + (i - 1) * 2
 			indices.append_array([a, a + 1, a + 2, a + 1, a + 3, a + 2])
+
+
+## The arrows of an attack plan: along the line, every so often, from the side of our provinces to the other side of the border
+func _add_arrows(
+	polylines: Array, centres: PackedVector2Array, half_width: float, colour: Color,
+	vertices: PackedVector3Array, colours: PackedColorArray, indices: PackedInt32Array
+) -> void:
+	if centres.is_empty():
+		return
+	var world_centres := PackedVector3Array()
+	for centre: Vector2 in centres:
+		world_centres.append(_map_view.get_ground_position(centre))
+	var total: float = 0.0
+	for polyline: PackedVector2Array in polylines:
+		for i: int in range(1, polyline.size()):
+			total += _map_view.get_ground_position(polyline[i]).distance_to(_map_view.get_ground_position(polyline[i - 1]))
+	var spacing: float = maxf(half_width * 2.0 * ARROW_SPACING_WIDTHS, total / float(MAX_ARROWS))
+	var carried: float = spacing * 0.5
+	for polyline: PackedVector2Array in polylines:
+		for i: int in range(1, polyline.size()):
+			var from: Vector3 = _map_view.get_ground_position(polyline[i - 1])
+			var to: Vector3 = _map_view.get_ground_position(polyline[i])
+			var length: float = from.distance_to(to)
+			carried += length
+			if carried < spacing or length < 0.00001:
+				continue
+			carried = 0.0
+			var middle: Vector3 = (from + to) * 0.5
+			# Outward: away from the nearest province of the line
+			var nearest: Vector3 = world_centres[0]
+			for centre: Vector3 in world_centres:
+				if centre.distance_squared_to(middle) < nearest.distance_squared_to(middle):
+					nearest = centre
+			var direction: Vector3 = middle - nearest
+			direction.y = 0.0
+			if direction.length_squared() < 0.000001:
+				continue
+			_add_arrow(middle, direction.normalized(), half_width, colour, vertices, colours, indices)
+
+
+func _add_arrow(
+	base: Vector3, direction: Vector3, half_width: float, colour: Color,
+	vertices: PackedVector3Array, colours: PackedColorArray, indices: PackedInt32Array
+) -> void:
+	var lift := Vector3(0.0, HEIGHT, 0.0)
+	var side := Vector3(-direction.z, 0.0, direction.x)
+	var shaft_end: Vector3 = base + direction * half_width * 2.0 * (ARROW_LENGTH_WIDTHS - ARROW_HEAD_WIDTHS)
+	var tip: Vector3 = base + direction * half_width * 2.0 * ARROW_LENGTH_WIDTHS
+	var first: int = vertices.size()
+	# The shaft (a quad) and the head (a triangle)
+	vertices.append(base + side * half_width + lift)
+	vertices.append(base - side * half_width + lift)
+	vertices.append(shaft_end + side * half_width + lift)
+	vertices.append(shaft_end - side * half_width + lift)
+	vertices.append(shaft_end + side * half_width * ARROW_HEAD_WIDTHS * 0.5 + lift)
+	vertices.append(shaft_end - side * half_width * ARROW_HEAD_WIDTHS * 0.5 + lift)
+	vertices.append(tip + lift)
+	for _i: int in 7:
+		colours.append(colour)
+	indices.append_array([first, first + 1, first + 2, first + 1, first + 3, first + 2, first + 4, first + 5, first + 6])
