@@ -217,7 +217,11 @@ func setup(unit_banners: Node, theatre_panel: Node, plan_tools: Node) -> void:
 	if _theatre_panel != null:
 		_theatre_panel.theatre_selected.connect(_on_theatre_selected)
 	if _plan_tools != null:
-		_plan_tools.tool_changed.connect(func(_tool: int) -> void: _rebuild_plate())
+		_plan_tools.tool_changed.connect(func(_tool: int) -> void:
+			_rebuild_plate()
+			_update_passive_tool.call_deferred()
+		)
+		_plan_tools.cancelled.connect(func() -> void: _select_group(0))
 
 
 ## The text in Russian (the keys with the ending _RU of ov_data/localisation), the text of the locale if there is none
@@ -323,6 +327,8 @@ func set_suppressed(suppressed: bool) -> void:
 	visible = _wanted and not _suppressed
 	if _suppressed and _plan_tools != null:
 		_plan_tools.stop()
+	elif not _suppressed:
+		_update_passive_tool()
 
 
 func _refresh() -> void:
@@ -368,6 +374,24 @@ func _refresh() -> void:
 		if int(group[&"theatre_id"]) == _active_theatre or _active_theatre == 0:
 			_row.add_child(_make_group(group, generals, theatres))
 	_rebuild_plate()
+	_update_passive_tool()
+
+
+## A selected field marshal without an order shows where a front can be made: the borders of the neighbours, a right click on one makes it
+func _update_passive_tool() -> void:
+	if _plan_tools == null:
+		return
+	var group: Dictionary = _group_by_id(_selected_group) if _selected_group != 0 else {}
+	var without_order: bool = not group.is_empty() and (group[&"front_ids"] as PackedInt32Array).is_empty()
+	if without_order:
+		for line: Dictionary in PlayerSingleton.get_plan_lines():
+			if int(line[&"group_id"]) == _selected_group:
+				without_order = false
+				break
+	if without_order and visible and not _plan_tools.is_active():
+		_plan_tools.start(1, _selected_group, true)
+	elif not without_order and _plan_tools.is_active() and _plan_tools.passive:
+		_plan_tools.stop()
 
 
 func _make_card(general: Dictionary, card_size: Vector2, colour: Color, fallback: String, glow: bool, plus: bool = false) -> _Card:
@@ -566,7 +590,7 @@ func _rebuild_plate() -> void:
 		_plate_holder.custom_minimum_size = Vector2.ZERO
 		return
 	var group_id: int = int(group[&"id"])
-	var tool: int = _plan_tools.tool if _plan_tools != null and int(_plan_tools.group_id) == group_id else 0
+	var tool: int = _plan_tools.tool if _plan_tools != null and int(_plan_tools.group_id) == group_id and not _plan_tools.passive else 0
 	var has_front: bool = not (group[&"front_ids"] as PackedInt32Array).is_empty()
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override(&"separation", 4)

@@ -1,16 +1,19 @@
 extends Node
 ## The tools of the plate of a field marshal (docs/WAR_ASSUMPTIONS.md, section 6): the lines of his plan are drawn on the map.
 ## - The front: the borders of the land of the player with every neighbour are dashed pale yellow, the one under the mouse turns green (our
-##   provinces next to it get green stripes); a click makes the front along the whole border with that neighbour. The coast: the same with the
-##   seas next to our land.
-## - The offensive, the defence, the naval invasion: the provinces a line may hold get dim yellow stripes; the left button held down paints the
+##   provinces next to it get green stripes); a right click (or a left one) makes the front along the whole border with that neighbour. The coast:
+##   the same with the seas next to our land. A selected field marshal without an order gets the front tool by himself (passive: only the right
+##   click on a highlighted border is taken, the other clicks select and move as before).
+## - The offensive, the defence, the naval invasion: the provinces a line may hold get dim yellow stripes; a button (right or left) held down paints the
 ##   provinces of the line (bright stripes, the arrow of an offensive shows where it goes); when the button is let go the line is made. A naval
 ##   invasion starts with a click on a port of the player.
 ## - The edit mode: a click on a province of a line of the marshal takes it away (a piece of the border of a front, a target, a province of the
 ##   defence), a click next to a line adds it.
-## The right button or Escape leaves the tool.
+## Escape or the button of the tool again leaves the tool.
 
 signal tool_changed(tool: int)
+## Escape left the tool (the panel lets the marshal go: his passive front tool would start again)
+signal cancelled
 
 enum Tool { NONE, FRONT, OFFENSIVE, DEFENCE, COAST, NAVAL, EDIT }
 
@@ -26,6 +29,10 @@ const _PLAN_TYPE: Dictionary = { Tool.OFFENSIVE: 0, Tool.DEFENCE: 1, Tool.NAVAL:
 
 var tool: int = Tool.NONE
 var group_id: int = 0
+## The tool started by itself for a selected marshal without an order: only the right click on a highlighted border is taken
+var passive: bool = false
+## The button that paints (left or right)
+var _paint_button: int = MOUSE_BUTTON_LEFT
 var _map_view: MapView
 var _front_lines: Node
 var _highlights: Dictionary = {}
@@ -54,14 +61,19 @@ func is_active() -> bool:
 	return tool != Tool.NONE
 
 
-## Starts a tool for the field marshal (the same tool again leaves it)
-func start(new_tool: int, new_group_id: int) -> void:
+## Starts a tool for the field marshal (the same tool again leaves it, unless it was started by itself: then it becomes the full tool)
+func start(new_tool: int, new_group_id: int, new_passive: bool = false) -> void:
 	if new_tool == tool and new_group_id == group_id:
-		stop()
+		if passive and not new_passive:
+			passive = false
+			tool_changed.emit(tool)
+		elif not new_passive:
+			stop()
 		return
 	stop()
 	tool = new_tool
 	group_id = new_group_id
+	passive = new_passive
 	_map_view.input_tool = _on_map_input
 	match tool:
 		Tool.FRONT, Tool.COAST:
@@ -81,6 +93,7 @@ func stop() -> void:
 	if tool == Tool.NONE:
 		return
 	tool = Tool.NONE
+	passive = false
 	_hovered_entry = -1
 	_painting = false
 	_painted.clear()
@@ -98,6 +111,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if tool != Tool.NONE and key != null and key.pressed and key.keycode == KEY_ESCAPE:
 		stop()
+		cancelled.emit()
 		get_viewport().set_input_as_handled()
 
 
@@ -106,12 +120,13 @@ func _on_map_input(event: InputEvent, province_number: int) -> bool:
 	var button := event as InputEventMouseButton
 	if button == null:
 		return false
-	if button.button_index == MOUSE_BUTTON_RIGHT:
-		if button.pressed:
-			stop()
-		return true
-	if button.button_index != MOUSE_BUTTON_LEFT:
+	if button.button_index != MOUSE_BUTTON_RIGHT and button.button_index != MOUSE_BUTTON_LEFT:
 		return false
+	# The passive front tool takes only the right click on a highlighted border (a click elsewhere selects or moves the armies as before)
+	if passive and (button.button_index != MOUSE_BUTTON_RIGHT or _hovered_entry < 0):
+		return false
+	if not button.pressed and _painting and button.button_index != _paint_button:
+		return true
 	match tool:
 		Tool.FRONT, Tool.COAST:
 			if button.pressed and _hovered_entry >= 0:
@@ -125,6 +140,7 @@ func _on_map_input(event: InputEvent, province_number: int) -> bool:
 		Tool.OFFENSIVE, Tool.DEFENCE:
 			if button.pressed:
 				_painting = true
+				_paint_button = button.button_index
 				_painted.clear()
 				_paint(province_number)
 			elif _painting:
@@ -139,6 +155,7 @@ func _on_map_input(event: InputEvent, province_number: int) -> bool:
 						_update_highlight()
 				else:
 					_painting = true
+					_paint_button = button.button_index
 					_painted.clear()
 					_paint(province_number)
 			elif _painting:
@@ -158,7 +175,7 @@ func _on_province_hovered(province_number: int) -> void:
 				_hovered_entry = found
 				_update_highlight()
 		Tool.OFFENSIVE, Tool.DEFENCE, Tool.NAVAL:
-			if _painting and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			if _painting and Input.is_mouse_button_pressed(_paint_button):
 				_paint(province_number)
 
 
