@@ -291,7 +291,7 @@ THEATRE_DEFAULT_NAME_RU;Театр $N$;;;;;;;;;;;;;x
 CMD_NO_MARSHAL;No field marshal (click to appoint one);;;;;;;;;;;Нет фельдмаршала (нажмите, чтобы назначить);;x
 CMD_NO_GENERAL;No general;;;;;;;;;;;Генерала нет;;x
 CMD_MARSHAL_TOOLTIP;Click: select all his divisions. Right click: attach the divisions selected on the map (no selection: menu). Drop a general here to attach him;;;;;;;;;;;Нажатие: выделить все его дивизии. Правая кнопка: прикрепить дивизии, выделенные на карте (если ничего не выделено, откроется меню). Перетащите сюда генерала, чтобы прикрепить его;;x
-CMD_ATTACHED_TOOLTIP;Attached generals / maximum (the technologies raise it);;;;;;;;;;;Прикреплено генералов / максимум (растёт с технологиями);;x
+CMD_ATTACHED_TOOLTIP;Attached generals: $N$ of $MAX$ (the technologies raise the maximum);;;;;;;;;;;Прикреплено генералов: $N$ из $MAX$ (максимум растёт с технологиями);;x
 CMD_DIVISIONS_TOOLTIP;Divisions under this general;;;;;;;;;;;Дивизий под этим генералом;;x
 CMD_DETACH;Detach: $NAME$;;;;;;;;;;;Открепить: $NAME$;;x
 CMD_ADD_GENERAL;Attach a free general;;;;;;;;;;;Прикрепить свободного генерала;;x
@@ -325,7 +325,7 @@ THEATRE_ROW_TOOLTIP;Click: show the theatre and turn the camera to its region. D
 CMD_NO_MARSHAL_RU;Нет фельдмаршала (нажмите, чтобы назначить);;;;;;;;;;;;;x
 CMD_NO_GENERAL_RU;Генерала нет;;;;;;;;;;;;;x
 CMD_MARSHAL_TOOLTIP_RU;Нажатие: выделить все его дивизии. Правая кнопка: прикрепить дивизии, выделенные на карте (если ничего не выделено, откроется меню). Перетащите сюда генерала, чтобы прикрепить его;;;;;;;;;;;;;x
-CMD_ATTACHED_TOOLTIP_RU;Прикреплено генералов / максимум (растёт с технологиями);;;;;;;;;;;;;x
+CMD_ATTACHED_TOOLTIP_RU;Прикреплено генералов: $N$ из $MAX$ (максимум растёт с технологиями);;;;;;;;;;;;;x
 CMD_DIVISIONS_TOOLTIP_RU;Дивизий под этим генералом;;;;;;;;;;;;;x
 CMD_DETACH_RU;Открепить: $NAME$;;;;;;;;;;;;;x
 CMD_ADD_GENERAL_RU;Прикрепить свободного генерала;;;;;;;;;;;;;x
@@ -360,3 +360,43 @@ CMD_NEW_FRONT_VS;New front against $NAME$;;;;;;;;;;;Новый фронт про
 CMD_NEW_FRONT_EMPTY;New empty front (draw its provinces in the war window, F6);;;;;;;;;;;Новый пустой фронт (провинции задаются в окне войн, F6);;x
 CMD_NEW_FRONT_VS_RU;Новый фронт против: $NAME$;;;;;;;;;;;;;x
 CMD_NEW_FRONT_EMPTY_RU;Новый пустой фронт (провинции задаются в окне войн, F6);;;;;;;;;;;;;x
+PLAN_PLATE_TITLE;Operation plans;;;;;;;;;;;Планы операций;;x
+PLAN_EXECUTE_TOOLTIP;Execute the plan (click: start or stop). Mode: $MODE$ (right click: change);;;;;;;;;;;Выполнение плана (щелчок: начать или остановить). Режим: $MODE$ (правый щелчок: сменить);;x
+PLAN_AGGRESSION_1;careful: attacks only where the victory is almost sure;;;;;;;;;;;осторожный: атакует только там, где победа почти наверняка;;x
+PLAN_AGGRESSION_2;balanced;;;;;;;;;;;средний;;x
+PLAN_AGGRESSION_3;aggressive;;;;;;;;;;;агрессивный;;x
+PLAN_INTEGRITY_TOOLTIP;Integrity of the front: $MODE$ (click: change);;;;;;;;;;;Целостность фронта: $MODE$ (щелчок: сменить);;x
+PLAN_INTEGRITY_0;firm: the divisions keep their places, a changed front may get holes;;;;;;;;;;;жёсткая: дивизии не уходят с позиций, при изменении фронта могут появиться дыры;;x
+PLAN_INTEGRITY_1;medium;;;;;;;;;;;средняя;;x
+PLAN_INTEGRITY_2;loose: the divisions move more to keep the front even;;;;;;;;;;;мягкая: дивизии чаще перемещаются ради равномерного фронта;;x
+PLAN_TOOL_NAVAL;Naval invasion: click a port of ours, then paint the coast to land on;;;;;;;;;;;Морская высадка: щёлкните наш порт, затем проведите по побережью высадки;;x
+PLAN_TOOL_FRONT;Front line: click the border of a neighbour to make the front along it;;;;;;;;;;;Линия фронта: щёлкните по границе соседа, чтобы построить фронт вдоль неё;;x
+PLAN_TOOL_OFFENSIVE;Offensive: paint the enemy provinces to take, the arrow shows the way;;;;;;;;;;;План наступления: проведите по провинциям противника, которые надо взять; стрелка покажет направление;;x
+PLAN_TOOL_OFFENSIVE_NO_FRONT;Offensive: the field marshal needs a front first;;;;;;;;;;;План наступления: сначала постройте фельдмаршалу фронт;;x
+PLAN_TOOL_DEFENCE;Line of defence: paint our provinces to hold;;;;;;;;;;;Полоса обороны: проведите по нашим провинциям, которые надо удержать;;x
+PLAN_TOOL_COAST;Coastal defence: click the coast next to a sea to defend it;;;;;;;;;;;Оборона побережья: щёлкните по берегу у моря, чтобы оборонять его;;x
+PLAN_TOOL_EDIT;Edit mode: a click on a line takes a piece away, a click next to it adds one;;;;;;;;;;;Режим редактирования: щелчок по линии убирает участок, щелчок рядом добавляет;;x
+PLAN_TOOL_DELETE;Delete all the fronts and plans of the field marshal;;;;;;;;;;;Удалить все фронты и планы фельдмаршала;;x
+PLAN_GROUP_NAME;Army group $N$;;;;;;;;;;;$N$-я группа армий;;x
+PLAN_FRONT_LABEL;$N$ div. - $GROUP$;;;;;;;;;;;$N$ див. - $GROUP$;;x
+PLAN_OFFENSIVE_LABEL;Plan $N$ - $D$ div. - $GROUP$;;;;;;;;;;;План №$N$ - $D$ див. - $GROUP$;;x
+PLAN_PLATE_TITLE_RU;Планы операций;;;;;;;;;;;;;x
+PLAN_EXECUTE_TOOLTIP_RU;Выполнение плана (щелчок: начать или остановить). Режим: $MODE$ (правый щелчок: сменить);;;;;;;;;;;;;x
+PLAN_AGGRESSION_1_RU;осторожный: атакует только там, где победа почти наверняка;;;;;;;;;;;;;x
+PLAN_AGGRESSION_2_RU;средний;;;;;;;;;;;;;x
+PLAN_AGGRESSION_3_RU;агрессивный;;;;;;;;;;;;;x
+PLAN_INTEGRITY_TOOLTIP_RU;Целостность фронта: $MODE$ (щелчок: сменить);;;;;;;;;;;;;x
+PLAN_INTEGRITY_0_RU;жёсткая: дивизии не уходят с позиций, при изменении фронта могут появиться дыры;;;;;;;;;;;;;x
+PLAN_INTEGRITY_1_RU;средняя;;;;;;;;;;;;;x
+PLAN_INTEGRITY_2_RU;мягкая: дивизии чаще перемещаются ради равномерного фронта;;;;;;;;;;;;;x
+PLAN_TOOL_NAVAL_RU;Морская высадка: щёлкните наш порт, затем проведите по побережью высадки;;;;;;;;;;;;;x
+PLAN_TOOL_FRONT_RU;Линия фронта: щёлкните по границе соседа, чтобы построить фронт вдоль неё;;;;;;;;;;;;;x
+PLAN_TOOL_OFFENSIVE_RU;План наступления: проведите по провинциям противника, которые надо взять; стрелка покажет направление;;;;;;;;;;;;;x
+PLAN_TOOL_OFFENSIVE_NO_FRONT_RU;План наступления: сначала постройте фельдмаршалу фронт;;;;;;;;;;;;;x
+PLAN_TOOL_DEFENCE_RU;Полоса обороны: проведите по нашим провинциям, которые надо удержать;;;;;;;;;;;;;x
+PLAN_TOOL_COAST_RU;Оборона побережья: щёлкните по берегу у моря, чтобы оборонять его;;;;;;;;;;;;;x
+PLAN_TOOL_EDIT_RU;Режим редактирования: щелчок по линии убирает участок, щелчок рядом добавляет;;;;;;;;;;;;;x
+PLAN_TOOL_DELETE_RU;Удалить все фронты и планы фельдмаршала;;;;;;;;;;;;;x
+PLAN_GROUP_NAME_RU;$N$-я группа армий;;;;;;;;;;;;;x
+PLAN_FRONT_LABEL_RU;$N$ див. - $GROUP$;;;;;;;;;;;;;x
+PLAN_OFFENSIVE_LABEL_RU;План №$N$ - $D$ див. - $GROUP$;;;;;;;;;;;;;x

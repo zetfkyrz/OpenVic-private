@@ -13,6 +13,12 @@ uniform sampler2D province_colour_tex: repeat_enable, filter_nearest;
 uniform uint hover_index;
 // Index of the currently selected province
 uniform uint selected_index;
+// The highlight of the tools of the plans of the field marshals (docs/WAR_ASSUMPTIONS.md, section 6): one texel per province at
+// (number % 256, number / 256), the colour of its diagonal stripes, the alpha their opacity (0: none)
+uniform sampler2D plan_overlay_tex : filter_nearest, hint_default_transparent;
+// The stripes repeat every this many pixels of the province map, the stripe is this share of it
+uniform float plan_stripe_period = 9.0;
+uniform float plan_stripe_share = 0.45;
 // How much to mix between the near detailed map (0) and the far parchment map (1)
 uniform float parchment_mix;
 // Cosmetic terrain textures
@@ -471,6 +477,10 @@ vec3 get_map_colour(vec2 uv) {
 	final_colour = apply_relief_and_water(final_colour, uv);
 	final_colour = apply_inner_borders(final_colour, uv, 1.0 / map_size);
 	final_colour = apply_borders(final_colour, uv, 1.0 / map_size);
+	// The diagonal stripes of the tools of the plans over the provinces they highlight
+	vec4 plan_overlay = texelFetch(plan_overlay_tex, ivec2(read_uvec3(uv).xy), 0);
+	float plan_stripe = step(fract((uv_map_pixels.x + uv_map_pixels.y) / plan_stripe_period), plan_stripe_share);
+	final_colour = mix(final_colour, plan_overlay.rgb, plan_overlay.a * plan_stripe);
 	// Outline of the hovered province (half opaque) and of the selected one (three quarters opaque)
 	if (hover_index != selected_index) {
 		final_colour = apply_province_outline(final_colour, uv, 1.0 / map_size, hover_index, 0.5);

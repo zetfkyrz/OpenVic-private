@@ -1,5 +1,10 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+#include <unordered_set>
+#include <vector>
+
 #include <godot_cpp/classes/object.hpp>
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
@@ -22,6 +27,12 @@ namespace OpenVic {
 
 		CountryInstance* player_country = nullptr;
 		ProvinceInstance const* PROPERTY(selected_province, nullptr);
+		// The bounding boxes of the provinces on the province map (min x, min y, max x, max y by the province number), made once for the lines
+		mutable std::vector<std::array<int32_t, 4>> province_bounds;
+
+		std::vector<std::array<int32_t, 4>> const& get_province_bounds() const;
+		// Polylines (map coordinates 0..1) along the pixel borders of the own provinces with the provinces they are paired with (own << 32 | other)
+		godot::Array make_border_polylines(std::vector<uint32_t> const& own_numbers, std::unordered_set<uint64_t> const& pairs) const;
 
 		static godot::StringName const& _signal_province_selected();
 
@@ -164,17 +175,39 @@ namespace OpenVic {
 		// enemy_country_index < 0 creates an empty front to draw by hand, otherwise the border with the enemy is generated
 		bool create_front(int32_t enemy_country_index) const;
 		bool delete_front(int32_t front_id) const;
-		// Adds the province to the front line or removes it from the line if it is already there
-		bool toggle_front_province(int32_t front_id, int32_t province_number) const;
 		// mode: 0 = defend, 1 = attack
 		bool set_front_mode(int32_t front_id, int32_t mode) const;
 		bool set_front_army(int32_t front_id, int64_t army_id, bool assigned) const;
 		bool assign_free_armies(int32_t front_id) const;
-		// The line of the front along the borders of the provinces: an Array of PackedVector2Array in map coordinates (0..1), empty if
-		// the front is not the player's or has no border to draw
+		// The line of the front along the borders of the provinces (its pieces, PlayerPlanLines.cpp): an Array of PackedVector2Array in map coordinates
+		// (0..1), empty if the front is not the player's or has no border to draw
 		godot::Array get_front_lines(int32_t front_id) const;
-		// The fronts of the player, cheap (for drawing them on the map): [{ id, mode, army_count, province_numbers: PackedInt32Array }]
+		// The fronts of the player, cheap (for drawing them on the map): [{ id, mode, kind (0 border, 1 coast), enemy_index (-1: none), sea_number,
+		// edited, army_count, division_count, group_id, commanded, province_numbers, edges (own, other, own, other... province numbers) }]
 		godot::Array get_front_summaries() const;
+		// The lines of the field marshals (docs/WAR_ASSUMPTIONS.md, section 6; PlayerPlanLines.cpp). What the tools of the plate highlight:
+		// { neighbours: [{ country_index, name, at_war, own_numbers, other_numbers, edges, polylines }], seas: [{ sea_number, own_numbers, edges, polylines }] } (the
+		// border of the land the player controls with every neighbour and with every sea province)
+		godot::Dictionary get_border_highlights() const;
+		// The provinces a line of the type may hold (0 offensive: the land of the countries across the fronts of the field marshal and of their side in a
+		// war with the player, 1 defence: the land of the player, 2 naval invasion: the ports of the player and the coast of the enemies and of the
+		// neighbours)
+		godot::PackedInt32Array get_plan_candidates(int32_t type, int32_t group_id) const;
+		// [{ id, group_id, type (0 offensive, 1 defence, 2 naval), front_id, port_number, province_numbers, zone_numbers (an offensive) }]
+		godot::Array get_plan_lines() const;
+		// The line of an offensive: the far border of its targets (polylines like get_front_lines)
+		godot::Array get_offensive_line(int32_t line_id) const;
+		// group_id 0: a front of nobody
+		bool create_border_front(int32_t group_id, int32_t country_index) const;
+		bool create_coastal_front(int32_t group_id, int32_t sea_number) const;
+		bool toggle_front_edge(int32_t front_id, int32_t own_number, int32_t other_number) const;
+		bool create_plan_line(int32_t group_id, int32_t type, int32_t province_number) const;
+		bool toggle_plan_line_province(int32_t line_id, int32_t province_number) const;
+		bool delete_plan_line(int32_t line_id) const;
+		// The trash of the plate: all the fronts and the lines of the field marshal
+		bool delete_group_lines(int32_t group_id) const;
+		// aggression 1..3 (careful, balanced, aggressive), integrity 0..2 (firm, medium, loose)
+		bool set_army_group_modes(int32_t group_id, int32_t aggression, int32_t integrity) const;
 		bool set_auto_plan(bool enabled) const;
 
 		// Selected army panel (A1):
@@ -237,10 +270,9 @@ namespace OpenVic {
 		// command_colour and command_group_id (grey, 0: not in a command). The player recolours his marshal with an index of get_command_palette().
 		bool set_army_group_colour(int32_t group_id, int32_t colour_index) const;
 		godot::Array get_command_palette() const;
-		// The plan of a field marshal (B3): a group has front_ids (the fronts it holds), plan_front_id, plan_mode (0 attack, 1 hold) and plan_active (the check
-		// mark); a front of get_front_summaries() has group_id and commanded. Holding a front, the plan, the check mark: three commands
+		// The plan of a field marshal: a group has front_ids (the fronts it holds), plan_active (it executes the plan), aggression, integrity; a front of
+		// get_front_summaries() has group_id and commanded
 		bool set_army_group_front(int32_t group_id, int32_t front_id, bool held) const;
-		bool set_army_group_plan(int32_t group_id, int32_t front_id, int32_t mode) const;
 		bool set_army_group_plan_active(int32_t group_id, bool active) const;
 		// The theatres of the player (B4): [{ id, is_main, name (empty: the default of the interface), colour_index, colour, focus_province (0: none), group_ids,
 		// marshal_count, army_count, division_count }]; a group of get_army_groups() has theatre_id. The theatre that the panel shows is chosen by the interface

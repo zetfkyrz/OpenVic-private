@@ -39,7 +39,6 @@ var _division_row: HBoxContainer
 var _templates_signature: String = ""
 var _templates_window: Control
 var _tech_window: Control
-var _groups_window: Control
 var _group_row: HBoxContainer
 var _group_option: OptionButton
 var _groups_signature: String = ""
@@ -172,10 +171,6 @@ func _ready() -> void:
 	_group_option.clip_text = true
 	_group_option.item_selected.connect(_on_group_selected)
 	_group_row.add_child(_group_option)
-	var groups_button := Button.new()
-	groups_button.text = "Группы и фельдмаршалы…"
-	groups_button.pressed.connect(_on_groups_pressed)
-	_group_row.add_child(groups_button)
 
 	_tree = Tree.new()
 	_tree.columns = 5
@@ -280,10 +275,6 @@ func set_templates_window(window: Control) -> void:
 
 func set_tech_window(window: Control) -> void:
 	_tech_window = window
-
-
-func set_groups_window(window: Control) -> void:
-	_groups_window = window
 
 
 ## Shows the selected armies of the player, an empty list hides the panel
@@ -480,11 +471,6 @@ func _on_group_selected(index: int) -> void:
 	var group_id: int = _group_option.get_item_metadata(index)
 	for army_id: int in _army_ids:
 		PlayerSingleton.set_army_group(army_id, group_id)
-
-
-func _on_groups_pressed() -> void:
-	if _groups_window != null:
-		_groups_window.open_groups()
 
 
 func _on_reform_pressed() -> void:

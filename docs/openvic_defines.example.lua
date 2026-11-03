@@ -177,6 +177,7 @@ defines = {
 		NAVAL_EVASION_DIVISOR = 10, -- whole number 1 to 1000
 		NAVAL_MAX_DAMAGE_RATIO = 6, -- whole number 1 to 1000
 		FRONT_SPREAD_MAX_SPLITS_PER_DAY = 4, -- whole number 0 to 100
+		PLAN_ZONE_SLACK = 1, -- whole number 0 to 20
 		TEMPLATE_RANKS_DEFAULT = 3, -- whole number 1 to 12
 		TEMPLATE_RANKS_MAX = 6, -- whole number 1 to 12
 		TEMPLATE_DEPTH_DEFAULT = 2, -- whole number 1 to 8

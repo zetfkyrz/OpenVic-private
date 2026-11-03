@@ -235,11 +235,27 @@ func _on_action_pressed(action_index: int) -> void:
 		return
 
 	var identifier: String = _action_identifiers[action_index]
+	# Peace is negotiated in the window of the peace (the demands, the answer of the enemy)
+	if identifier == "offer_peace" and _open_peace_window(_selected_country_index):
+		return
 	if not PlayerSingleton.send_diplomatic_action(_selected_country_index, action_index):
 		push_warning("Diplomatic action \"%s\" was not accepted" % identifier)
 
 	# The simulation applies the action immediately, refresh the relation and the available actions
 	_update_info()
+
+
+## Opens the window of the peace for the war of the player with the country; false if there is no such war or no window
+func _open_peace_window(country_index: int) -> bool:
+	var peace_window: Node = get_tree().get_first_node_in_group(&"peace_window")
+	if peace_window == null:
+		return false
+	for war: Dictionary in PlayerSingleton.get_war_overview().get("wars", []):
+		for enemy: Dictionary in (war["defenders"] if war["we_attack"] else war["attackers"]):
+			if int(enemy["index"]) == country_index:
+				peace_window.open_for_war(int(war["id"]))
+				return true
+	return false
 
 
 func _update_selected_country() -> void:

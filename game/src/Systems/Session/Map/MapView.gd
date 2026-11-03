@@ -72,6 +72,10 @@ var _is_detailed_view: bool = false
 
 var _map_mesh: MapMesh
 var _map_shader_material: ShaderMaterial
+## A tool of the map (the lines of a field marshal, PlanTools.gd) takes the buttons of the mouse while it is set: it is called with the event and
+## the number of the province under the mouse (0 outside the map) and returns true when it used the event
+var input_tool: Callable
+var _front_lines: Node
 # Bakes the relief and feeds the map theme and the map quality into the shader
 const _MapBaker: GDScript = preload("res://src/Systems/Session/Map/MapBaker.gd")
 var _map_baker: Node
@@ -146,6 +150,7 @@ func _ready() -> void:
 	front_lines.name = &"FrontLines"
 	add_child(front_lines)
 	front_lines.setup(self)
+	_front_lines = front_lines
 
 	PlayerSingleton.province_selected.connect(_on_province_selected)
 
@@ -267,6 +272,24 @@ func get_ground_position(pos: Vector2) -> Vector3:
 
 
 ## Height of the camera above the map
+## The node that draws the fronts and the lines of the plans (FrontLines.gd)
+func get_front_lines() -> Node:
+	return _front_lines
+
+
+## The diagonal stripes over the provinces (the tools of the plans): a texture of one texel per province, see plan_overlay_tex of TerrainMap.gdshader
+func set_plan_overlay(texture: Texture2D) -> void:
+	if _map_shader_material:
+		_map_shader_material.set_shader_parameter(&"plan_overlay_tex", texture)
+
+
+## The province under the mouse (0 outside the map)
+func get_mouse_province_number() -> int:
+	if not _mouse_over_viewport or not _map_mesh.is_valid_uv_coord(_mouse_pos_map):
+		return 0
+	return GameSingleton.get_province_number_from_uv_coords(_mouse_pos_map)
+
+
 func get_camera_height() -> float:
 	return _camera.position.y
 
@@ -344,6 +367,12 @@ var _cardinal_movement_vector := Vector2.ZERO
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if input_tool.is_valid() and event is InputEventMouseButton and _mouse_over_viewport:
+		var tool_province: int = GameSingleton.get_province_number_from_uv_coords(_mouse_pos_map) if _map_mesh.is_valid_uv_coord(_mouse_pos_map) else 0
+		if input_tool.call(event, tool_province):
+			_click_pending = false
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventMouseMotion:
 		queue_province_hover_update()
 
