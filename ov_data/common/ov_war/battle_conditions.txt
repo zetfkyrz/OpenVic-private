@@ -1,0 +1,14 @@
+# The conditions of the attacker in a land battle (docs/WAR_ASSUMPTIONS.md, section 6): multipliers of the damage the attacking side deals.
+# Damage = attack x conditions x density x softening (military/BattleFormulas.cpp, battle_hit). The defending side deals its damage with 1.
+# The values are estimates (assumptions), edit them freely.
+
+# By the terrain of the province of the battle (the terrain types of Vic2, map/terrain.txt); a terrain that is not listed is 1.0
+terrain = {
+}
+
+# The attacker came into the province over a river: at least ov_war.RIVER_BORDER_MIN_SHARE of the border of the two provinces runs along a river
+river_crossing = 0.75
+
+# The game has no night and no weather yet: these are kept for them and are always used as they are
+night = 1.0
+weather = 1.0
