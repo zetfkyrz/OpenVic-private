@@ -299,10 +299,10 @@ func _on_cell_changed(_index: int) -> void:
 func _refresh() -> void:
 	if not visible:
 		return
-	if not PlayerSingleton.has_army_organisation():
-		_info_label.text = "Шаблоны дивизий открываются технологией «Организация армии» (цивилизованным странам)."
+	if not PlayerSingleton.has_division_templates():
+		_info_label.text = "У страны один шаблон дивизии, заданный в данных; изменить его нельзя. Свои шаблоны открывает технология «Стандартизированная армия»."
 	else:
-		_info_label.text = "Шаблон — сетка: шеренги задают ширину фронта, ряды — глубину; в клетку ставится любой тип полка. Чем шире фронт, тем больше урон, чем глубже — тем дольше держится дивизия. Полки со старта игры остаются вне шаблона, пока вы не нажмёте «Переформировать по шаблону» в панели армии."
+		_info_label.text = "Шаблон — сетка: шеренги задают ширину фронта, ряды — глубину; в клетку ставится любой тип полка. Чем шире фронт, тем больше урон, чем глубже — тем дольше держится дивизия. Полки со старта игры разложены по первому шаблону; новые полки, которым нет места в дивизиях, ждут в резерве армии, пока вы не нажмёте «Переформировать по шаблону» в панели армии."
 	_templates = PlayerSingleton.get_division_templates()
 	var limits: Dictionary = PlayerSingleton.get_division_template_limits()
 	var types: Array = PlayerSingleton.get_division_cell_types()
@@ -340,7 +340,7 @@ func _refresh() -> void:
 
 
 func _update_buttons() -> void:
-	var allowed: bool = PlayerSingleton.has_army_organisation()
+	var allowed: bool = PlayerSingleton.has_division_templates()
 	_create_button.disabled = not allowed
 	_update_button.disabled = not allowed or _selected_id == 0
 	_delete_button.disabled = not allowed or _selected_id == 0

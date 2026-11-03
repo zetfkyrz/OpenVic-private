@@ -1,0 +1,10 @@
+# The fixed division template of every country (docs/WAR_ASSUMPTIONS.md, section 6). A country without mechanic:division_templates (the technology
+# standardized_army) has only this template and cannot change it; with the mechanic it is the first of its templates and the regiments of the
+# history of Vic2 are laid out by it too.
+# Every rank is a column of the front, its regiments are the rows from the first line backwards (line 1, line 2, ...). The ids are the ids of
+# ov_data/common/ov_units (or of Vic2, through aliases.txt).
+default_template = {
+	rank = { line_infantry line_infantry }
+	rank = { line_infantry line_infantry }
+	rank = { cavalry cavalry }
+}

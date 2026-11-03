@@ -151,7 +151,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_army_supply_priority, { "army_id", "priority" });
 	OV_BIND_METHOD(PlayerSingleton::set_global_supply_priority, { "priority" });
 	OV_BIND_METHOD(PlayerSingleton::get_global_supply_priority);
-	OV_BIND_METHOD(PlayerSingleton::has_army_organisation);
+	OV_BIND_METHOD(PlayerSingleton::has_army_command);
+	OV_BIND_METHOD(PlayerSingleton::has_division_templates);
 	OV_BIND_METHOD(PlayerSingleton::get_army_groups);
 	OV_BIND_METHOD(PlayerSingleton::create_army_group);
 	OV_BIND_METHOD(PlayerSingleton::delete_army_group, { "group_id" });
@@ -2852,7 +2853,8 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	}
 	result["units"] = units;
 
-	result["has_organisation"] = country.has_army_organisation();
+	result["has_command"] = country.has_army_command();
+	result["has_templates"] = country.has_unlock(UNLOCK_MECHANIC_DIVISION_TEMPLATES);
 	Array divisions;
 	int32_t division_number = 0;
 	for (DivisionInstance const& division : army.get_divisions()) {
@@ -3128,8 +3130,12 @@ bool PlayerSingleton::set_army_group_marshal(int32_t group_id, int64_t leader_id
 	);
 }
 
-bool PlayerSingleton::has_army_organisation() const {
-	return player_country != nullptr && player_country->has_army_organisation();
+bool PlayerSingleton::has_army_command() const {
+	return player_country != nullptr && player_country->has_army_command();
+}
+
+bool PlayerSingleton::has_division_templates() const {
+	return player_country != nullptr && player_country->has_unlock(UNLOCK_MECHANIC_DIVISION_TEMPLATES);
 }
 
 namespace {

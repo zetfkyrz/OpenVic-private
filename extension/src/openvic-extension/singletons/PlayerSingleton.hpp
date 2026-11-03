@@ -193,10 +193,11 @@ namespace OpenVic {
 		// of the player that have no priority of their own
 		bool set_army_supply_priority(int64_t army_id, int32_t priority) const;
 		bool set_global_supply_priority(int32_t priority) const;
-		// Divisions (docs/PLAN_ARMY_SUPPLY_FRONTS.md, section 4): get_army_details also has has_organisation (the country has the technology of the
-		// organisation of the army: divisions, templates and generals), divisions: [{ id, template_id (0 = out of the template), name, regiments,
-		// unit_ids: [...] }] and the division_id of every unit
-		bool has_army_organisation() const;
+		// Divisions (docs/PLAN_ARMY_SUPPLY_FRONTS.md, section 4; every army consists of them): get_army_details also has has_command (mechanic:command:
+		// generals, groups, fronts), has_templates (mechanic:division_templates: own templates, reforming), divisions: [{ id, template_id (0 = out of the
+		// template), name, regiments, unit_ids: [...] }] and the division_id of every unit
+		bool has_army_command() const;
+		bool has_division_templates() const;
 		// The templates of the divisions of the player (a grid, docs/PLAN_ARMY_SUPPLY_FRONTS.md, 4b): [{ id, name, text, cells, stats }] where cells is
 		// max_ranks x max_depth numbers (the cell of rank r, row d is at r * max_depth + d: the regiment type + 1, 0 is empty) and stats what the template
 		// is worth (get_division_grid_stats)

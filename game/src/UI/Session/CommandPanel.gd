@@ -142,7 +142,7 @@ func set_suppressed(suppressed: bool) -> void:
 
 
 func _refresh() -> void:
-	if not PlayerSingleton.has_army_organisation():
+	if not PlayerSingleton.has_army_command():
 		_wanted = false
 		visible = false
 		return

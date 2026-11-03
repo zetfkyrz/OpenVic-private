@@ -425,17 +425,17 @@ func _update_leader() -> void:
 			if not general.get(&"leader_can_be_used", true):
 				_general_option.set_item_disabled(_general_option.item_count - 1, true)
 
-	var organised: bool = _details.get(&"has_organisation", false)
+	var organised: bool = _details.get(&"has_command", false)
 	if not organised:
 		_leader_label.text = "Нет генерала"
-		_leader_label.tooltip_text = "Генералы командуют армиями только у стран с технологией «Организация армии» (цивилизованных)"
+		_leader_label.tooltip_text = "Генералы командуют армиями только у стран с технологией «Стандартизированная армия»"
 	_general_option.disabled = _general_option.item_count == 0 or not organised
 	_assign_button.disabled = _general_option.item_count == 0 or not _details[&"is_player"] or not organised
 	_remove_leader_button.disabled = leader_id == 0 or not _details[&"is_player"]
 
 
 func _update_divisions_row() -> void:
-	var organised: bool = _details.get(&"has_organisation", false)
+	var organised: bool = _details.get(&"has_templates", false)
 	_division_row.visible = organised
 	if not organised:
 		return
@@ -452,7 +452,7 @@ func _update_divisions_row() -> void:
 
 
 func _update_group_row() -> void:
-	var organised: bool = _details.get(&"has_organisation", false)
+	var organised: bool = _details.get(&"has_command", false)
 	_group_row.visible = organised
 	if not organised:
 		return
@@ -524,7 +524,7 @@ func _update_units() -> void:
 	_tree.clear()
 	var root: TreeItem = _tree.create_item()
 	var to_select: TreeItem = null
-	if _details.get(&"has_organisation", false) and not _details.get(&"divisions", []).is_empty():
+	if not _details.get(&"divisions", []).is_empty():
 		# The divisions with their regiments
 		var by_id: Dictionary = {}
 		for unit: Dictionary in _details[&"units"]:

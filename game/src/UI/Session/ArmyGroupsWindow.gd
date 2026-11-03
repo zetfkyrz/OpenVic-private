@@ -133,8 +133,8 @@ func _general_by_id(leader_id: int) -> Dictionary:
 func _refresh() -> void:
 	if not visible:
 		return
-	if not PlayerSingleton.has_army_organisation():
-		_info_label.text = "Группы армий и фельдмаршалы открываются технологией «Организация армии» (цивилизованным странам)."
+	if not PlayerSingleton.has_army_command():
+		_info_label.text = "Группы армий и фельдмаршалы открываются технологией «Стандартизированная армия» (у цивилизованных стран она есть со старта)."
 	else:
 		_info_label.text = "Слева фельдмаршал группы, правее и мельче — прикреплённые к нему генералы армий. Армия входит в группу в своей панели. Фельдмаршал даёт половину своего бонуса к снабжению всем армиям группы."
 	_groups = PlayerSingleton.get_army_groups()
@@ -314,7 +314,7 @@ func _on_colour_pressed(group_id: int, colour_index: int) -> void:
 
 
 func _update_buttons() -> void:
-	var allowed: bool = PlayerSingleton.has_army_organisation()
+	var allowed: bool = PlayerSingleton.has_army_command()
 	var selected: bool = _selected_id != 0
 	_create_button.disabled = not allowed
 	_delete_button.disabled = not allowed or not selected

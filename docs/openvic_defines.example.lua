@@ -181,7 +181,6 @@ defines = {
 		NAVAL_ORGANISATION_DAMAGE = 0.08, -- fraction 0 to 100
 		NAVAL_EVASION_DIVISOR = 10, -- whole number 1 to 1000
 		NAVAL_MAX_DAMAGE_RATIO = 6, -- whole number 1 to 1000
-		FRONT_SPREAD_CHUNK_SIZE = 4, -- whole number 1 to 40
 		FRONT_SPREAD_MAX_SPLITS_PER_DAY = 4, -- whole number 0 to 100
 		TEMPLATE_RANKS_DEFAULT = 3, -- whole number 1 to 12
 		TEMPLATE_RANKS_MAX = 6, -- whole number 1 to 12

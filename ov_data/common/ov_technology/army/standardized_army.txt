@@ -9,5 +9,5 @@ standardized_army = {
 	year_hint = 1836   # a hint for the AI, nothing more
 	start = civilised   # the civilised countries have it researched from the start
 	prerequisite = { arms_making }
-	unlocks = { "mechanic:division_templates" "equipment:field_gun_1" "unit:artillery" }
+	unlocks = { "mechanic:division_templates" "mechanic:command" "equipment:field_gun_1" "unit:artillery" }
 }
