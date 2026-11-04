@@ -174,6 +174,8 @@ func _on_gamestate_updated() -> void:
 					entry[&"label"] += " (" + _t("PLAN_PLANNING").replace("$P$", str(roundi(float(group[&"planning"]) * 100.0))) + ")"
 		elif type == 1:
 			entry[&"label"] = group_label(group_id, groups)
+		elif type == 3:
+			entry[&"label"] = _t("PLAN_BREAKTHROUGH_LABEL").replace("$D$", str(int(line.get(&"division_count", 0)))).replace("$GROUP$", group_label(group_id, groups))
 		else:
 			var port: int = int(line[&"port_number"])
 			entry[&"from"] = MapItemSingleton.get_unit_position_by_province_number(port) if port >= 1 else Vector2.ZERO
@@ -295,6 +297,16 @@ func _rebuild_mesh() -> void:
 				var to: Vector2 = entry[&"to"]
 				if from != Vector2.ZERO and to != from:
 					_add_dashed_arc(builder, _ground(from), _ground(to), width, colour)
+			3:
+				# A narrow arrow along the chain of the way
+				var way: PackedVector3Array = _world_points(entry[&"centres"])
+				if way.size() >= 2:
+					builder.add_ribbon(way, half_width * 1.6, Color(colour.r, colour.g, colour.b, 0.75))
+					var tip: Vector3 = way[way.size() - 1]
+					var direction: Vector3 = (tip - way[way.size() - 2]).normalized()
+					var side := Vector3(-direction.z, 0.0, direction.x) * width * 2.4
+					builder.add_triangle(tip - direction * width * 1.5 + side, tip - direction * width * 1.5 - side, tip + direction * width * 3.0, colour)
+					_add_label_on(way[0].lerp(way[way.size() - 1], 0.5), way[way.size() - 1] - way[0], str(entry[&"label"]), width)
 
 	# The circles at the ends (the handles)
 	for handle: Dictionary in _handles:

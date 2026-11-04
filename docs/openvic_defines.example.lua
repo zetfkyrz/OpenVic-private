@@ -187,6 +187,7 @@ defines = {
 		PLAN_WIN_BALANCED = 0.65, -- fraction 0 to 1
 		PLAN_WIN_AGGRESSIVE = 0.5, -- fraction 0 to 1
 		PLAN_MIN_HOLD = 1, -- whole number 0 to 100
+		PLAN_BREAKTHROUGH_SHARE = 0.3333, -- fraction 0 to 1
 		PLANNING_GAIN_PER_DAY = 0.01, -- fraction 0 to 1
 		PLANNING_MAX = 0.3, -- fraction 0 to 10
 		PLANNING_DECAY_PER_DAY = 0.02, -- fraction 0 to 1

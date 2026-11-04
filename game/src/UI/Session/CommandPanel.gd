@@ -164,6 +164,13 @@ class _ToolButton extends Button:
 					var o := Vector2(w * (0.2 + 0.2 * float(i)), h * (0.42 - 0.12 * float(i)))
 					draw_polyline(PackedVector2Array([o + Vector2(-w * 0.06, -h * 0.1), o, o + Vector2(w * 0.1, -h * 0.02)]), orange, 2.5)
 				_arrow(Vector2(w * 0.6, h * 0.5), Vector2(w * 0.88, h * 0.18), gold, w)
+			&"breakthrough":
+				# Three narrow arrows one after another
+				for i: int in 3:
+					var x: float = w * (0.22 + 0.2 * float(i))
+					var colour_i: Color = orange if i == 2 else gold
+					draw_line(Vector2(x - w * 0.1, h * 0.78 - h * 0.1 * float(i)), Vector2(x + w * 0.12, h * 0.3 - h * 0.05 * float(i)), colour_i, 2.0)
+					_arrow(Vector2(x, h * 0.62 - h * 0.1 * float(i)), Vector2(x + w * 0.14, h * 0.28 - h * 0.05 * float(i)), colour_i, w)
 			&"defence":
 				_shield(c, w, gold)
 				_dashes(PackedVector2Array([Vector2(w * 0.32, h * 0.52), Vector2(w * 0.68, h * 0.52)]), gold, w)
@@ -645,6 +652,10 @@ func _rebuild_plate() -> void:
 	offensive.disabled = not has_front
 	offensive.pressed.connect(_start_tool.bind(2, group_id))
 	buttons.add_child(offensive)
+	var breakthrough := _tool_button(&"breakthrough", _t("PLAN_TOOL_BREAKTHROUGH") if has_front else _t("PLAN_TOOL_OFFENSIVE_NO_FRONT"), tool == 8)
+	breakthrough.disabled = not has_front
+	breakthrough.pressed.connect(_start_tool.bind(8, group_id))
+	buttons.add_child(breakthrough)
 	buttons.add_child(_gap())
 	var defence := _tool_button(&"defence", _t("PLAN_TOOL_DEFENCE"), tool == 3)
 	defence.pressed.connect(_start_tool.bind(3, group_id))

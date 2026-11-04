@@ -193,7 +193,8 @@ namespace OpenVic {
 		// war with the player, 1 defence: the land of the player, 2 naval invasion: the ports of the player and the coast of the enemies and of the
 		// neighbours)
 		godot::PackedInt32Array get_plan_candidates(int32_t type, int32_t group_id) const;
-		// [{ id, group_id, type (0 offensive, 1 defence, 2 naval), front_id, port_number, province_numbers, zone_numbers (an offensive) }]
+		// [{ id, group_id, type (0 offensive, 1 defence, 2 naval, 3 breakthrough), front_id, port_number, province_numbers, zone_numbers (an offensive),
+		//    division_count (a breakthrough: its divisions) }]
 		godot::Array get_plan_lines() const;
 		// The line of an offensive: the far border of its targets (polylines like get_front_lines)
 		godot::Array get_offensive_line(int32_t line_id) const;

@@ -5,7 +5,7 @@ extends Node
 ##   down and moved along the border makes it only on the part between the two provinces (the part is green while the button is held). The coast:
 ##   the same with the seas next to our land. A selected field marshal without an order gets the front tool by himself (passive: only the right
 ##   click on a highlighted border is taken, the other clicks select and move as before).
-## - The offensive, the defence, the naval invasion: the provinces a line may hold get dim yellow stripes; a button (right or left) held down paints the
+## - The offensive, the defence, the naval invasion, the breakthrough (a chain of neighbouring provinces into the enemy land, like the defence): the provinces a line may hold get dim yellow stripes; a button (right or left) held down paints the
 ##   provinces of the line (bright stripes, the arrow of an offensive shows where it goes); when the button is let go the line is made. A naval
 ##   invasion starts with a click on a port of the player.
 ## - The edit mode: a click on a province of a line of the marshal takes it away (a piece of the border of a front, a target, a province of the
@@ -19,7 +19,7 @@ signal tool_changed(tool: int)
 ## Escape left the tool (the panel lets the marshal go: his passive front tool would start again)
 signal cancelled
 
-enum Tool { NONE, FRONT, OFFENSIVE, DEFENCE, COAST, NAVAL, EDIT, HANDLES }
+enum Tool { NONE, FRONT, OFFENSIVE, DEFENCE, COAST, NAVAL, EDIT, HANDLES, BREAKTHROUGH }
 
 const _COLOUR_BORDER: Color = Color(0.93, 0.88, 0.55, 0.8)
 const _COLOUR_HOVER: Color = Color(0.3, 0.95, 0.35, 1.0)
@@ -29,7 +29,7 @@ const _STRIPES_PAINTED: Color = Color(1.0, 0.9, 0.15, 0.75)
 const _STRIPES_LINE: Color = Color(1.0, 0.75, 0.2, 0.45)
 ## The texture of the stripes holds the province numbers below 256 times this (Victoria 2 has about 3300 provinces)
 const _OVERLAY_ROWS: int = 32
-const _PLAN_TYPE: Dictionary = { Tool.OFFENSIVE: 0, Tool.DEFENCE: 1, Tool.NAVAL: 2 }
+const _PLAN_TYPE: Dictionary = { Tool.OFFENSIVE: 0, Tool.DEFENCE: 1, Tool.NAVAL: 2, Tool.BREAKTHROUGH: 3 }
 
 var tool: int = Tool.NONE
 var group_id: int = 0
@@ -97,7 +97,7 @@ func start(new_tool: int, new_group_id: int, new_passive: bool = false) -> void:
 		Tool.FRONT, Tool.COAST:
 			_highlights = PlayerSingleton.get_border_highlights()
 			_entries = _highlights.get(&"neighbours" if tool == Tool.FRONT else &"seas", [])
-		Tool.OFFENSIVE, Tool.DEFENCE, Tool.NAVAL:
+		Tool.OFFENSIVE, Tool.DEFENCE, Tool.NAVAL, Tool.BREAKTHROUGH:
 			_candidates.clear()
 			for number: int in PlayerSingleton.get_plan_candidates(_PLAN_TYPE[tool], group_id):
 				_candidates[number] = true
@@ -178,7 +178,7 @@ func _on_map_input(event: InputEvent, province_number: int) -> bool:
 				PlayerSingleton.create_coastal_front(group_id, int(_entries[_hovered_entry][&"sea_number"]))
 				if not button.shift_pressed:
 					stop()
-		Tool.OFFENSIVE, Tool.DEFENCE:
+		Tool.OFFENSIVE, Tool.DEFENCE, Tool.BREAKTHROUGH:
 			if button.pressed:
 				_painting = true
 				_paint_button = button.button_index
@@ -269,7 +269,7 @@ func _on_province_hovered(province_number: int) -> void:
 			if found != _hovered_entry:
 				_hovered_entry = found
 				_update_highlight()
-		Tool.OFFENSIVE, Tool.DEFENCE, Tool.NAVAL:
+		Tool.OFFENSIVE, Tool.DEFENCE, Tool.NAVAL, Tool.BREAKTHROUGH:
 			if _painting and Input.is_mouse_button_pressed(_paint_button):
 				_paint(province_number)
 
@@ -328,7 +328,7 @@ func _on_gamestate_updated() -> void:
 	for line: Dictionary in PlayerSingleton.get_plan_lines():
 		if not _pending_known.has(int(line[&"id"])) and int(line[&"type"]) == _pending_type:
 			for number: int in _pending_provinces:
-				if _pending_type == 1:
+				if _pending_type == 1 or _pending_type == 3:
 					PlayerSingleton.extend_plan_line(int(line[&"id"]), true, number)
 				else:
 					PlayerSingleton.toggle_plan_line_province(int(line[&"id"]), number)
@@ -398,7 +398,7 @@ func _update_highlight() -> void:
 						stripes[number] = _STRIPES_HOVER
 			if not _front_part_lines.is_empty():
 				entries.append({ &"polylines": _front_part_lines, &"colour": _COLOUR_HOVER, &"dashed": false })
-		Tool.OFFENSIVE, Tool.DEFENCE, Tool.NAVAL:
+		Tool.OFFENSIVE, Tool.DEFENCE, Tool.NAVAL, Tool.BREAKTHROUGH:
 			for number: int in _candidates:
 				stripes[number] = _STRIPES_CANDIDATE
 			for number: int in _painted:
@@ -407,7 +407,7 @@ func _update_highlight() -> void:
 				stripes[_port] = _STRIPES_HOVER
 			if tool == Tool.OFFENSIVE and not _painted.is_empty():
 				entries.append(_preview_arrow())
-			if tool == Tool.DEFENCE and _painted.size() >= 2:
+			if (tool == Tool.DEFENCE or tool == Tool.BREAKTHROUGH) and _painted.size() >= 2:
 				var chain := PackedVector2Array()
 				for number: int in _painted:
 					chain.append(MapItemSingleton.get_unit_position_by_province_number(number))

@@ -421,7 +421,7 @@ PackedInt32Array PlayerSingleton::get_plan_candidates(int32_t type, int32_t grou
 	// The countries an offensive aims at: the ones across the fronts of the field marshal (with the countries of their side in a war with the player);
 	// a landing: the enemies and the neighbours of the player
 	std::unordered_set<CountryInstance const*> aims;
-	if (type == static_cast<int32_t>(PlanLine::type_t::OFFENSIVE)) {
+	if (type == static_cast<int32_t>(PlanLine::type_t::OFFENSIVE) || type == static_cast<int32_t>(PlanLine::type_t::BREAKTHROUGH)) {
 		for (Front const& front : war_manager.get_fronts()) {
 			if (front.country != player_country || front.group_id != static_cast<uint32_t>(group_id) || front.kind != Front::kind_t::BORDER) {
 				continue;
@@ -454,6 +454,7 @@ PackedInt32Array PlayerSingleton::get_plan_candidates(int32_t type, int32_t grou
 		bool fits = false;
 		switch (type) {
 		case static_cast<int32_t>(PlanLine::type_t::OFFENSIVE):
+		case static_cast<int32_t>(PlanLine::type_t::BREAKTHROUGH):
 			fits = controller != player_country && aims.contains(controller);
 			break;
 		case static_cast<int32_t>(PlanLine::type_t::DEFENCE):
@@ -502,6 +503,7 @@ Array PlayerSingleton::get_plan_lines() const {
 			}
 		}
 		entry["zone_numbers"] = zone_numbers;
+		entry["division_count"] = static_cast<int32_t>(line.army_ids.size());
 		result.push_back(entry);
 	}
 	return result;
