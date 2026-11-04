@@ -199,6 +199,7 @@ defines = {
 		FALLBACK_ORG_THRESHOLD = 0.25, -- fraction 0 to 1
 		FALLBACK_RETURN_ORG = 0.6, -- fraction 0 to 1
 		NAVAL_PLAN_PREP_DAYS = 10, -- whole number 0 to 365
+		PLAN_AI_ENABLED = 0, -- whole number 0 to 1
 		NAVAL_PLAN_PENALTY_REDUCTION = 2, -- number 0 to 100
 		PLAN_POCKET_WEIGHT = 3, -- number 0 to 1000
 		TEMPLATE_RANKS_DEFAULT = 3, -- whole number 1 to 12
