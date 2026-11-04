@@ -61,6 +61,8 @@ func _make_text(entry: Dictionary) -> String:
 			if not _supply_messages_enabled():
 				return ""
 			return "Снабжение армии восстановлено: %s" % entry[&"subject"]
+		"army_surrendered":
+			return "Окружённая армия сдалась: %s" % entry[&"subject"]
 	return ""
 
 
