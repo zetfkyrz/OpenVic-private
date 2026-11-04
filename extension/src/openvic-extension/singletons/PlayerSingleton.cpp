@@ -2721,6 +2721,8 @@ Array PlayerSingleton::get_army_groups() const {
 		entry["theatre_id"] = static_cast<int32_t>(group.theatre_id);
 		entry["plan_active"] = group.plan_active;
 		entry["aggression"] = static_cast<int32_t>(group.aggression);
+		entry["planning"] = static_cast<float>(group.planning);
+		entry["planning_max"] = static_cast<float>(get_planning_max(*instance_manager, *player_country));
 		entry["integrity"] = static_cast<int32_t>(group.integrity);
 		PackedInt32Array held_front_ids;
 		for (Front const& front : instance_manager->get_war_manager().get_fronts()) {

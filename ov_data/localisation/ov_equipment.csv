@@ -400,3 +400,11 @@ PLAN_TOOL_DELETE_RU;Удалить все фронты и планы фельд�
 PLAN_GROUP_NAME_RU;$N$-я группа армий;;;;;;;;;;;;;x
 PLAN_FRONT_LABEL_RU;$N$ див. - $GROUP$;;;;;;;;;;;;;x
 PLAN_OFFENSIVE_LABEL_RU;План №$N$ - $D$ див. - $GROUP$;;;;;;;;;;;;;x
+PLANNING_MAX_TECH;Planning bonus maximum;;;;;;;;;;;Максимум бонуса планирования;;x
+PLANNING_SPEED_TECH;Planning speed;;;;;;;;;;;Скорость планирования;;x
+PLAN_PLANNING;Planning: $P$%;;;;;;;;;;;Планирование: $P$%;;x
+PLAN_PLANNING_TOOLTIP;The bonus of the planning to the attack and the breakthrough: grows while the order waits (up to $MAX$%), falls while it is executed;;;;;;;;;;;Бонус планирования к атаке и прорыву: растёт, пока приказ ждёт (до $MAX$%), убывает при выполнении;;x
+PLANNING_MAX_TECH_RU;Максимум бонуса планирования;;;;;;;;;;;;;x
+PLANNING_SPEED_TECH_RU;Скорость планирования;;;;;;;;;;;;;x
+PLAN_PLANNING_RU;Планирование: $P$%;;;;;;;;;;;;;x
+PLAN_PLANNING_TOOLTIP_RU;Бонус планирования к атаке и прорыву: растёт, пока приказ ждёт (до $MAX$%), убывает при выполнении;;;;;;;;;;;;;x

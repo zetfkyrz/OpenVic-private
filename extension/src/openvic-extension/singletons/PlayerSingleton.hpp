@@ -277,7 +277,8 @@ namespace OpenVic {
 		// command_colour and command_group_id (grey, 0: not in a command). The player recolours his marshal with an index of get_command_palette().
 		bool set_army_group_colour(int32_t group_id, int32_t colour_index) const;
 		godot::Array get_command_palette() const;
-		// The plan of a field marshal: a group has front_ids (the fronts it holds), plan_active (it executes the plan), aggression, integrity; a front of
+		// The plan of a field marshal: a group has front_ids (the fronts it holds), plan_active (it executes the plan), aggression, integrity, planning and
+		// planning_max (the bonus of the planning, 0..1); a front of
 		// get_front_summaries() has group_id and commanded
 		bool set_army_group_front(int32_t group_id, int32_t front_id, bool held) const;
 		bool set_army_group_plan_active(int32_t group_id, bool active) const;

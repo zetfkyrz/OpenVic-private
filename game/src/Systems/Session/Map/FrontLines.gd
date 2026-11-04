@@ -119,7 +119,7 @@ func _on_gamestate_updated() -> void:
 	var plan_lines: Array = PlayerSingleton.get_plan_lines()
 	var signature: String = str(summaries) + str(plan_lines)
 	for group: Dictionary in groups:
-		signature += "%d:%s;" % [int(group[&"id"]), str(group[&"colour"])]
+		signature += "%d:%s:%d;" % [int(group[&"id"]), str(group[&"colour"]), roundi(float(group.get(&"planning", 0.0)) * 100.0)]
 	if signature == _signature and _updates % REFRESH_EVERY_UPDATES != 0:
 		return
 	_signature = signature
@@ -169,6 +169,9 @@ func _on_gamestate_updated() -> void:
 			entry[&"from"] = _centroid(_centres(front.get(&"province_numbers", PackedInt32Array())))
 			entry[&"to"] = _centroid(targets)
 			entry[&"label"] = _t("PLAN_OFFENSIVE_LABEL").replace("$N$", str(offensive_index)).replace("$D$", str(int(front.get(&"division_count", 0)))).replace("$GROUP$", group_label(group_id, groups))
+			for group: Dictionary in groups:
+				if int(group[&"id"]) == group_id and float(group.get(&"planning", 0.0)) > 0.0:
+					entry[&"label"] += " (" + _t("PLAN_PLANNING").replace("$P$", str(roundi(float(group[&"planning"]) * 100.0))) + ")"
 		elif type == 1:
 			entry[&"label"] = group_label(group_id, groups)
 		else:
