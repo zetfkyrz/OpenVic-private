@@ -388,9 +388,11 @@ func _update_passive_tool() -> void:
 			if int(line[&"group_id"]) == _selected_group:
 				without_order = false
 				break
-	if without_order and visible and not _plan_tools.is_active():
-		_plan_tools.start(1, _selected_group, true)
-	elif not without_order and _plan_tools.is_active() and _plan_tools.passive:
+	# Without an order the borders of the neighbours (a right click makes the front), with one the circles at its ends (dragged to edit it)
+	var wanted_tool: int = 0 if group.is_empty() else (1 if without_order else 7)
+	if wanted_tool != 0 and visible and (not _plan_tools.is_active() or (_plan_tools.passive and int(_plan_tools.tool) != wanted_tool)):
+		_plan_tools.start(wanted_tool, _selected_group, true)
+	elif wanted_tool == 0 and _plan_tools.is_active() and _plan_tools.passive:
 		_plan_tools.stop()
 
 
@@ -467,6 +469,8 @@ func _make_group(group: Dictionary, generals: Array, theatres: Array) -> Control
 	var colour: Color = group[&"colour"]
 	var marshal_id: int = int(group[&"marshal_id"])
 	var army_ids: Array = group[&"army_ids"]
+	# The armies of the generals (the divisions split from them along the line are counted under them)
+	var group_generals: Array = group[&"generals"]
 	var max_attached: int = int(group[&"max_attached"])
 	var selected: bool = group_id == _selected_group
 	var block := HBoxContainer.new()
@@ -506,16 +510,16 @@ func _make_group(group: Dictionary, generals: Array, theatres: Array) -> Control
 		marshal_card.tooltip_text = _t("CMD_NO_MARSHAL")
 	marshal_card.on_context = _on_card_context.bind(group_id, int(group[&"theatre_id"]), theatres, int(group[&"colour_index"]))
 	marshal_box.add_child(marshal_card)
-	marshal_box.add_child(_number_plate(str(army_ids.size()), _t("CMD_ATTACHED_TOOLTIP").replace("$N$", str(army_ids.size())).replace("$MAX$", str(max_attached)), true))
+	marshal_box.add_child(_number_plate(str(group_generals.size()), _t("CMD_ATTACHED_TOOLTIP").replace("$N$", str(group_generals.size())).replace("$MAX$", str(max_attached)), true))
 
 	# The generals of the armies of the group, to the right of him
 	var flow := HFlowContainer.new()
 	flow.add_theme_constant_override(&"h_separation", 3)
 	flow.add_theme_constant_override(&"v_separation", 3)
-	flow.custom_minimum_size = Vector2(minf(float(army_ids.size()), float(_GENERALS_PER_ROW)) * (_SMALL.x + 11.0), 0.0)
+	flow.custom_minimum_size = Vector2(minf(float(group_generals.size()), float(_GENERALS_PER_ROW)) * (_SMALL.x + 11.0), 0.0)
 	cards.add_child(flow)
-	for army_id_value: Variant in army_ids:
-		var army_id: int = int(army_id_value)
+	for general_entry: Dictionary in group_generals:
+		var army_id: int = int(general_entry[&"army_id"])
 		var details: Dictionary = PlayerSingleton.get_army_details(army_id)
 		var general: Dictionary = _general_of_army(generals, army_id)
 		var slot := VBoxContainer.new()
@@ -523,9 +527,10 @@ func _make_group(group: Dictionary, generals: Array, theatres: Array) -> Control
 		var card: _Card = _make_card(general, _SMALL, colour, str(details.get(&"name", "?")), true)
 		card.drag_data = { &"type": "ov_general", &"army_id": army_id, &"group_id": group_id, &"caption": str(general.get(&"leader_name", details.get(&"name", ""))) }
 		card.tooltip_text = "%s\n%s" % [str(general.get(&"leader_name", _t("CMD_NO_GENERAL"))), str(details.get(&"name", ""))]
+		var general_army_ids: Array = general_entry[&"army_ids"]
 		card.on_click = func() -> void:
 			if _unit_banners != null:
-				_unit_banners.select_armies([army_id])
+				_unit_banners.select_armies(general_army_ids)
 		card.on_context = _attach_selected_to_group.bind(group_id)
 		# The cross in the corner detaches the general
 		var detach := Button.new()
@@ -540,11 +545,10 @@ func _make_group(group: Dictionary, generals: Array, theatres: Array) -> Control
 		detach.pressed.connect(func() -> void: PlayerSingleton.set_army_group(army_id, 0))
 		card.add_child(detach)
 		slot.add_child(card)
-		var divisions: int = (details.get(&"divisions", []) as Array).size()
-		slot.add_child(_number_plate(str(divisions), _t("CMD_DIVISIONS_TOOLTIP"), false))
+		slot.add_child(_number_plate(str(int(general_entry[&"divisions"])), _t("CMD_DIVISIONS_TOOLTIP"), false))
 		flow.add_child(slot)
 	# One more general
-	if army_ids.size() < max_attached:
+	if group_generals.size() < max_attached:
 		var plus_box := VBoxContainer.new()
 		var plus := _make_card({}, _SMALL, _GREY, _t("CMD_ADD_GENERAL"), false, true)
 		plus.on_click = _show_free_generals_menu.bind(group_id, false)

@@ -1,10 +1,11 @@
 class_name FrontLines
 extends MeshInstance3D
 ## The fronts and the lines of the plans of the player on the map (docs/WAR_ASSUMPTIONS.md, section 6), drawn as ribbons on the ground:
-## - a front: the line of the colour of its field marshal along its pieces of the border, a circle at both ends; with divisions on it the line gets
-##   teeth on the side of the enemy and a label "N div. - group";
+## - a front: the line of the colour of its field marshal along its pieces of the border, a circle at both ends (the handles: PlanTools.gd drags them);
+##   with divisions on it the line gets teeth on the side of the enemy and a label "N div. - group";
 ## - an offensive: the line of its targets (the far border) with saw teeth and a wide arrow from the front to the targets with the label of the plan;
-## - a line of defence: a line through the provinces with crosses; a naval invasion: a dashed arrow from the port to the coast.
+## - a line of defence: a line through the chain of its provinces with crosses and a circle at both ends; a naval invasion: a dashed arrow from the
+##   port to the coast.
 ## The tools of the plate of a marshal (PlanTools.gd) draw their highlight over them (set_tool_highlight). The lines are made by PlayerSingleton
 ## (pixel edges of the province map, simplified).
 
@@ -36,6 +37,9 @@ var _signature: String = ""
 var _fronts: Array = [] # { colour, polylines, ends, teeth, centres, label }
 var _plans: Array = [] # { type, colour, polylines, centres (offensive: of the targets), from, to, label }
 var _tool_entries: Array = [] # { polylines, colour, dashed }
+## The circles at the ends of the fronts and of the lines of defence: { kind: &"front" or &"defence", id, group_id, enemy_index, at_end, point (map
+## position), other_point (the other end), province_numbers }
+var _handles: Array = []
 var _width_bucket: int = -1
 var _updates: int = 0
 var _material: StandardMaterial3D
@@ -132,6 +136,11 @@ func _on_gamestate_updated() -> void:
 			colour = group_colours[group_id]
 		var divisions: int = int(summary.get(&"division_count", 0))
 		var entry: Dictionary = {
+			&"id": int(summary[&"id"]),
+			&"group_id": group_id,
+			&"enemy_index": int(summary.get(&"enemy_index", -1)),
+			&"kind": int(summary.get(&"kind", 0)),
+			&"province_numbers": summary.get(&"province_numbers", PackedInt32Array()),
 			&"colour": colour,
 			&"polylines": PlayerSingleton.get_front_lines(int(summary[&"id"])),
 			&"teeth": divisions > 0,
@@ -149,7 +158,10 @@ func _on_gamestate_updated() -> void:
 		var colour: Color = group_colours.get(group_id, COLOUR_ATTACK)
 		var type: int = int(line[&"type"])
 		var targets: PackedVector2Array = _centres(line[&"province_numbers"])
-		var entry: Dictionary = { &"type": type, &"colour": colour, &"polylines": [], &"centres": targets, &"label": "" }
+		var entry: Dictionary = {
+			&"id": int(line[&"id"]), &"group_id": group_id, &"province_numbers": line[&"province_numbers"],
+			&"type": type, &"colour": colour, &"polylines": [], &"centres": targets, &"label": "",
+		}
 		if type == 0:
 			offensive_index += 1
 			entry[&"polylines"] = PlayerSingleton.get_offensive_line(int(line[&"id"]))
@@ -165,7 +177,48 @@ func _on_gamestate_updated() -> void:
 			entry[&"to"] = _centroid(targets) if not targets.is_empty() else entry[&"from"]
 		plans.append(entry)
 	_plans = plans
+	_make_handles()
 	_rebuild_all()
+
+
+## The circles at the ends: a front has them at the two ends of its line that are the farthest apart, a line of defence at its first and last province
+func get_handles() -> Array:
+	return _handles
+
+
+func _make_handles() -> void:
+	var handles: Array = []
+	for entry: Dictionary in _fronts:
+		var ends: Array[Vector2] = []
+		for polyline: PackedVector2Array in entry[&"polylines"]:
+			if polyline.size() >= 2 and polyline[0].distance_to(polyline[polyline.size() - 1]) > 0.0001:
+				ends.append(polyline[0])
+				ends.append(polyline[polyline.size() - 1])
+		if ends.size() < 2:
+			continue
+		var first: Vector2 = ends[0]
+		var second: Vector2 = ends[1]
+		for a: Vector2 in ends:
+			for b: Vector2 in ends:
+				if a.distance_squared_to(b) > first.distance_squared_to(second):
+					first = a
+					second = b
+		for at_end: bool in [false, true]:
+			handles.append({
+				&"kind": &"front", &"id": entry[&"id"], &"group_id": entry[&"group_id"], &"enemy_index": entry[&"enemy_index"], &"front_kind": entry[&"kind"],
+				&"at_end": at_end, &"point": second if at_end else first, &"other_point": first if at_end else second, &"province_numbers": entry[&"province_numbers"],
+			})
+	for entry: Dictionary in _plans:
+		var centres: PackedVector2Array = entry[&"centres"]
+		if int(entry[&"type"]) != 1 or centres.is_empty():
+			continue
+		for at_end: bool in [false, true]:
+			handles.append({
+				&"kind": &"defence", &"id": entry[&"id"], &"group_id": entry[&"group_id"], &"at_end": at_end,
+				&"point": centres[centres.size() - 1] if at_end else centres[0], &"other_point": centres[0] if at_end else centres[centres.size() - 1],
+				&"province_numbers": entry[&"province_numbers"],
+			})
+	_handles = handles
 
 
 ## The map positions of the provinces (where their units stand)
@@ -212,12 +265,6 @@ func _rebuild_mesh() -> void:
 			if bool(entry[&"teeth"]):
 				_add_teeth(builder, points, world_centres, width, colour.lerp(Color(1.0, 0.45, 0.35), 0.35))
 			builder.add_ribbon(points, half_width, colour)
-		# The circles at the ends of the line
-		for polyline: PackedVector2Array in polylines:
-			if polyline.size() >= 2 and polyline[0].distance_to(polyline[polyline.size() - 1]) > 0.0001:
-				for point: Vector2 in [polyline[0], polyline[polyline.size() - 1]]:
-					builder.add_disc(_ground(point), width * CIRCLE_RADIUS_WIDTHS, Color(0.95, 0.88, 0.7, 0.35))
-					builder.add_ring(_ground(point), width * CIRCLE_RADIUS_WIDTHS, width * 0.35, Color(0.95, 0.88, 0.7, 0.85))
 		if not str(entry[&"label"]).is_empty():
 			_add_label_along(polylines, str(entry[&"label"]), width, world_centres)
 
@@ -236,7 +283,8 @@ func _rebuild_mesh() -> void:
 					# Along the arrow, past its middle (the label of the front stands at its start)
 					_add_label_on(_ground(from).lerp(_ground(to), 0.62), _ground(to) - _ground(from), str(entry[&"label"]), width)
 			1:
-				var chain: PackedVector3Array = _world_points(_chain(entry[&"centres"]))
+				# The provinces in the order of the chain (neighbours one after another)
+				var chain: PackedVector3Array = _world_points(entry[&"centres"])
 				builder.add_ribbon(chain, half_width * 0.35, Color(colour.r, colour.g, colour.b, 0.6))
 				_add_crosses(builder, chain, width, colour)
 			2:
@@ -244,6 +292,11 @@ func _rebuild_mesh() -> void:
 				var to: Vector2 = entry[&"to"]
 				if from != Vector2.ZERO and to != from:
 					_add_dashed_arc(builder, _ground(from), _ground(to), width, colour)
+
+	# The circles at the ends (the handles)
+	for handle: Dictionary in _handles:
+		builder.add_disc(_ground(handle[&"point"]), width * CIRCLE_RADIUS_WIDTHS, Color(0.95, 0.88, 0.7, 0.35))
+		builder.add_ring(_ground(handle[&"point"]), width * CIRCLE_RADIUS_WIDTHS, width * 0.35, Color(0.95, 0.88, 0.7, 0.85))
 
 	mesh = builder.make_mesh()
 
@@ -269,31 +322,6 @@ func _world_points(points: PackedVector2Array) -> PackedVector3Array:
 	for point: Vector2 in points:
 		world.append(_ground(point))
 	return world
-
-
-## The provinces of a line of defence in order: from the westmost one to the nearest one left, and so on
-func _chain(points: PackedVector2Array) -> PackedVector2Array:
-	var left: Array[Vector2] = []
-	for point: Vector2 in points:
-		left.append(point)
-	var chain := PackedVector2Array()
-	if left.is_empty():
-		return chain
-	var current: Vector2 = left[0]
-	for point: Vector2 in left:
-		if point.x < current.x:
-			current = point
-	left.erase(current)
-	chain.append(current)
-	while not left.is_empty():
-		var nearest: Vector2 = left[0]
-		for point: Vector2 in left:
-			if point.distance_squared_to(current) < nearest.distance_squared_to(current):
-				nearest = point
-		left.erase(nearest)
-		chain.append(nearest)
-		current = nearest
-	return chain
 
 
 ## The side away from the nearest of the centres (our provinces for a front, the targets for an offensive, reversed)

@@ -283,6 +283,13 @@ func set_plan_overlay(texture: Texture2D) -> void:
 		_map_shader_material.set_shader_parameter(&"plan_overlay_tex", texture)
 
 
+## The tool of the map holds the button down (it paints, drags a handle or a front): the box selection of the armies waits
+func is_tool_dragging() -> bool:
+	if not input_tool.is_valid() or input_tool.get_object() == null:
+		return false
+	return bool(input_tool.get_object().call(&"is_dragging"))
+
+
 ## The province under the mouse (0 outside the map)
 func get_mouse_province_number() -> int:
 	if not _mouse_over_viewport or not _map_mesh.is_valid_uv_coord(_mouse_pos_map):

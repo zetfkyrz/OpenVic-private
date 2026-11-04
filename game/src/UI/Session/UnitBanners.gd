@@ -531,6 +531,13 @@ func _update_selection_visual(key: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# A tool of the plans holds the button (it paints a line, drags a handle): no box of the selection, the release is the tool's
+	if _map_view != null and _map_view.is_tool_dragging():
+		if _mouse_pressed or _drag_active:
+			_mouse_pressed = false
+			_drag_active = false
+			_box.queue_redraw()
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		var position: Vector2 = (make_input_local(event) as InputEventMouseButton).position
 		if event.pressed:

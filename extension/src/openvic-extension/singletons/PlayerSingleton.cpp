@@ -164,10 +164,13 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_army_group_modes, { "group_id", "aggression", "integrity" });
 	OV_BIND_METHOD(PlayerSingleton::create_border_front, { "group_id", "country_index" });
 	OV_BIND_METHOD(PlayerSingleton::create_coastal_front, { "group_id", "sea_number" });
+	OV_BIND_METHOD(PlayerSingleton::create_border_front_part, { "group_id", "country_index", "from_number", "to_number" });
+	OV_BIND_METHOD(PlayerSingleton::get_border_part_lines, { "country_index", "from_number", "to_number" });
 	OV_BIND_METHOD(PlayerSingleton::toggle_front_edge, { "front_id", "own_number", "other_number" });
 	OV_BIND_METHOD(PlayerSingleton::create_plan_line, { "group_id", "type", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::toggle_plan_line_province, { "line_id", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::delete_plan_line, { "line_id" });
+	OV_BIND_METHOD(PlayerSingleton::extend_plan_line, { "line_id", "at_end", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::delete_group_lines, { "group_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_border_highlights);
 	OV_BIND_METHOD(PlayerSingleton::get_plan_candidates, { "type", "group_id" });
@@ -2690,6 +2693,28 @@ Array PlayerSingleton::get_army_groups() const {
 			}
 		}
 		entry["army_count"] = static_cast<int32_t>(army_ids.size());
+		// The armies of the generals (not the divisions split from them along the line) with all their divisions
+		Array generals;
+		for (ArmyInstance const& army : player_country->get_armies()) {
+			if (army.get_army_group_id() != group.id || army.get_parent_army_id() != 0) {
+				continue;
+			}
+			int32_t divisions = static_cast<int32_t>(army.get_divisions().size());
+			PackedInt64Array with_divisions;
+			with_divisions.push_back(static_cast<int64_t>(army.unique_id));
+			for (ArmyInstance const& child : player_country->get_armies()) {
+				if (child.get_parent_army_id() == army.unique_id) {
+					divisions += static_cast<int32_t>(child.get_divisions().size());
+					with_divisions.push_back(static_cast<int64_t>(child.unique_id));
+				}
+			}
+			Dictionary general;
+			general["army_id"] = static_cast<int64_t>(army.unique_id);
+			general["army_ids"] = with_divisions;
+			general["divisions"] = divisions;
+			generals.push_back(general);
+		}
+		entry["generals"] = generals;
 		entry["execute_orders"] = group.execute_orders;
 		entry["max_attached"] = static_cast<int32_t>(get_marshal_max_attached(*instance_manager, *player_country));
 		entry["colour_index"] = static_cast<int32_t>(group.colour_index);

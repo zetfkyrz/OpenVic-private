@@ -12,6 +12,7 @@
 #include <openvic-simulation/DefinitionManager.hpp>
 #include <openvic-simulation/InstanceManager.hpp>
 #include <openvic-simulation/country/CountryInstance.hpp>
+#include <openvic-simulation/country/CountryInstanceManager.hpp>
 #include <openvic-simulation/map/MapDefinition.hpp>
 #include <openvic-simulation/map/MapInstance.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
@@ -565,6 +566,43 @@ bool PlayerSingleton::create_coastal_front(int32_t group_id, int32_t sea_number)
 	return instance_manager->queue_game_action<create_coastal_front_argument_t>(player_country->index, static_cast<uint32_t>(group_id), sea->index);
 }
 
+bool PlayerSingleton::create_border_front_part(int32_t group_id, int32_t country_index, int32_t from_number, int32_t to_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* const from = province_by_number(*instance_manager, from_number);
+	ProvinceInstance const* const to = province_by_number(*instance_manager, to_number);
+	ERR_FAIL_COND_V(
+		group_id < 0 || country_index < 0 || from == nullptr || to == nullptr
+			|| static_cast<size_t>(country_index) >= instance_manager->get_country_instance_manager().get_country_instances().size(),
+		false
+	);
+	return instance_manager->queue_game_action<create_border_front_part_argument_t>(
+		player_country->index, static_cast<uint32_t>(group_id), country_index_t(static_cast<uint32_t>(country_index)), from->index, to->index
+	);
+}
+
+Array PlayerSingleton::get_border_part_lines(int32_t country_index, int32_t from_number, int32_t to_number) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	CountryInstanceManager& countries = instance_manager->get_country_instance_manager();
+	ERR_FAIL_COND_V(country_index < 0 || static_cast<size_t>(country_index) >= countries.get_country_instances().size(), result);
+	CountryInstance const& neighbour = countries.get_country_instance_by_index(country_index_t(static_cast<uint32_t>(country_index)));
+	ProvinceInstance const* const from = province_by_number(*instance_manager, from_number);
+	ProvinceInstance const* const to = province_by_number(*instance_manager, to_number);
+	std::vector<uint32_t> own_numbers;
+	std::unordered_set<uint64_t> pairs;
+	for (FrontEdge const& edge : instance_manager->get_war_manager().get_border_part(*instance_manager, *player_country, neighbour, from, to)) {
+		if (std::find(own_numbers.begin(), own_numbers.end(), number_of(*edge.own)) == own_numbers.end()) {
+			own_numbers.push_back(number_of(*edge.own));
+		}
+		pairs.insert(pair_key(number_of(*edge.own), number_of(*edge.other)));
+	}
+	return make_border_polylines(own_numbers, pairs);
+}
+
 bool PlayerSingleton::toggle_front_edge(int32_t front_id, int32_t own_number, int32_t other_number) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
@@ -593,6 +631,15 @@ bool PlayerSingleton::toggle_plan_line_province(int32_t line_id, int32_t provinc
 	ProvinceInstance const* const province = province_by_number(*instance_manager, province_number);
 	ERR_FAIL_COND_V(line_id <= 0 || province == nullptr, false);
 	return instance_manager->queue_game_action<toggle_plan_line_province_argument_t>(player_country->index, static_cast<uint32_t>(line_id), province->index);
+}
+
+bool PlayerSingleton::extend_plan_line(int32_t line_id, bool at_end, int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* const province = province_by_number(*instance_manager, province_number);
+	ERR_FAIL_COND_V(line_id <= 0 || province == nullptr, false);
+	return instance_manager->queue_game_action<extend_plan_line_argument_t>(player_country->index, static_cast<uint32_t>(line_id), at_end, province->index);
 }
 
 bool PlayerSingleton::delete_plan_line(int32_t line_id) const {

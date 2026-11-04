@@ -200,10 +200,16 @@ namespace OpenVic {
 		// group_id 0: a front of nobody
 		bool create_border_front(int32_t group_id, int32_t country_index) const;
 		bool create_coastal_front(int32_t group_id, int32_t sea_number) const;
+		// A front on the part of the border with the neighbour between the two provinces (of either side, in the order of our provinces along it) and the
+		// lines of that part (the tool shows it while the button is held)
+		bool create_border_front_part(int32_t group_id, int32_t country_index, int32_t from_number, int32_t to_number) const;
+		godot::Array get_border_part_lines(int32_t country_index, int32_t from_number, int32_t to_number) const;
 		bool toggle_front_edge(int32_t front_id, int32_t own_number, int32_t other_number) const;
 		bool create_plan_line(int32_t group_id, int32_t type, int32_t province_number) const;
 		bool toggle_plan_line_province(int32_t line_id, int32_t province_number) const;
 		bool delete_plan_line(int32_t line_id) const;
+		// The end of a line of defence (the last province, or the first one) goes to the province over our land, a province of the line cuts it there
+		bool extend_plan_line(int32_t line_id, bool at_end, int32_t province_number) const;
 		// The trash of the plate: all the fronts and the lines of the field marshal
 		bool delete_group_lines(int32_t group_id) const;
 		// aggression 1..3 (careful, balanced, aggressive), integrity 0..2 (firm, medium, loose)
@@ -256,7 +262,8 @@ namespace OpenVic {
 		// division_id 0: the regiments of all the divisions of the army that are out of the template
 		bool reform_army_to_template(int64_t army_id, int32_t division_id, int32_t template_id) const;
 		// Groups of armies and field marshals: get_army_details also has army_group_id (0 = none) and supply_leader_bonus; get_generals has
-		// is_marshal and marshal_group_id. The groups of the player: [{ id, name, marshal_id, marshal_name, army_count, army_ids: [...] }]
+		// is_marshal and marshal_group_id. The groups of the player: [{ id, name, marshal_id, marshal_name, army_count, army_ids: [...] (with the divisions
+		// split along the line), generals: [{ army_id, divisions }] (the armies of the generals with all their divisions) }]
 		godot::Array get_army_groups() const;
 		bool create_army_group() const;
 		bool delete_army_group(int32_t group_id) const;
