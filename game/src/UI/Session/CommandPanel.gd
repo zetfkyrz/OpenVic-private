@@ -632,7 +632,11 @@ func _rebuild_plate() -> void:
 	var running: bool = bool(group[&"plan_active"])
 	var execute := _tool_button(&"execute", _t("PLAN_EXECUTE_TOOLTIP").replace("$MODE$", _t("PLAN_AGGRESSION_%d" % aggression)), running)
 	execute.level = aggression
-	execute.disabled = not has_front or int(group[&"marshal_id"]) == 0
+	# The execution needs a front (the offensive, the breakthrough) or a naval invasion, and the field marshal
+	var has_landing: bool = false
+	for line: Dictionary in PlayerSingleton.get_plan_lines():
+		has_landing = has_landing or (int(line[&"group_id"]) == group_id and int(line[&"type"]) == 2)
+	execute.disabled = not (has_front or has_landing) or int(group[&"marshal_id"]) == 0
 	execute.pressed.connect(func() -> void: PlayerSingleton.set_army_group_plan_active(group_id, not running))
 	execute.on_right_click = func() -> void: PlayerSingleton.set_army_group_modes(group_id, aggression % 3 + 1, integrity)
 	buttons.add_child(execute)
