@@ -450,7 +450,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				# TODO - open diplomacy screen on province owner or viewed country if province has
 				# no owner
 				#Events.NationManagementScreens.open_nation_management_screen(NationManagement.Screen.DIPLOMACY)
-				PlayerSingleton.set_player_country_by_province_number(province_number)
+				# (the right click no longer makes the player the owner of the province: in a game it took the country of the player away by a
+				# slip of the mouse; the country is chosen in the lobby with the left click)
 			else:
 				print("Right-clicked outside the map!")
 	elif event.is_action_pressed(_action_drag):

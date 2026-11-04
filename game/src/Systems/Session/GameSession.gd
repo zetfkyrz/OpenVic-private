@@ -308,4 +308,5 @@ func _on_map_view_province_right_clicked(province_number: int) -> void:
 
 	# TODO - open diplomacy screen on province owner or viewed country if province has no owner
 	#Events.NationManagementScreens.open_nation_management_screen(NationManagement.Screen.DIPLOMACY)
-	PlayerSingleton.set_player_country_by_province_number(province_number)
+	# (without a selection the right click does nothing: it used to make the player the owner of the province, a slip of the mouse while drawing a
+	# front took his country away)
