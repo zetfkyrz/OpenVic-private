@@ -63,7 +63,23 @@ func _make_text(entry: Dictionary) -> String:
 			return "Снабжение армии восстановлено: %s" % entry[&"subject"]
 		"army_surrendered":
 			return "Окружённая армия сдалась: %s" % entry[&"subject"]
+		"leader_skill_up":
+			# name|skill|level (docs/WAR_ASSUMPTIONS.md, section 7)
+			var parts: PackedStringArray = str(entry[&"subject"]).split("|")
+			if parts.size() < 3:
+				return ""
+			return "%s: %s — уровень %s" % [parts[0], _skill_name(parts[1]), parts[2]]
 	return ""
+
+
+# The name of a skill of a leader (a terrain: "Местность: <name>")
+func _skill_name(id: String) -> String:
+	var key: String = "LEADER_SKILL_" + id
+	if tr(key + "_RU") == key + "_RU" and tr(key) == key:
+		var terrain: String = tr("LEADER_TERRAIN_" + id + "_RU")
+		return "Местность: %s" % (terrain if terrain != "LEADER_TERRAIN_" + id + "_RU" else id)
+	var russian: String = tr(key + "_RU")
+	return russian if russian != key + "_RU" else tr(key)
 
 
 # The setting "Supply Messages" of the options (General)

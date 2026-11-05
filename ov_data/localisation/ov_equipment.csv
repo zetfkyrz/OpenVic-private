@@ -412,3 +412,47 @@ PLAN_TOOL_BREAKTHROUGH;Breakthrough: paint a way of provinces into the enemy lan
 PLAN_BREAKTHROUGH_LABEL;Breakthrough - $D$ div. - $GROUP$;;;;;;;;;;;Прорыв - $D$ див. - $GROUP$;;x
 PLAN_TOOL_BREAKTHROUGH_RU;Прорыв: проведите путь по провинциям вглубь земли врага, по нему пойдёт сильнейшая треть дивизий;;;;;;;;;;;;;x
 PLAN_BREAKTHROUGH_LABEL_RU;Прорыв - $D$ див. - $GROUP$;;;;;;;;;;;;;x
+LEADER_SKILL_attack;Attack;;;;;;;;;;;Атака;;x
+LEADER_SKILL_defence;Defence;;;;;;;;;;;Оборона;;x
+LEADER_SKILL_supply;Supply;;;;;;;;;;;Снабжение;;x
+LEADER_SKILL_planning;Planning;;;;;;;;;;;Планирование;;x
+LEADER_SKILL_TERRAIN;Terrain: $T$;;;;;;;;;;;Местность: $T$;;x
+LEADER_SKILLS_GENERAL;Skills of a general:;;;;;;;;;;;Умения генерала:;;x
+LEADER_SKILLS_MARSHAL;Skills of a field marshal:;;;;;;;;;;;Умения фельдмаршала:;;x
+LEADER_SKILLS_INACTIVE;(do not work in this role);;;;;;;;;;;(в этой роли не действуют);;x
+LEADER_SKILL_LINE;$NAME$: level $L$ of $MAX$ (experience $XP$ of $NEXT$);;;;;;;;;;;$NAME$: уровень $L$ из $MAX$ (опыт $XP$ из $NEXT$);;x
+LEADER_SKILL_LINE_TOP;$NAME$: level $L$ of $MAX$;;;;;;;;;;;$NAME$: уровень $L$ из $MAX$;;x
+LEADER_TERRAIN_arctic;arctic;;;;;;;;;;;арктика;;x
+LEADER_TERRAIN_farmlands;farmlands;;;;;;;;;;;пашни;;x
+LEADER_TERRAIN_forest;forest;;;;;;;;;;;лес;;x
+LEADER_TERRAIN_hills;hills;;;;;;;;;;;холмы;;x
+LEADER_TERRAIN_woods;woods;;;;;;;;;;;редколесье;;x
+LEADER_TERRAIN_mountain;mountains;;;;;;;;;;;горы;;x
+LEADER_TERRAIN_steppe;steppe;;;;;;;;;;;степь;;x
+LEADER_TERRAIN_plains;plains;;;;;;;;;;;равнины;;x
+LEADER_TERRAIN_jungle;jungle;;;;;;;;;;;джунгли;;x
+LEADER_TERRAIN_marsh;marsh;;;;;;;;;;;болото;;x
+LEADER_TERRAIN_desert;desert;;;;;;;;;;;пустыня;;x
+LEADER_TERRAIN_coastal_desert;coastal desert;;;;;;;;;;;прибрежная пустыня;;x
+LEADER_SKILL_attack_RU;Атака;;;;;;;;;;;;;x
+LEADER_SKILL_defence_RU;Оборона;;;;;;;;;;;;;x
+LEADER_SKILL_supply_RU;Снабжение;;;;;;;;;;;;;x
+LEADER_SKILL_planning_RU;Планирование;;;;;;;;;;;;;x
+LEADER_SKILL_TERRAIN_RU;Местность: $T$;;;;;;;;;;;;;x
+LEADER_SKILLS_GENERAL_RU;Умения генерала:;;;;;;;;;;;;;x
+LEADER_SKILLS_MARSHAL_RU;Умения фельдмаршала:;;;;;;;;;;;;;x
+LEADER_SKILLS_INACTIVE_RU;(в этой роли не действуют);;;;;;;;;;;;;x
+LEADER_SKILL_LINE_RU;$NAME$: уровень $L$ из $MAX$ (опыт $XP$ из $NEXT$);;;;;;;;;;;;;x
+LEADER_SKILL_LINE_TOP_RU;$NAME$: уровень $L$ из $MAX$;;;;;;;;;;;;;x
+LEADER_TERRAIN_arctic_RU;арктика;;;;;;;;;;;;;x
+LEADER_TERRAIN_farmlands_RU;пашни;;;;;;;;;;;;;x
+LEADER_TERRAIN_forest_RU;лес;;;;;;;;;;;;;x
+LEADER_TERRAIN_hills_RU;холмы;;;;;;;;;;;;;x
+LEADER_TERRAIN_woods_RU;редколесье;;;;;;;;;;;;;x
+LEADER_TERRAIN_mountain_RU;горы;;;;;;;;;;;;;x
+LEADER_TERRAIN_steppe_RU;степь;;;;;;;;;;;;;x
+LEADER_TERRAIN_plains_RU;равнины;;;;;;;;;;;;;x
+LEADER_TERRAIN_jungle_RU;джунгли;;;;;;;;;;;;;x
+LEADER_TERRAIN_marsh_RU;болото;;;;;;;;;;;;;x
+LEADER_TERRAIN_desert_RU;пустыня;;;;;;;;;;;;;x
+LEADER_TERRAIN_coastal_desert_RU;прибрежная пустыня;;;;;;;;;;;;;x

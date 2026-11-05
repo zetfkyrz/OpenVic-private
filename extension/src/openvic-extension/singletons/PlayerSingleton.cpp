@@ -20,6 +20,9 @@
 #include <openvic-simulation/economy/trading/MarketInstance.hpp>
 #include <openvic-simulation/map/State.hpp>
 #include <openvic-simulation/military/ArmyGroup.hpp>
+#include <openvic-simulation/military/LeaderSkills.hpp>
+#include <openvic-simulation/map/TerrainType.hpp>
+#include <openvic-simulation/defines/OpenVicDefines.hpp>
 #include <openvic-simulation/military/MilitaryManager.hpp>
 #include <openvic-simulation/military/UnitInstanceGroup.hpp>
 #include <openvic-simulation/military/War.hpp>
@@ -2659,6 +2662,8 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	}
 	result["divisions"] = divisions;
 	result["army_group_id"] = static_cast<int32_t>(army.get_army_group_id());
+	// Sent by hand: off the orders of the marshal until the player gives it back
+	result["manual_order"] = army.is_manual_order();
 	result["army_group_colour"] = make_command_colour(army.get_country().find_army_group(army.get_army_group_id()));
 	result["supply_leader_bonus"] = static_cast<float>(army.get_supply_leader_bonus());
 
@@ -3239,11 +3244,71 @@ bool PlayerSingleton::reform_army_to_template(int64_t army_id, int32_t division_
 }
 
 namespace {
-	Array make_leader_list(CountryInstance const* player, MenuSingleton* menu_singleton, const unit_branch_t branch) {
+	// The skills of a leader (docs/WAR_ASSUMPTIONS.md, section 7) for the interface: the ones of his role first (a marshal: the supply and the planning;
+	// a general: the attack, the defence, the terrains he fought in), every one {id, level, max, experience, next (the experience of the next level, 0
+	// at the top), active}; the skills of the other role follow with active false when he has experience in them
+	Array make_leader_skills(OpenVicWarDefines const& defines, LeaderInstance const& leader) {
+		using namespace leader_skills;
+		Array result;
+		const auto add = [&](const skill_t skill, TerrainType const* terrain) {
+			const bool marshal_skill = is_marshal_skill(skill);
+			const std::int32_t per_level = marshal_skill ? defines.marshal_xp_per_level : defines.general_xp_per_level;
+			const std::int32_t max_level = marshal_skill ? defines.marshal_skill_max_level : defines.general_skill_max_level;
+			const bool active = leader.is_marshal() == marshal_skill;
+			const fixed_point_t experience = get_experience(leader, skill, terrain);
+			if (!active && experience == fixed_point_t::_0) {
+				return;
+			}
+			const std::uint32_t level = get_level(defines, leader, skill, terrain);
+			Dictionary entry;
+			entry["id"] = convert_to<String>(get_skill_identifier(skill, terrain));
+			entry["terrain"] = skill == skill_t::TERRAIN;
+			entry["marshal"] = marshal_skill;
+			entry["level"] = static_cast<int32_t>(level);
+			entry["max"] = max_level;
+			entry["experience"] = static_cast<float>(experience);
+			entry["next"] = static_cast<int32_t>(level) < max_level ? static_cast<float>(experience_for_level(level + 1, per_level)) : 0.0f;
+			entry["active"] = active;
+			result.push_back(entry);
+		};
+		const auto general_skills = [&]() {
+			add(skill_t::ATTACK, nullptr);
+			add(skill_t::DEFENCE, nullptr);
+			for (auto const& [terrain, experience] : leader.get_terrain_experience()) {
+				add(skill_t::TERRAIN, terrain);
+			}
+		};
+		const auto marshal_skills = [&]() {
+			add(skill_t::SUPPLY, nullptr);
+			add(skill_t::PLANNING, nullptr);
+		};
+		if (leader.is_marshal()) {
+			marshal_skills();
+			general_skills();
+		} else {
+			general_skills();
+			marshal_skills();
+		}
+		return result;
+	}
+
+	Array make_leader_list(
+		CountryInstance const* player, MenuSingleton* menu_singleton, const unit_branch_t branch, OpenVicWarDefines const& war_defines
+	) {
 		Array result;
 		const auto add = [&](auto const& leaders) -> void {
 			for (LeaderInstance const& leader : leaders) {
 				Dictionary entry = menu_singleton->make_leader_dict(leader).duplicate();
+				Array skills = make_leader_skills(war_defines, leader);
+				int32_t skill_levels = 0;
+				for (int64_t index = 0; index < skills.size(); ++index) {
+					Dictionary const skill = skills[index];
+					if (static_cast<bool>(skill["active"])) {
+						skill_levels += static_cast<int32_t>(skill["level"]);
+					}
+				}
+				entry["skills"] = skills;
+				entry["skill_levels"] = skill_levels;
 				entry["leader_id"] = static_cast<int64_t>(leader.unique_id);
 				entry["prestige"] = static_cast<float>(leader.get_prestige());
 				entry["personality"] = leader.get_personality() != nullptr
@@ -3293,14 +3358,22 @@ Array PlayerSingleton::get_generals() const {
 	ERR_FAIL_NULL_V(player_country, Array {});
 	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
 	ERR_FAIL_NULL_V(menu_singleton, Array {});
-	return make_leader_list(player_country, menu_singleton, unit_branch_t::LAND);
+	InstanceManager const* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, Array {});
+	return make_leader_list(
+		player_country, menu_singleton, unit_branch_t::LAND, instance_manager->definition_manager.get_define_manager().get_openvic_defines().war
+	);
 }
 
 Array PlayerSingleton::get_admirals() const {
 	ERR_FAIL_NULL_V(player_country, Array {});
 	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
 	ERR_FAIL_NULL_V(menu_singleton, Array {});
-	return make_leader_list(player_country, menu_singleton, unit_branch_t::NAVAL);
+	InstanceManager const* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, Array {});
+	return make_leader_list(
+		player_country, menu_singleton, unit_branch_t::NAVAL, instance_manager->definition_manager.get_define_manager().get_openvic_defines().war
+	);
 }
 
 Array PlayerSingleton::get_boardable_navies(int64_t army_id) const {

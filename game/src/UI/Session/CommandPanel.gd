@@ -443,7 +443,75 @@ func _make_card(general: Dictionary, card_size: Vector2, colour: Color, fallback
 		silhouette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		frame.add_child(silhouette)
 	card.tooltip_text = str(general.get(&"leader_name", fallback))
+	# The levels of the skills of his role (docs/WAR_ASSUMPTIONS.md, section 7): a gold badge in the corner of the portrait
+	var levels: int = int(general.get(&"skill_levels", 0))
+	if levels > 0:
+		var badge := PanelContainer.new()
+		var badge_style := StyleBoxFlat.new()
+		badge_style.bg_color = Color(0.16, 0.13, 0.07, 0.95)
+		badge_style.set_border_width_all(1)
+		badge_style.border_color = _GOLD
+		badge_style.set_corner_radius_all(7)
+		badge_style.content_margin_left = 4.0
+		badge_style.content_margin_right = 4.0
+		badge.add_theme_stylebox_override(&"panel", badge_style)
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.position = Vector2(2.0, card_size.y - 14.0)
+		var badge_label := Label.new()
+		badge_label.text = str(levels)
+		badge_label.add_theme_font_size_override(&"font_size", 10)
+		badge_label.add_theme_color_override(&"font_color", Color(1.0, 0.86, 0.45))
+		badge_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.add_child(badge_label)
+		card.add_child(badge)
 	return card
+
+
+## The name of a skill (a terrain: its name)
+func _skill_name(skill: Dictionary) -> String:
+	var id: String = str(skill[&"id"])
+	if bool(skill[&"terrain"]):
+		return _t("LEADER_SKILL_TERRAIN").replace("$T$", _t("LEADER_TERRAIN_" + id))
+	return _t("LEADER_SKILL_" + id)
+
+
+## The skills of a leader in a tooltip: the ones of his role with the levels and the experience, the ones of the other role (they do not work now)
+func _skills_text(general: Dictionary) -> String:
+	var skills: Array = general.get(&"skills", [])
+	if skills.is_empty():
+		return ""
+	var lines: PackedStringArray = []
+	var marshal_now: bool = bool(general.get(&"is_marshal", false))
+	for active: bool in [true, false]:
+		var header_added: bool = false
+		for skill: Dictionary in skills:
+			if bool(skill[&"active"]) != active:
+				continue
+			if not header_added:
+				header_added = true
+				var marshal_skills: bool = bool(skill[&"marshal"])
+				var header: String = _t("LEADER_SKILLS_MARSHAL" if marshal_skills else "LEADER_SKILLS_GENERAL")
+				if not active:
+					header += " " + _t("LEADER_SKILLS_INACTIVE")
+				lines.append(header)
+			var line: String
+			if float(skill[&"next"]) > 0.0:
+				line = _t("LEADER_SKILL_LINE").replace("$XP$", str(snappedf(float(skill[&"experience"]), 0.1))).replace("$NEXT$", str(int(skill[&"next"])))
+			else:
+				line = _t("LEADER_SKILL_LINE_TOP")
+			lines.append("  " + line.replace("$NAME$", _skill_name(skill)).replace("$L$", str(int(skill[&"level"]))).replace("$MAX$", str(int(skill[&"max"]))))
+	if marshal_now and lines.is_empty():
+		return ""
+	return "\n".join(lines)
+
+
+## A short line of the levels for the menus: the skills of a role that have a level (none: empty)
+func _skills_short(general: Dictionary, marshal_role: bool) -> String:
+	var parts: PackedStringArray = []
+	for skill: Dictionary in general.get(&"skills", []):
+		if bool(skill[&"marshal"]) == marshal_role and int(skill[&"level"]) > 0:
+			parts.append("%s %d" % [_skill_name(skill), int(skill[&"level"])])
+	return ", ".join(parts)
 
 
 ## The number plate under a card (a laurel of dots on the sides of the marshal's)
@@ -509,7 +577,8 @@ func _make_group(group: Dictionary, generals: Array, theatres: Array) -> Control
 			_select_group(group_id)
 			if _unit_banners != null:
 				_unit_banners.select_armies(army_ids)
-		marshal_card.tooltip_text = "%s\n%s" % [str(marshal.get(&"leader_name", "")), _t("CMD_MARSHAL_TOOLTIP")]
+		var marshal_skills: String = _skills_text(marshal)
+		marshal_card.tooltip_text = "%s\n%s%s" % [str(marshal.get(&"leader_name", "")), (marshal_skills + "\n") if marshal_skills != "" else "", _t("CMD_MARSHAL_TOOLTIP")]
 	else:
 		marshal_card.on_click = func() -> void:
 			_select_group(group_id)
@@ -534,6 +603,9 @@ func _make_group(group: Dictionary, generals: Array, theatres: Array) -> Control
 		var card: _Card = _make_card(general, _SMALL, colour, str(details.get(&"name", "?")), true)
 		card.drag_data = { &"type": "ov_general", &"army_id": army_id, &"group_id": group_id, &"caption": str(general.get(&"leader_name", details.get(&"name", ""))) }
 		card.tooltip_text = "%s\n%s" % [str(general.get(&"leader_name", _t("CMD_NO_GENERAL"))), str(details.get(&"name", ""))]
+		var general_skills: String = _skills_text(general)
+		if general_skills != "":
+			card.tooltip_text += "\n" + general_skills
 		var general_army_ids: Array = general_entry[&"army_ids"]
 		card.on_click = func() -> void:
 			if _unit_banners != null:
@@ -717,10 +789,14 @@ func _attach_selected_to_group(group_id: int) -> bool:
 		return false
 	var to_attach: Array[int] = []
 	for army_id: int in _unit_banners.get_selected_armies():
-		if int(PlayerSingleton.get_army_details(army_id).get(&"army_group_id", 0)) != group_id:
+		var details: Dictionary = PlayerSingleton.get_army_details(army_id)
+		if details.is_empty() or bool(details.get(&"is_navy", false)) or not bool(details.get(&"is_player", false)):
+			continue # a fleet or an army of another country is not attached
+		# Another group, none, or his own division sent by hand (it goes back to his orders)
+		if int(details.get(&"army_group_id", 0)) != group_id or bool(details.get(&"manual_order", false)):
 			to_attach.append(army_id)
 	if to_attach.is_empty():
-		return false # nothing selected, or only his own divisions: the menu of the marshal opens
+		return false # nothing selected, or only his own divisions on his orders: the menu of the marshal opens
 	for army_id: int in to_attach:
 		PlayerSingleton.set_army_group(army_id, group_id)
 	return true
@@ -756,6 +832,10 @@ func _show_free_generals_menu(group_id: int, marshal_slot: bool) -> void:
 		var caption: String = str(general[&"leader_name"])
 		if int(general[&"army_id"]) != 0:
 			caption += " (%s)" % str(general[&"army_name"])
+		# The levels he would use in the slot: of a marshal for the marshal, of a general for an army
+		var short: String = _skills_short(general, marshal_slot)
+		if short != "":
+			caption += " — " + short
 		menu.add_item(caption, index)
 	menu.id_pressed.connect(func(id: int) -> void:
 		var chosen: Dictionary = entries[id]
