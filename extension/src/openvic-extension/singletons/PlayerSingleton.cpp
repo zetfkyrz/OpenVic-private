@@ -1847,11 +1847,19 @@ bool PlayerSingleton::set_auto_plan(bool enabled) const {
 
 // Map units
 namespace {
-	// Where a group is drawn for a province: ships in a port are drawn in the sea next to it
+	// Where a group is drawn for a province: ships in a port at the port (its building of the naval base)
 	Vector2 get_province_anchor(GameSingleton const& game_singleton, ProvinceInstance const& province, unit_branch_t branch) {
 		ProvinceDefinition const& definition = province.province_definition;
-		if (branch == unit_branch_t::NAVAL && !definition.is_water() && definition.get_port_adjacent_province() != nullptr) {
-			return game_singleton.normalise_map_position(definition.get_port_adjacent_province()->get_unit_position());
+		if (branch == unit_branch_t::NAVAL && !definition.is_water() && definition.has_port()) {
+			// At the port itself (the building of the naval base), the sea next to it when the map has no position of the port
+			BuildingType const* const port_type =
+				game_singleton.get_definition_manager().get_economy_manager().get_building_type_manager().get_port_building_type();
+			if (fvec2_t const* const port_position = definition.get_building_position(port_type); port_position != nullptr) {
+				return game_singleton.normalise_map_position(*port_position);
+			}
+			if (definition.get_port_adjacent_province() != nullptr) {
+				return game_singleton.normalise_map_position(definition.get_port_adjacent_province()->get_unit_position());
+			}
 		}
 		return game_singleton.normalise_map_position(definition.get_unit_position());
 	}

@@ -11,6 +11,8 @@
 
 #include <openvic-simulation/core/memory/String.hpp>
 #include <openvic-simulation/core/string/Utility.hpp>
+#include <openvic-simulation/DefinitionManager.hpp>
+#include <openvic-simulation/economy/BuildingType.hpp>
 #include <openvic-simulation/map/ProvinceInstance.hpp>
 #include <openvic-simulation/population/Culture.hpp>
 
@@ -215,11 +217,19 @@ namespace {
 		bool moving = false;
 	};
 
-	// Ships in a port are drawn in the sea next to it
+	// Ships in a port stand at the port (its building of the naval base)
 	Vector2 get_province_anchor(GameSingleton const& game_singleton, ProvinceInstance const& province, unit_branch_t branch) {
 		ProvinceDefinition const& definition = province.province_definition;
-		if (branch == unit_branch_t::NAVAL && !definition.is_water() && definition.get_port_adjacent_province() != nullptr) {
-			return game_singleton.normalise_map_position(definition.get_port_adjacent_province()->get_unit_position());
+		if (branch == unit_branch_t::NAVAL && !definition.is_water() && definition.has_port()) {
+			// At the port itself (the building of the naval base), the sea next to it when the map has no position of the port
+			BuildingType const* const port_type =
+				game_singleton.get_definition_manager().get_economy_manager().get_building_type_manager().get_port_building_type();
+			if (fvec2_t const* const port_position = definition.get_building_position(port_type); port_position != nullptr) {
+				return game_singleton.normalise_map_position(*port_position);
+			}
+			if (definition.get_port_adjacent_province() != nullptr) {
+				return game_singleton.normalise_map_position(definition.get_port_adjacent_province()->get_unit_position());
+			}
 		}
 		return game_singleton.normalise_map_position(definition.get_unit_position());
 	}
@@ -406,9 +416,16 @@ TypedArray<Dictionary> ModelSingleton::get_units() {
 	TypedArray<Dictionary> ret;
 
 	for (ProvinceInstance const& province : instance_manager->get_map_instance().get_province_instances()) {
-		// Fleets are drawn at sea and in the sea next to the ports where they are docked
+		// Fleets are drawn at sea; a fleet docked in a port is hidden (only its plate is shown at the port), one that leaves it or sails into it
+		// is drawn on its way
 		if (!province.get_navies().empty()) {
-			if (!add_unit_dict(std::span { province.get_navies() }, ret)) {
+			std::vector<std::reference_wrapper<NavyInstance>> navies;
+			for (NavyInstance& navy : province.get_navies()) {
+				if (province.province_definition.is_water() || navy.is_moving()) {
+					navies.emplace_back(navy);
+				}
+			}
+			if (!add_unit_dict(std::span<const std::reference_wrapper<NavyInstance>> { navies }, ret)) {
 				UtilityFunctions::push_error(
 				    "Error adding navy to province \"", convert_to<String>(province.get_identifier()), "\""
 				);
