@@ -433,10 +433,10 @@ TypedArray<Dictionary> ModelSingleton::get_units() {
 		}
 
 		if (!province.province_definition.is_water()) {
-			// Armies on board of ships are not drawn
+			// Armies on board of ships and at sea on their way by sea are not drawn
 			std::vector<std::reference_wrapper<ArmyInstance>> armies;
 			for (ArmyInstance& army : province.get_armies()) {
-				if (army.get_transport_navy() == nullptr) {
+				if (army.get_transport_navy() == nullptr && !army.is_at_sea()) {
 					armies.emplace_back(army);
 				}
 			}

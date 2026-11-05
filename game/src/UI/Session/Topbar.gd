@@ -416,7 +416,15 @@ func _update_info() -> void:
 			"CURR": regiment_count, "MAX": str(topbar_info.get(max_supported_regiments_key, 0)),
 		}
 		_military_army_size_label.set_substitution_dict(army_size_dict)
-		_military_army_size_label.set_tooltip_substitution_dict(army_size_dict)
+		# The manpower of the pops of soldiers (docs/RECRUITMENT.md): available of the maximum, a regiment is 3000 men
+		var manpower: Dictionary = PlayerSingleton.get_manpower()
+		var army_tooltip: String = tr(&"TOPBAR_ARMY_TOOLTIP").replace("$CURR$", army_size_dict["CURR"]).replace("$MAX$", army_size_dict["MAX"])
+		if not manpower.is_empty():
+			army_tooltip += "\n\nЛюдские ресурсы: доступно %s чел. (%d полков) из %s чел. (%d полков), полк — %d чел." % [
+				_group_thousands(int(manpower[&"available_men"])), int(manpower[&"available_regiments"]),
+				_group_thousands(int(manpower[&"max_men"])), int(manpower[&"max_regiments"]), int(manpower[&"men_per_regiment"])]
+		_military_army_size_label.set_tooltip_substitution_dict({})
+		_military_army_size_label.set_tooltip_string(army_tooltip)
 
 	if _military_navy_size_label:
 		_military_navy_size_label.set_text("§Y%d/%d" % [0, 0])
@@ -482,3 +490,13 @@ func _update_speed_controls() -> void:
 func _on_update_active_nation_management_screen(active_screen: NationManagement.Screen) -> void:
 	for screen: NationManagement.Screen in _nation_management_buttons:
 		_nation_management_buttons[screen].set_icon_index(1 + int(screen == active_screen))
+
+
+# A number with spaces between the thousands (180 000)
+func _group_thousands(value: int) -> String:
+	var text: String = str(absi(value))
+	var grouped: String = ""
+	while text.length() > 3:
+		grouped = " " + text.substr(text.length() - 3) + grouped
+		text = text.substr(0, text.length() - 3)
+	return ("-" if value < 0 else "") + text + grouped

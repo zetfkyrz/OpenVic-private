@@ -1919,6 +1919,9 @@ Array PlayerSingleton::get_map_units() const {
 		int32_t carried = 0; // regiments carried by the fleets
 		// The supply, weighted by the regiments: what arrives of the need, the reserve (days), the level
 		fixed_point_t supply_arrived = 0, supply_reserve = 0, supply_level = 0;
+		// The way by sea (P4d): the most days at sea left and the port of the landing
+		int32_t at_sea_days = 0;
+		ProvinceInstance const* at_sea_to = nullptr;
 		Array army_ids;
 		Array paths;
 		// Position of the last army of the group, which is also the one drawn on the map
@@ -1974,6 +1977,20 @@ Array PlayerSingleton::get_map_units() const {
 				group->attrition = group->attrition || (!country->is_rebel_country() && (!friendly || unsupplied));
 			}
 			group->army_ids.push_back(static_cast<int64_t>(army.unique_id));
+			if (army.is_at_sea() && static_cast<int32_t>(army.get_sea_transfer_days_left()) > group->at_sea_days) {
+				group->at_sea_days = static_cast<int32_t>(army.get_sea_transfer_days_left());
+				group->at_sea_to = army.get_sea_transfer_to();
+			}
+			// The way by sea: from the port to the port of the landing and on to the destination
+			if (army.is_at_sea() && army.get_sea_transfer_to() != nullptr && army.get_sea_transfer_destination() != nullptr) {
+				PackedVector2Array sea_path;
+				sea_path.push_back(get_province_anchor(*game_singleton, army.get_location(), unit_branch_t::LAND));
+				sea_path.push_back(get_province_anchor(*game_singleton, *army.get_sea_transfer_to(), unit_branch_t::LAND));
+				if (army.get_sea_transfer_destination() != army.get_sea_transfer_to()) {
+					sea_path.push_back(get_province_anchor(*game_singleton, *army.get_sea_transfer_destination(), unit_branch_t::LAND));
+				}
+				group->paths.push_back(std::move(sea_path));
+			}
 
 			if (army.is_moving()) {
 				PackedVector2Array path_positions = get_unit_path_positions(*game_singleton, army);
@@ -2041,6 +2058,9 @@ Array PlayerSingleton::get_map_units() const {
 				entry["supply_reserve_left_days"] = reserve_left;
 			}
 			entry["army_ids"] = group.army_ids;
+			entry["at_sea_days"] = group.at_sea_days;
+			entry["at_sea_to_name"] = group.at_sea_to != nullptr
+				? MenuSingleton::get_singleton()->tr(convert_to<String>(group.at_sea_to->get_identifier())) : String {};
 			entry["is_navy"] = false;
 			entry["occupied"] = occupied;
 

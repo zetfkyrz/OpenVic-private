@@ -380,6 +380,8 @@ func _describe(unit: Dictionary) -> String:
 		elif reserve_left >= 0.0:
 			level_line += " (запас кончится через %d дн., затем −%d%% в день)" % [ceili(reserve_left), step]
 		lines.append(level_line)
+	if int(unit.get(&"at_sea_days", 0)) > 0:
+		lines.append("Плывёт морем в %s: осталось %d дн." % [unit.get(&"at_sea_to_name", "?"), int(unit[&"at_sea_days"])])
 	if unit.get(&"attrition", false):
 		lines.append("Армия несёт потери: чужая земля или нет снабжения")
 	if unit[&"in_combat"]:

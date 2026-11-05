@@ -19,6 +19,7 @@ defines = {
 		WAR_REGIMENTS_PER_PROVINCE = 0.3, -- fraction 0 to 100
 		MIN_WAR_REGIMENTS = 3, -- whole number 0 to 1000
 		MAX_RECRUITS_PER_MONTH = 3, -- whole number 0 to 1000
+		AI_DIVISIONS_PER_MONTH = 1, -- whole number 0 to 100
 		COLONISE_MIN_POINTS_DIVISOR = 2, -- whole number 1 to 100
 		BUDGET_ENABLED = 1, -- whole number 0 to 1
 		BUDGET_STEP = 0.05, -- fraction 0 to 1
@@ -252,6 +253,8 @@ defines = {
 		MOVEMENT_SPEED_SCALE = 3, -- whole number 1 to 1000
 		PORT_STEP_DISTANCE = 10, -- whole number 1 to 10000
 		REGIMENTS_PER_TRANSPORT = 4, -- whole number 0 to 1000
+		SEA_TRANSFER_ENABLED = 1, -- whole number 0 to 1
+		SEA_TRANSFER_SPEED = 8, -- number 0.1 to 1000
 		LANDING_ORGANISATION_DIVISOR = 2, -- whole number 1 to 1000
 	},
 	ov_peace = {
