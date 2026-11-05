@@ -3249,7 +3249,22 @@ Dictionary PlayerSingleton::get_division_grid_stats(PackedInt32Array const& cell
 	DivisionTemplate division_template;
 	ERR_FAIL_COND_V(!array_to_grid(cells, division_template.cells), result);
 	division_template.rebuild_counts();
-	return stats_to_dictionary(compute_division_stats(*instance_manager, *player_country, division_template));
+	result = stats_to_dictionary(compute_division_stats(*instance_manager, *player_country, division_template));
+	// The recruitment (docs/RECRUITMENT.md): the manpower the division takes and the days it is recruited (the longest of its types)
+	UnitTypeManager const& unit_type_manager = GameSingleton::get_singleton()->get_definition_manager().get_military_manager().get_unit_type_manager();
+	const Manpower manpower = instance_manager->get_unit_instance_manager().get_manpower(*player_country);
+	int32_t days = 0;
+	int32_t regiments = 0;
+	for (const std::uint8_t cell : division_template.cells) {
+		if (RegimentType const* const type = cell != 0 ? unit_type_manager.get_regiment_type_by_index(regiment_type_index_t(cell - 1)) : nullptr) {
+			days = std::max(days, UnitInstanceManager::get_recruitment_days(*player_country, *type));
+			regiments++;
+		}
+	}
+	result["recruit_days"] = days;
+	result["manpower"] = static_cast<int64_t>(regiments) * manpower.men_per_regiment;
+	result["manpower_available"] = static_cast<int64_t>(manpower.available_regiments) * manpower.men_per_regiment;
+	return result;
 }
 
 bool PlayerSingleton::create_division_template(PackedInt32Array const& cells) const {

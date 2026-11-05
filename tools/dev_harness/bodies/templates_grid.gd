@@ -1,7 +1,7 @@
 	# The window of the division templates (a grid) with the numbers of the template: screenshots and the values the bridge gives
 	PlayerSingleton.toggle_paused()
 	await get_tree().create_timer(1.0).timeout
-	print("DEVCHECK organised=", PlayerSingleton.has_army_organisation())
+	print("DEVCHECK organised=", PlayerSingleton.has_army_command())
 	print("DEVCHECK limits=", PlayerSingleton.get_division_template_limits())
 	print("DEVCHECK types=", PlayerSingleton.get_division_cell_types())
 	var templates: Array = PlayerSingleton.get_division_templates()

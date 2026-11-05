@@ -73,14 +73,22 @@ func _ready() -> void:
 
 	# The numbers
 	# The numbers: three columns of cells, a name and a value in every cell (like the designer of the divisions of the originals)
+	var sheet := PanelContainer.new()
+	var sheet_style := StyleBoxFlat.new()
+	sheet_style.bg_color = _PARCHMENT
+	sheet_style.border_color = Color(0.3, 0.24, 0.14)
+	sheet_style.set_border_width_all(2)
+	sheet.add_theme_stylebox_override(&"panel", sheet_style)
+	sheet.custom_minimum_size = Vector2(760, 0)
+	body.add_child(sheet)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(930, 0)
 	scroll.clip_contents = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.add_child(scroll)
+	sheet.add_child(scroll)
 	_stats_box = HBoxContainer.new()
-	_stats_box.add_theme_constant_override(&"separation", 4)
+	_stats_box.add_theme_constant_override(&"separation", 0)
 	_stats_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_stats_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_stats_box)
 
 	var button_row := HBoxContainer.new()
@@ -199,58 +207,102 @@ func _good_text(goods: Array) -> String:
 	return ", ".join(parts) if not parts.is_empty() else "—"
 
 
+## The table of the numbers like the designer of the divisions of the originals: one sheet of parchment with three columns (the base, the combat, the
+## cost), a header of every column, a name and a value in every line (the lines of every other row a bit darker)
+const _PARCHMENT: Color = Color(0.87, 0.81, 0.66)
+const _PARCHMENT_DARK: Color = Color(0.82, 0.75, 0.59)
+const _HEADER: Color = Color(0.72, 0.63, 0.44)
+const _INK: Color = Color(0.17, 0.12, 0.07)
+const _LINE: Color = Color(0.48, 0.38, 0.22)
+
+var _row_index: int = 0
+
+
 func _stat_cell(parent: VBoxContainer, title: String, value: String, tip: String = "") -> void:
 	var cell := PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.93, 0.88, 0.74, 0.75)
-	style.set_border_width_all(1)
-	style.border_color = Color(0.45, 0.35, 0.2, 0.8)
+	style.bg_color = _PARCHMENT_DARK if _row_index % 2 == 1 else _PARCHMENT
+	_row_index += 1
 	style.content_margin_left = 6.0
 	style.content_margin_right = 6.0
-	style.content_margin_top = 2.0
-	style.content_margin_bottom = 2.0
+	style.content_margin_top = 1.0
+	style.content_margin_bottom = 1.0
 	cell.add_theme_stylebox_override(&"panel", style)
 	if not tip.is_empty():
 		cell.tooltip_text = tip
 	var row := HBoxContainer.new()
 	cell.add_child(row)
 	var name_label := Label.new()
-	name_label.text = title
+	name_label.text = title + ":"
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.clip_text = true
 	name_label.add_theme_font_size_override(&"font_size", 13)
+	name_label.add_theme_color_override(&"font_color", _INK)
 	row.add_child(name_label)
 	var value_label := Label.new()
 	value_label.text = value
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.add_theme_font_size_override(&"font_size", 13)
+	value_label.add_theme_color_override(&"font_color", _INK)
 	row.add_child(value_label)
 	parent.add_child(cell)
 
 
+## A sub-header inside a column (the supplies of a day, the ammunition)
+func _stat_subheader(parent: VBoxContainer, title: String) -> void:
+	var label := Label.new()
+	label.text = title
+	label.add_theme_font_size_override(&"font_size", 12)
+	label.add_theme_color_override(&"font_color", Color(0.35, 0.22, 0.08))
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	parent.add_child(label)
+	_row_index = 0
+
+
 func _stat_column(title: String) -> VBoxContainer:
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override(&"separation", 1)
+	column.add_theme_constant_override(&"separation", 0)
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.size_flags_stretch_ratio = 1.0
 	var header := PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.22, 0.2, 0.17)
-	style.border_color = Color(0.6, 0.5, 0.25)
-	style.set_border_width_all(1)
+	style.bg_color = _HEADER
+	style.border_color = _LINE
+	style.border_width_bottom = 2
+	style.content_margin_left = 6.0
+	style.content_margin_top = 3.0
+	style.content_margin_bottom = 3.0
 	header.add_theme_stylebox_override(&"panel", style)
 	var label := Label.new()
 	label.text = title
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_color_override(&"font_color", Color(0.95, 0.9, 0.75))
+	label.add_theme_font_size_override(&"font_size", 16)
+	label.add_theme_color_override(&"font_color", _INK)
 	header.add_child(label)
 	column.add_child(header)
+	_row_index = 0
+	if _stats_box.get_child_count() > 0:
+		var separator := ColorRect.new()
+		separator.color = _LINE
+		separator.custom_minimum_size = Vector2(2.0, 0.0)
+		_stats_box.add_child(separator)
 	_stats_box.add_child(column)
 	return column
 
 
 func _goods_cells(column: VBoxContainer, goods: Array) -> void:
+	if goods.is_empty():
+		_stat_cell(column, "—", "")
 	for entry: Dictionary in goods:
 		_stat_cell(column, tr(entry[&"good"]), "%.2f" % entry[&"amount"])
+
+
+func _men_text(value: int) -> String:
+	var text: String = str(absi(value))
+	var grouped: String = ""
+	while text.length() > 3:
+		grouped = " " + text.substr(text.length() - 3) + grouped
+		text = text.substr(0, text.length() - 3)
+	return text + grouped
 
 
 func _update_stats() -> void:
@@ -261,34 +313,37 @@ func _update_stats() -> void:
 	var stats: Dictionary = PlayerSingleton.get_division_grid_stats(_cells_from_grid())
 	if stats.is_empty():
 		return
-	var occupation: String = "мгновенная" if stats[&"occupation_instant"] else "%.1f дн." % stats[&"occupation_days"]
+	var occupation: String = "мгновенно" if stats[&"occupation_instant"] else "%.1f дн." % stats[&"occupation_days"]
 	var base: VBoxContainer = _stat_column("Базовые парам.")
-	_stat_cell(base, "Полков", "%d" % stats[&"regiments"])
-	_stat_cell(base, "Людей", "%d" % int(stats[&"men"]))
 	_stat_cell(base, "Макс. скорость", "%.1f" % stats[&"speed"])
-	_stat_cell(base, "Прочность", "%.1f" % stats[&"durability"])
+	_stat_cell(base, "Прочность", "%.1f" % stats[&"durability"], "Сколько дивизия держится: считаются все клетки, глубина добавляет прочность")
 	_stat_cell(base, "Организация", "%.1f" % stats[&"organisation"])
 	_stat_cell(base, "Разведка", "%.1f" % stats[&"reconnaissance"])
-	_stat_cell(base, "Вес", "%.1f т" % (stats[&"weight"] / 1000.0))
+	_stat_cell(base, "Вес", "%.1f т" % (stats[&"weight"] / 1000.0), "Люди со снаряжением и оружие (столько везут корабли)")
+	_stat_cell(base, "Полков", "%d" % stats[&"regiments"])
 	_stat_cell(base, "Рот поддержки", "%d" % stats[&"companies"])
 	_stat_cell(base, "Мощность захвата", "%.2f" % stats[&"occupation_power"], "Сумма весов захвата полков / 6")
 	_stat_cell(base, "Захват провинции", occupation)
 	var combat: VBoxContainer = _stat_column("Боевые парам.")
-	_stat_cell(combat, "Атака", "%.1f" % stats[&"attack"])
+	_stat_cell(combat, "Атака", "%.1f" % stats[&"attack"], "Возможный урон: клетки рядов весят 1, 1/2, 1/4…")
 	_stat_cell(combat, "Защита", "%.1f" % stats[&"defence"])
-	_stat_cell(combat, "Прорыв", "%.1f" % stats[&"breakthrough"])
+	_stat_cell(combat, "Прорыв", "%.1f" % stats[&"breakthrough"], "Как быстро наступающий ломает оборону")
 	_stat_cell(combat, "Укреплённость", "%.1f" % stats[&"fortification"])
 	_stat_cell(combat, "Ширина фронта", "%d" % stats[&"width"])
 	_stat_cell(combat, "Глубина", "%.1f" % stats[&"depth"])
 	_stat_cell(combat, "Плотность", "%.2f" % stats[&"density"], "2 × глубина / ширина с поправками технологий")
-	_stat_cell(combat, "Потери", "%d%%" % int(round(stats[&"casualties"] * 100.0)))
-	_stat_cell(combat, "Надёжность", "%d%%" % int(round(stats[&"reliability"] * 100.0)))
+	_stat_cell(combat, "Потери", "%d%%" % int(round(stats[&"casualties"] * 100.0)), "Получаемые потери: плотность выше 1 и медицина")
+	_stat_cell(combat, "Надёжность", "%d%%" % int(round(stats[&"reliability"] * 100.0)), "Доля лучшего оружия, которое у дивизии есть")
 	var cost: VBoxContainer = _stat_column("Стоимость")
+	var manpower: int = int(stats.get(&"manpower", int(stats[&"men"])))
+	_stat_cell(cost, "Людские ресурсы", _men_text(manpower),
+		"Полк — 3000 человек из солдат-попов; доступно сейчас %s" % _men_text(int(stats.get(&"manpower_available", 0))))
+	_stat_cell(cost, "Время на обучение", "%d дн." % int(stats.get(&"recruit_days", 0)), "Срок набора дивизии: самый долгий из сроков её полков")
 	_goods_cells(cost, stats[&"cost"])
-	var supply: VBoxContainer = _stat_column("Припасы в день")
-	_goods_cells(supply, stats[&"supply_per_day"])
-	var ammo: VBoxContainer = _stat_column("Патроны в бою")
-	_goods_cells(ammo, stats[&"ammo_per_day"])
+	_stat_subheader(cost, "Припасы в день")
+	_goods_cells(cost, stats[&"supply_per_day"])
+	_stat_subheader(cost, "Патроны в день боя")
+	_goods_cells(cost, stats[&"ammo_per_day"])
 
 
 func _on_cell_changed(_index: int) -> void:
