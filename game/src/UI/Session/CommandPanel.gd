@@ -695,6 +695,17 @@ func _rebuild_plate() -> void:
 	planning.add_theme_font_size_override(&"font_size", 13)
 	planning.add_theme_color_override(&"font_color", Color(0.55, 0.9, 0.5) if float(group[&"planning"]) > 0.0 else Color(0.6, 0.6, 0.6))
 	title_row.add_child(planning)
+	# What the executed plan does (checked every day and when the execution is pressed): why the divisions stand
+	var status: int = int(group.get(&"plan_status", 0))
+	if bool(group[&"plan_active"]) and status != 0:
+		var status_label := Label.new()
+		status_label.text = _t("PLAN_STATUS_%d" % status).replace("$N$", str(int(group.get(&"plan_attacks", 0)))) 			.replace("$P$", str(roundi(float(group.get(&"plan_best_chance", 0.0)) * 100.0))) 			.replace("$NEED$", str(roundi(float(group.get(&"plan_needed_chance", 0.0)) * 100.0)))
+		status_label.add_theme_font_size_override(&"font_size", 12)
+		var status_colour: Color = Color(0.55, 0.9, 0.5) if status <= 2 else (Color(1.0, 0.45, 0.4) if status == 3 else Color(1.0, 0.8, 0.4))
+		status_label.add_theme_color_override(&"font_color", status_colour)
+		status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		status_label.custom_minimum_size = Vector2(320.0, 0.0)
+		box.add_child(status_label)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override(&"separation", 3)
 	box.add_child(buttons)

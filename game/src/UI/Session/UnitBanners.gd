@@ -356,10 +356,30 @@ func _describe(unit: Dictionary) -> String:
 	if unit.get(&"is_navy", false):
 		return _describe_fleet(unit)
 	var lines: PackedStringArray = [
-		"%s: %d, %s: %d" % [tr("Armies"), unit[&"army_count"], tr("Regiments"), unit[&"regiments"]],
-		"%s: %d%%" % [tr("Strength"), roundi(float(unit[&"strength"]) * 100.0)],
-		"%s: %d%%" % [tr("Organisation"), roundi(float(unit[&"organisation"]) * 100.0)],
+		"Армий: %d, полков: %d" % [unit[&"army_count"], unit[&"regiments"]],
+		# The men now of the full strength (a regiment is 3000 men) and the organisation
+		"Войска: %s из %s чел. (%d%%)" % [_men(int(unit.get(&"men", 0))), _men(int(unit.get(&"max_men", 0))), roundi(float(unit[&"strength"]) * 100.0)],
+		"Организация: %d%%" % roundi(float(unit[&"organisation"]) * 100.0),
 	]
+	# The supply of the player's divisions: is it enough, the reserve, the level and how it changes a day
+	if unit[&"is_player"] and unit.has(&"supply_arrived"):
+		var arrived: float = float(unit[&"supply_arrived"])
+		var change: float = float(unit[&"supply_change_per_day"])
+		var step: int = roundi(float(unit[&"supply_step_per_day"]) * 100.0)
+		var reserve_left: float = float(unit[&"supply_reserve_left_days"])
+		if arrived >= 0.99:
+			lines.append("Снабжение: хватает")
+		else:
+			lines.append("Снабжение: не хватает, доходит %d%% нужного" % roundi(arrived * 100.0))
+		lines.append("Запас: %.1f дн." % float(unit[&"supply_reserve_days"]))
+		var level_line: String = "Уровень снабжения: %d%%" % roundi(float(unit[&"supply_level"]) * 100.0)
+		if change < 0.0:
+			level_line += " (−%d%% в день)" % step
+		elif change > 0.0:
+			level_line += " (+%d%% в день)" % step
+		elif reserve_left >= 0.0:
+			level_line += " (запас кончится через %d дн., затем −%d%% в день)" % [ceili(reserve_left), step]
+		lines.append(level_line)
 	if unit.get(&"attrition", false):
 		lines.append("Армия несёт потери: чужая земля или нет снабжения")
 	if unit[&"in_combat"]:
@@ -371,6 +391,16 @@ func _describe(unit: Dictionary) -> String:
 	if unit[&"is_player"]:
 		lines.append(tr("Click to select, then right click a province to move"))
 	return "\n".join(lines)
+
+
+## A number of men with spaces between the thousands
+func _men(value: int) -> String:
+	var text: String = str(absi(value))
+	var grouped: String = ""
+	while text.length() > 3:
+		grouped = " " + text.substr(text.length() - 3) + grouped
+		text = text.substr(0, text.length() - 3)
+	return text + grouped
 
 
 func _describe_fleet(unit: Dictionary) -> String:

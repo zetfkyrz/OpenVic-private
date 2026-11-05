@@ -382,6 +382,11 @@ namespace OpenVic {
 		// Recruitment orders of the player: [{ id, type_name, province_number, province_name, days_left, days_total }]
 		godot::Array get_recruitment_queue() const;
 		bool cancel_recruitment(int64_t order_id) const;
+		// The manpower (docs/RECRUITMENT.md): {max_regiments, available_regiments, used_regiments, men_per_regiment, max_men, available_men}
+		godot::Dictionary get_manpower() const;
+		// The templates the player can recruit in the province: [{id, name, regiments, men, days, cost [{good_name, amount, have}], reason}]
+		godot::Array get_division_recruitment_info(int32_t province_number) const;
+		bool start_division_recruitment(int32_t template_id, int32_t province_number) const;
 
 		// Diplomacy tabs (country_diplomacy.gui):
 		// "Great powers": [{ index, tag, name, rank (position among the great powers), total_rank, prestige, prestige_rank,

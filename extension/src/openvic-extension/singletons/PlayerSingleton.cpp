@@ -239,6 +239,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::start_recruitment, { "regiment_type_index", "province_number", "pop_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_recruitment_queue);
 	OV_BIND_METHOD(PlayerSingleton::cancel_recruitment, { "order_id" });
+	OV_BIND_METHOD(PlayerSingleton::get_manpower);
+	OV_BIND_METHOD(PlayerSingleton::get_division_recruitment_info, { "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::start_division_recruitment, { "template_id", "province_number" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_great_powers_info);
 	OV_BIND_METHOD(PlayerSingleton::get_world_wars_info);
@@ -1906,6 +1909,8 @@ Array PlayerSingleton::get_map_units() const {
 		// The armies lose men: outside of friendly lands or without supplies
 		bool attrition = false;
 		int32_t carried = 0; // regiments carried by the fleets
+		// The supply, weighted by the regiments: what arrives of the need, the reserve (days), the level
+		fixed_point_t supply_arrived = 0, supply_reserve = 0, supply_level = 0;
 		Array army_ids;
 		Array paths;
 		// Position of the last army of the group, which is also the one drawn on the map
@@ -1949,6 +1954,12 @@ Array PlayerSingleton::get_map_units() const {
 			group->in_combat = group->in_combat || army.is_in_combat();
 			group->moving = group->moving || army.is_moving();
 			{
+				const std::int32_t weight = static_cast<std::int32_t>(army.get_unit_count());
+				group->supply_arrived += army.get_supply_ratio() * weight;
+				group->supply_reserve += army.get_supply_reserve_average() * weight;
+				group->supply_level += army.get_supply_level() * weight;
+			}
+			{
 				CountryInstance const* owner = province.get_owner();
 				const bool friendly = owner == country || (owner != nullptr && country->has_alliance_with(*owner));
 				const bool unsupplied = country->is_at_war() && army.get_supply_level() < (fixed_point_t(3) / 4);
@@ -1987,6 +1998,40 @@ Array PlayerSingleton::get_map_units() const {
 			entry["in_combat"] = group.in_combat;
 			entry["moving"] = group.moving;
 			entry["attrition"] = group.attrition;
+			// The men (a regiment is POP_SIZE_PER_REGIMENT men at full strength) and the supply of the stack: what arrives of the need, the reserve in
+			// days, the supply level (it multiplies the attack and the defence) and how it changes a day (docs/WAR_ASSUMPTIONS.md, section 6)
+			{
+				const std::int32_t men_per_regiment = static_cast<std::int32_t>(type_safe::get(
+					instance_manager->definition_manager.get_define_manager().get_military_defines().get_pop_size_per_regiment()
+				));
+				const int64_t max_men = static_cast<int64_t>(group.regiments) * men_per_regiment;
+				entry["max_men"] = max_men;
+				entry["men"] = group.max_strength > 0
+					? static_cast<int64_t>((group.strength / group.max_strength * static_cast<std::int32_t>(max_men / 100)).floor<std::int64_t>() * 100) : int64_t { 0 };
+				const std::int32_t weight = std::max<std::int32_t>(1, group.regiments);
+				const fixed_point_t arrived = group.supply_arrived / weight;
+				const fixed_point_t reserve = group.supply_reserve / weight;
+				const fixed_point_t level = group.supply_level / weight;
+				OpenVicDefines const& ov_defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines();
+				const fixed_point_t step = ov_defines.economy.supply_level_change_per_day.of(fixed_point_t::_1);
+				const bool full = arrived >= ov_defines.supply.supply_full_threshold.fixed();
+				const fixed_point_t shortfall = full ? fixed_point_t::_0 : fixed_point_t::_1 - arrived;
+				fixed_point_t change = fixed_point_t::_0;
+				float reserve_left = -1.0f;
+				if (full) {
+					change = level < fixed_point_t::_1 ? step : fixed_point_t::_0;
+				} else if (reserve > shortfall) {
+					reserve_left = static_cast<float>(reserve / shortfall); // the reserve covers what is missing for so many days
+				} else if (level > fixed_point_t::_1 - shortfall) {
+					change = -step;
+				}
+				entry["supply_arrived"] = static_cast<float>(arrived);
+				entry["supply_reserve_days"] = static_cast<float>(reserve);
+				entry["supply_level"] = static_cast<float>(level);
+				entry["supply_change_per_day"] = static_cast<float>(change);
+				entry["supply_step_per_day"] = static_cast<float>(step);
+				entry["supply_reserve_left_days"] = reserve_left;
+			}
 			entry["army_ids"] = group.army_ids;
 			entry["is_navy"] = false;
 			entry["occupied"] = occupied;
@@ -2725,6 +2770,16 @@ Array PlayerSingleton::get_army_groups() const {
 		entry["colour_index"] = static_cast<int32_t>(group.colour_index);
 		entry["theatre_id"] = static_cast<int32_t>(group.theatre_id);
 		entry["plan_active"] = group.plan_active;
+		// The state of the executed plan (ArmyGroup::plan_status) and the chance it needs in its mode
+		entry["plan_status"] = static_cast<int32_t>(group.plan_status);
+		entry["plan_best_chance"] = static_cast<float>(group.plan_best_chance);
+		entry["plan_attacks"] = static_cast<int32_t>(group.plan_attacks);
+		{
+			OpenVicWarDefines const& war_defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war;
+			Rate const& needed = group.aggression <= 1 ? war_defines.plan_win_careful : group.aggression == 2 ? war_defines.plan_win_balanced
+				: war_defines.plan_win_aggressive;
+			entry["plan_needed_chance"] = static_cast<float>(needed.of(fixed_point_t::_1));
+		}
 		entry["aggression"] = static_cast<int32_t>(group.aggression);
 		entry["planning"] = static_cast<float>(group.planning);
 		entry["planning_max"] = static_cast<float>(get_planning_max(*instance_manager, *player_country));
@@ -3664,9 +3719,95 @@ Array PlayerSingleton::get_recruitment_queue() const {
 		entry["province_name"] = menu_singleton->tr(convert_to<String>(order.province->get_identifier()));
 		entry["days_left"] = order.days_left;
 		entry["days_total"] = order.days_total;
+		// A regiment of a division recruited by a template
+		entry["division_id"] = static_cast<int32_t>(order.division_id);
+		entry["template_name"] = order.template_id != 0
+			? Utilities::format(String::utf8("Шаблон %d"), static_cast<int32_t>(order.template_id)) : String {};
 		result.push_back(entry);
 	}
 	return result;
+}
+
+Dictionary PlayerSingleton::get_manpower() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	const Manpower manpower = instance_manager->get_unit_instance_manager().get_manpower(*player_country);
+	result["max_regiments"] = static_cast<int32_t>(manpower.max_regiments);
+	result["available_regiments"] = static_cast<int32_t>(manpower.available_regiments);
+	result["used_regiments"] = static_cast<int32_t>(manpower.max_regiments - std::min(manpower.max_regiments, manpower.available_regiments));
+	result["men_per_regiment"] = manpower.men_per_regiment;
+	result["max_men"] = static_cast<int64_t>(manpower.max_regiments) * manpower.men_per_regiment;
+	result["available_men"] = static_cast<int64_t>(manpower.available_regiments) * manpower.men_per_regiment;
+	return result;
+}
+
+Array PlayerSingleton::get_division_recruitment_info(int32_t province_number) const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, result);
+	UnitTypeManager const& unit_type_manager = game_singleton->get_definition_manager().get_military_manager().get_unit_type_manager();
+	const std::int32_t men_per_regiment = instance_manager->get_unit_instance_manager().get_manpower(*player_country).men_per_regiment;
+	for (DivisionTemplate const& division_template : player_country->get_division_templates()) {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(division_template.id);
+		entry["name"] = Utilities::format(String::utf8("Шаблон %d"), static_cast<int32_t>(division_template.id));
+		int32_t regiments = 0;
+		int32_t days = 1;
+		std::vector<std::pair<GoodDefinition const*, fixed_point_t>> cost;
+		for (const std::uint8_t cell : division_template.cells) {
+			RegimentType const* const type = cell != 0 ? unit_type_manager.get_regiment_type_by_index(regiment_type_index_t(cell - 1)) : nullptr;
+			if (type == nullptr) {
+				continue;
+			}
+			regiments++;
+			days = std::max(days, UnitInstanceManager::get_recruitment_days(*player_country, *type));
+			for (auto const& [good, amount] : type->get_build_cost()) {
+				auto it = std::find_if(cost.begin(), cost.end(), [good](auto const& item) -> bool { return item.first == good; });
+				if (it == cost.end()) {
+					cost.emplace_back(good, amount);
+				} else {
+					it->second += amount;
+				}
+			}
+		}
+		entry["regiments"] = regiments;
+		entry["men"] = static_cast<int64_t>(regiments) * men_per_regiment;
+		entry["days"] = days;
+		Array cost_array;
+		for (auto const& [good, amount] : cost) {
+			Dictionary cost_entry;
+			cost_entry["good_name"] = menu_singleton->tr(convert_to<String>(good->get_identifier()));
+			cost_entry["amount"] = static_cast<float>(amount);
+			cost_entry["have"] = static_cast<float>(player_country->get_good_data(*good).stockpile_amount);
+			cost_array.push_back(cost_entry);
+		}
+		entry["cost"] = cost_array;
+		entry["reason"] = String::utf8(instance_manager->get_unit_instance_manager().get_division_recruitment_block_reason(
+			*player_country, unit_type_manager, division_template, *province
+		).c_str());
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::start_division_recruitment(int32_t template_id, int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	ERR_FAIL_COND_V(template_id <= 0, false);
+	return instance_manager->queue_game_action<start_division_recruitment_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(template_id), province->index
+	);
 }
 
 bool PlayerSingleton::cancel_recruitment(int64_t order_id) const {

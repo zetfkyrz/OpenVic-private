@@ -1,7 +1,9 @@
 extends "res://src/UI/Session/Vic2Window.gd"
 ## Recruitment of regiments (tasks A4/A7): the type of the regiment, the pops of the province that can provide the
 ## soldiers (type, culture, regiments they support), the cost in goods from the national stockpile, the reason why a
-## recruitment is not possible and the queue of the recruitments in progress with cancelling.
+## recruitment is not possible and the queue of the recruitments in progress with cancelling. The mode "Дивизии" recruits
+## a whole division by a template (docs/RECRUITMENT.md): the soldiers from the pops of the whole country, a regiment is
+## 3000 men; the manpower of the country (available of the maximum) is shown on top.
 ## A Victoria 2 style window, opened from the panel of the selected army or from the war panel.
 
 const _SIZE: Vector2 = Vector2(640, 600)
@@ -10,7 +12,10 @@ var _province_number: int = 0
 var _info: Dictionary = {}
 var _selected_pop_id: int = -1
 var _ships_mode: bool = false
+var _division_mode: bool = false
 var _ship_types: Array = []
+var _templates: Array = []
+var _manpower_label: Label
 
 var _province_label: Label
 var _mode_option: OptionButton
@@ -27,7 +32,7 @@ var _type_signature: String = ""
 
 
 func _ready() -> void:
-	setup(_SIZE, "Набор полков")
+	setup(_SIZE, "Набор войск")
 
 	var root := VBoxContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -46,12 +51,19 @@ func _ready() -> void:
 	selected_button.pressed.connect(_on_selected_province_pressed)
 	province_row.add_child(selected_button)
 
+	_manpower_label = Label.new()
+	_manpower_label.add_theme_color_override(&"font_color", Color(0.95, 0.85, 0.55))
+	_manpower_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_manpower_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	root.add_child(_manpower_label)
+
 	var type_row := HBoxContainer.new()
 	type_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(type_row)
 	_mode_option = OptionButton.new()
 	_mode_option.add_item("Полки")
 	_mode_option.add_item("Корабли")
+	_mode_option.add_item("Дивизии")
 	_mode_option.item_selected.connect(_on_mode_selected)
 	type_row.add_child(_mode_option)
 	var type_caption := Label.new()
@@ -126,6 +138,7 @@ func open_for_province(province_number: int, ships: bool = false) -> void:
 	_selected_pop_id = -1
 	_type_signature = ""
 	_ships_mode = ships
+	_division_mode = false
 	_mode_option.select(1 if ships else 0)
 	_refresh()
 	open_window()
@@ -133,6 +146,7 @@ func open_for_province(province_number: int, ships: bool = false) -> void:
 
 func _on_mode_selected(index: int) -> void:
 	_ships_mode = index == 1
+	_division_mode = index == 2
 	_selected_pop_id = -1
 	_type_signature = ""
 	_refresh()
@@ -143,6 +157,7 @@ func _refresh() -> void:
 		return
 
 	_update_queue()
+	_update_manpower()
 
 	if _province_number <= 0:
 		_province_label.text = "Выберите провинцию на карте"
@@ -157,22 +172,54 @@ func _refresh() -> void:
 
 	_province_label.text = "Провинция: %s" % _info[&"province_name"]
 	_ship_types = PlayerSingleton.get_ship_types(_province_number) if _ships_mode else []
-	_pops_caption.visible = not _ships_mode
-	_pops_tree.visible = not _ships_mode
-	_recruit_button.text = "Построить корабль" if _ships_mode else "Набрать полк"
+	_templates = []
+	if _division_mode:
+		for template: Dictionary in PlayerSingleton.get_division_recruitment_info(_province_number):
+			var entry: Dictionary = template.duplicate()
+			entry[&"index"] = int(template[&"id"])
+			entry[&"unlocked"] = true
+			entry[&"name"] = "%s: %d полков, %s чел." % [template[&"name"], template[&"regiments"], _thousands(int(template[&"men"]))]
+			_templates.append(entry)
+	var pops_mode: bool = not _ships_mode and not _division_mode
+	_pops_caption.visible = pops_mode
+	_pops_tree.visible = pops_mode
+	_recruit_button.text = "Построить корабль" if _ships_mode else ("Набрать дивизию" if _division_mode else "Набрать полк")
 	_update_types()
-	if not _ships_mode:
+	if pops_mode:
 		_update_pops()
 	_update_cost_and_reason()
 
 
 func _get_types() -> Array:
+	if _division_mode:
+		return _templates
 	return _ship_types if _ships_mode else _info.get(&"regiment_types", [])
+
+
+## The manpower of the country: the regiments the pops of soldiers support (a regiment is 3000 men), available of the maximum
+func _update_manpower() -> void:
+	var manpower: Dictionary = PlayerSingleton.get_manpower()
+	if manpower.is_empty():
+		_manpower_label.text = ""
+		return
+	_manpower_label.text = "Людские ресурсы: доступно %s чел. (%d полков) из %s чел. (%d полков), полк — %d чел." % [
+		_thousands(int(manpower[&"available_men"])), int(manpower[&"available_regiments"]),
+		_thousands(int(manpower[&"max_men"])), int(manpower[&"max_regiments"]), int(manpower[&"men_per_regiment"])]
+	_manpower_label.tooltip_text = "Солдаты-попы страны (в своих, не оккупированных провинциях) содержат полки, как в Vic2: один на каждые %d человек и ещё один. Набранные полки занимают места." % int(manpower[&"men_per_regiment"])
+
+
+func _thousands(value: int) -> String:
+	var text: String = str(absi(value))
+	var grouped: String = ""
+	while text.length() > 3:
+		grouped = " " + text.substr(text.length() - 3) + grouped
+		text = text.substr(0, text.length() - 3)
+	return ("-" if value < 0 else "") + text + grouped
 
 
 func _update_types() -> void:
 	var types: Array = _get_types()
-	var signature: String = "ships;" if _ships_mode else "regiments;"
+	var signature: String = "divisions;" if _division_mode else ("ships;" if _ships_mode else "regiments;")
 	for entry: Dictionary in types:
 		signature += "%d:%s;" % [entry[&"index"], entry[&"unlocked"]]
 	if signature == _type_signature:
@@ -255,8 +302,8 @@ func _update_cost_and_reason() -> void:
 	_cost_label.text = "Стоимость из национального склада: " + (", ".join(parts) if not parts.is_empty() else "нет") \
 		+ ". Срок: %d дн." % type_entry[&"days"]
 
-	if _ships_mode:
-		# The reason is worked out by the simulation (port, level of the naval base, goods, ...)
+	if _ships_mode or _division_mode:
+		# The reason is worked out by the simulation (port, level of the naval base, goods; the manpower of a division, ...)
 		_reason_label.text = type_entry[&"reason"]
 		_recruit_button.disabled = type_entry[&"reason"] != ""
 		return
@@ -282,9 +329,23 @@ func _update_queue() -> void:
 	_queue_tree.clear()
 	var root: TreeItem = _queue_tree.create_item()
 	var to_select: TreeItem = null
+	# The regiments of a division are one line (cancelling it cancels the division)
+	var division_counts: Dictionary = {}
 	for order: Dictionary in queue:
+		var division_id: int = int(order.get(&"division_id", 0))
+		if division_id != 0:
+			division_counts[division_id] = int(division_counts.get(division_id, 0)) + 1
+	var shown_divisions: Dictionary = {}
+	for order: Dictionary in queue:
+		var division_id: int = int(order.get(&"division_id", 0))
+		if division_id != 0 and shown_divisions.has(division_id):
+			continue
+		shown_divisions[division_id] = true
 		var item: TreeItem = _queue_tree.create_item(root)
-		item.set_text(0, order[&"type_name"])
+		if division_id != 0:
+			item.set_text(0, "Дивизия (%s, %d полков)" % [order[&"template_name"], int(division_counts[division_id])])
+		else:
+			item.set_text(0, order[&"type_name"])
 		item.set_text(1, order[&"province_name"])
 		item.set_text(2, "%d из %d дн." % [order[&"days_left"], order[&"days_total"]])
 		item.set_metadata(0, order[&"id"])
@@ -320,6 +381,9 @@ func _on_pop_deselected() -> void:
 func _on_recruit_pressed() -> void:
 	if _ships_mode:
 		PlayerSingleton.start_ship_building(_get_selected_type_index(), _province_number)
+		return
+	if _division_mode:
+		PlayerSingleton.start_division_recruitment(_get_selected_type_index(), _province_number)
 		return
 	if _selected_pop_id < 0:
 		return
