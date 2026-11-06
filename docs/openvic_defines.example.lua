@@ -322,6 +322,7 @@ defines = {
 		THROTTLE_MIN = 0.1999969482421875, -- number 0.01 to 1
 		MIN_AFFORDABLE_SHARE = 0.001, -- fraction 0 to 1
 		SUPPLY_RESERVE_DAYS = 10, -- whole number 0 to 3650
+		START_SUPPLY_STOCKPILE_DAYS = 90, -- whole number 0 to 3650
 		SUPPLY_DAYS_PER_MONTH = 30, -- whole number 1 to 365
 		ARMY_SUPPLY_DURABLE_SHARE = 0.01, -- fraction 0 to 10
 		ARMY_SUPPLY_CONSUMABLE_SHARE = 0.1, -- fraction 0 to 10
