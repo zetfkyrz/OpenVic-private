@@ -385,13 +385,13 @@ func _describe(unit: Dictionary) -> String:
 	if unit.get(&"attrition", false):
 		lines.append("Армия несёт потери: чужая земля или нет снабжения")
 	if unit[&"in_combat"]:
-		lines.append(tr("In battle"))
+		lines.append("В бою")
 	elif unit[&"moving"]:
-		lines.append(tr("Marching"))
+		lines.append("На марше")
 	if unit[&"siege_progress"] >= 0.0:
-		lines.append("%s: %d%%" % [tr("Siege"), roundi(float(unit[&"siege_progress"]) * 100.0)])
+		lines.append("Осада: %d%%" % roundi(float(unit[&"siege_progress"]) * 100.0))
 	if unit[&"is_player"]:
-		lines.append(tr("Click to select, then right click a province to move"))
+		lines.append("Нажмите, чтобы выбрать; правый клик по провинции — приказ идти")
 	return "\n".join(lines)
 
 

@@ -49,6 +49,20 @@
 
 using namespace OpenVic;
 
+namespace {
+	// The name of a province: the localisation PROV<number> of Vic2 (the number when there is none)
+	godot::String province_name_of(ProvinceInstance const& province) {
+		const godot::String number = godot::String::num_int64(province.province_definition.get_province_number());
+		MenuSingleton* const menu_singleton = MenuSingleton::get_singleton();
+		if (menu_singleton == nullptr) {
+			return number;
+		}
+		const godot::String key = "PROV" + number;
+		const godot::String name = menu_singleton->tr(key);
+		return name != key ? name : number;
+	}
+}
+
 CountryInstance* PlayerSingleton::get_player_country() {
 	GameSingleton::get_singleton()->wait_for_simulation();
 	return player_country;
@@ -2060,7 +2074,7 @@ Array PlayerSingleton::get_map_units() const {
 			entry["army_ids"] = group.army_ids;
 			entry["at_sea_days"] = group.at_sea_days;
 			entry["at_sea_to_name"] = group.at_sea_to != nullptr
-				? MenuSingleton::get_singleton()->tr(convert_to<String>(group.at_sea_to->get_identifier())) : String {};
+				? province_name_of(*group.at_sea_to) : String {};
 			entry["is_navy"] = false;
 			entry["occupied"] = occupied;
 
@@ -2459,7 +2473,7 @@ namespace {
 		result["is_player"] = &country == player;
 		result["province_number"] = static_cast<int32_t>(location.province_definition.get_province_number());
 		result["province_identifier"] = convert_to<String>(location.get_identifier());
-		result["province_name"] = menu_singleton.tr(convert_to<String>(location.get_identifier()));
+		result["province_name"] = province_name_of(location);
 		result["docked"] = !at_sea;
 		result["regiments"] = static_cast<int32_t>(navy.get_unit_count()); // ships
 		result["strength"] = static_cast<float>(navy.get_total_strength());
@@ -2620,7 +2634,7 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	result["is_player"] = &country == player_country;
 	result["province_number"] = static_cast<int32_t>(army.get_location().province_definition.get_province_number());
 	result["province_identifier"] = convert_to<String>(army.get_location().get_identifier());
-	result["province_name"] = menu_singleton->tr(convert_to<String>(army.get_location().get_identifier()));
+	result["province_name"] = province_name_of(army.get_location());
 	result["regiments"] = static_cast<int32_t>(army.get_unit_count());
 	result["strength"] = static_cast<float>(army.get_total_strength());
 	result["max_strength"] = static_cast<float>(army.get_total_max_strength());
@@ -3661,7 +3675,7 @@ Dictionary PlayerSingleton::get_recruitment_info(int32_t province_number) const 
 	ERR_FAIL_NULL_V(province, result);
 
 	result["province_number"] = province_number;
-	result["province_name"] = menu_singleton->tr(convert_to<String>(province->get_identifier()));
+	result["province_name"] = province_name_of(*province);
 	result["owned"] = province->get_owner() == player_country && province->get_controller() == player_country;
 
 	Array regiment_types;
@@ -3759,7 +3773,7 @@ Array PlayerSingleton::get_recruitment_queue() const {
 		));
 		entry["is_ship"] = order.ship_type != nullptr;
 		entry["province_number"] = static_cast<int32_t>(order.province->province_definition.get_province_number());
-		entry["province_name"] = menu_singleton->tr(convert_to<String>(order.province->get_identifier()));
+		entry["province_name"] = province_name_of(*order.province);
 		entry["days_left"] = order.days_left;
 		entry["days_total"] = order.days_total;
 		// A regiment of a division recruited by a template
@@ -3958,7 +3972,7 @@ Dictionary PlayerSingleton::get_blockade_info() const {
 		}
 		Dictionary entry;
 		entry["number"] = static_cast<int32_t>(province.province_definition.get_province_number());
-		entry["name"] = menu_singleton->tr(convert_to<String>(province.get_identifier()));
+		entry["name"] = province_name_of(province);
 		entry["owner"] = Utilities::get_country_name(*menu_singleton, *province.get_owner());
 		if (province.get_owner() == player_country) {
 			our_ports.push_back(entry);
@@ -3974,7 +3988,7 @@ Dictionary PlayerSingleton::get_blockade_info() const {
 // Peace negotiations
 namespace {
 	String state_name(MenuSingleton& menu_singleton, ProvinceInstance const& state_province) {
-		return menu_singleton.tr(convert_to<String>(state_province.get_identifier()));
+		return province_name_of(state_province);
 	}
 
 	Dictionary make_offer_entry(
@@ -4360,7 +4374,7 @@ Dictionary PlayerSingleton::get_politics_info() const {
 	Array uprisings;
 	for (auto const& uprising : RebelDynamics::get_uprisings(*instance_manager, country)) {
 		Dictionary entry;
-		entry["name"] = menu_singleton->tr(convert_to<String>(uprising.province->get_identifier()));
+		entry["name"] = province_name_of(*uprising.province);
 		entry["regiments"] = uprising.regiments;
 		entry["strength"] = static_cast<float>(uprising.strength);
 		uprisings.push_back(entry);
@@ -4491,7 +4505,7 @@ Dictionary PlayerSingleton::get_colonisation_info() const {
 	for (ProvinceInstance* province : colonisation.get_candidates(*instance_manager, *player_country)) {
 		Dictionary entry;
 		entry["province_number"] = static_cast<int32_t>(province->province_definition.get_province_number());
-		entry["name"] = menu_singleton->tr(convert_to<String>(province->get_identifier()));
+		entry["name"] = province_name_of(*province);
 		entry["cost"] = static_cast<float>(colonisation.get_project_cost(*instance_manager, *player_country, *province));
 		entry["reason"] = String::utf8(colonisation.get_block_reason(*instance_manager, *player_country, *province).c_str());
 		entry["people"] = static_cast<int32_t>(type_safe::get(province->get_total_population()));
@@ -4506,7 +4520,7 @@ Dictionary PlayerSingleton::get_colonisation_info() const {
 		}
 		Dictionary entry;
 		entry["province_number"] = static_cast<int32_t>(project.province->province_definition.get_province_number());
-		entry["name"] = menu_singleton->tr(convert_to<String>(project.province->get_identifier()));
+		entry["name"] = province_name_of(*project.province);
 		entry["days_done"] = project.days_done;
 		entry["days_total"] = project.days_total;
 		entry["cost"] = static_cast<float>(project.cost);
