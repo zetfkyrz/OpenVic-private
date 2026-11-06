@@ -380,6 +380,28 @@ func _describe(unit: Dictionary) -> String:
 		elif reserve_left >= 0.0:
 			level_line += " (запас кончится через %d дн., затем −%d%% в день)" % [ceili(reserve_left), step]
 		lines.append(level_line)
+		# The overload of the province and the new men (docs/RECRUITMENT.md)
+		var overload: float = float(unit.get(&"overload_attrition_pct", 0.0))
+		if overload > 0.0:
+			lines.append("Перегруз провинции: нагрузка %d%% лимита снабжения, истощение −%.1f%% в день" % [
+				roundi(float(unit[&"supply_load_ratio"]) * 100.0), overload])
+		var reinforce_men: int = int(unit.get(&"reinforce_men", 0))
+		var reinforce_text: String = ("+%s чел. в день" % _men(reinforce_men)) if reinforce_men > 0 else "нет"
+		match int(unit.get(&"reinforce_state", 0)):
+			1:
+				lines.append("Пополнение: " + reinforce_text)
+			2:
+				lines.append("Пополнение: нет — не своя и не союзная земля")
+			3:
+				lines.append("Пополнение: нет — армия отрезана")
+			4:
+				lines.append("Пополнение: нет — снабжения меньше половины")
+			5:
+				lines.append("Пополнение: %s — не хватает свободных людей" % reinforce_text)
+			6:
+				lines.append("Пополнение: %s — не хватает товаров на складе" % reinforce_text)
+			7:
+				lines.append("Пополнение: %s — не хватает свободных людей и товаров на складе" % reinforce_text)
 	if int(unit.get(&"at_sea_days", 0)) > 0:
 		lines.append("Плывёт морем в %s: осталось %d дн." % [unit.get(&"at_sea_to_name", "?"), int(unit[&"at_sea_days"])])
 	if unit.get(&"attrition", false):

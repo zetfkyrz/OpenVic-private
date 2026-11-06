@@ -1936,6 +1936,10 @@ Array PlayerSingleton::get_map_units() const {
 		// The way by sea (P4d): the most days at sea left and the port of the landing
 		int32_t at_sea_days = 0;
 		ProvinceInstance const* at_sea_to = nullptr;
+		// The overload of the province (the highest of the armies) and whether the new men come (docs/RECRUITMENT.md)
+		fixed_point_t load_ratio = 0;
+		bool friendly = true, cut_off = false;
+		fixed_point_t reinforce_strength = 0; // the strength the regiments want today
 		Array army_ids;
 		Array paths;
 		// Position of the last army of the group, which is also the one drawn on the map
@@ -1989,6 +1993,15 @@ Array PlayerSingleton::get_map_units() const {
 				const bool friendly = owner == country || (owner != nullptr && country->has_alliance_with(*owner));
 				const bool unsupplied = country->is_at_war() && army.get_supply_level() < (fixed_point_t(3) / 4);
 				group->attrition = group->attrition || (!country->is_rebel_country() && (!friendly || unsupplied));
+				group->friendly = group->friendly && friendly;
+				group->cut_off = group->cut_off || army.is_cut_off();
+				group->load_ratio = std::max(group->load_ratio, army.get_supply_load_ratio());
+				OpenVicWarDefines const& war_defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war;
+				for (RegimentInstance const& regiment : army.get_regiment_instances()) {
+					group->reinforce_strength += std::min(
+						regiment.get_max_strength() * war_defines.strength_recovery.fixed(), regiment.get_max_strength() - regiment.get_strength()
+					);
+				}
 			}
 			group->army_ids.push_back(static_cast<int64_t>(army.unique_id));
 			if (army.is_at_sea() && static_cast<int32_t>(army.get_sea_transfer_days_left()) > group->at_sea_days) {
@@ -2070,6 +2083,38 @@ Array PlayerSingleton::get_map_units() const {
 				entry["supply_change_per_day"] = static_cast<float>(change);
 				entry["supply_step_per_day"] = static_cast<float>(step);
 				entry["supply_reserve_left_days"] = reserve_left;
+				// The overload of the province and the attrition it gives (at war or on the land of others), percent a day
+				OpenVicWarDefines const& war_defines = ov_defines.war;
+				entry["supply_load_ratio"] = static_cast<float>(group.load_ratio);
+				float overload_pct = 0.0f;
+				if (group.load_ratio > fixed_point_t::_1 && (group.country->is_at_war() || !group.friendly)) {
+					overload_pct = static_cast<float>(
+						std::min(war_defines.attrition_overload_max.fixed(), war_defines.attrition_overload.of(group.load_ratio - fixed_point_t::_1)) * 100
+					);
+				}
+				entry["overload_attrition_pct"] = overload_pct;
+				// The new men: 0 at full strength, 1 they come, 2 not on friendly land, 3 cut off, 4 the supply is too low, 5 not enough free
+				// manpower, 6 not enough goods, 7 neither (the state of yesterday of the country); the men a day
+				int32_t reinforce_state = 0;
+				int64_t reinforce_men = 0;
+				if (group.reinforce_strength > fixed_point_t::_0) {
+					const std::int64_t wanted_men = (group.reinforce_strength * war_defines.template_men_per_strength).floor<std::int64_t>();
+					if (!group.friendly) {
+						reinforce_state = 2;
+					} else if (group.cut_off) {
+						reinforce_state = 3;
+					} else if (group.country->is_at_war() && level < war_defines.strength_recovery_min_supply.fixed()) {
+						reinforce_state = 4;
+					} else {
+						CountryInstance const& owner_country = *group.country;
+						reinforce_men = owner_country.reinforce_wanted_men > 0
+							? wanted_men * owner_country.reinforce_given_men / owner_country.reinforce_wanted_men : wanted_men;
+						const std::int32_t limit = owner_country.reinforce_limit;
+						reinforce_state = limit == 3 ? 7 : limit == 2 ? 6 : limit == 1 ? 5 : 1;
+					}
+				}
+				entry["reinforce_state"] = reinforce_state;
+				entry["reinforce_men"] = reinforce_men;
 			}
 			entry["army_ids"] = group.army_ids;
 			entry["at_sea_days"] = group.at_sea_days;
@@ -3303,9 +3348,15 @@ Dictionary PlayerSingleton::get_division_grid_stats(PackedInt32Array const& cell
 			regiments++;
 		}
 	}
+	int64_t men = 0;
+	for (const std::uint8_t cell : division_template.cells) {
+		if (RegimentType const* const type = cell != 0 ? unit_type_manager.get_regiment_type_by_index(regiment_type_index_t(cell - 1)) : nullptr) {
+			men += instance_manager->get_unit_instance_manager().get_regiment_men(*type);
+		}
+	}
 	result["recruit_days"] = days;
-	result["manpower"] = static_cast<int64_t>(regiments) * manpower.men_per_regiment;
-	result["manpower_available"] = static_cast<int64_t>(manpower.available_regiments) * manpower.men_per_regiment;
+	result["manpower"] = men;
+	result["manpower_available"] = static_cast<int64_t>(std::max<std::int64_t>(0, manpower.free_men));
 	return result;
 }
 
@@ -3709,7 +3760,12 @@ Dictionary PlayerSingleton::get_recruitment_info(int32_t province_number) const 
 		entry["culture_name"] = menu_singleton->tr(convert_to<String>(pop.culture.get_identifier()));
 		entry["size"] = static_cast<int32_t>(type_safe::get(pop.get_size()));
 		entry["regiments"] = static_cast<int32_t>(pop.get_regiment_count());
-		entry["max_regiments"] = static_cast<int32_t>(pop.get_max_supported_regiments());
+		// The regiments of 3000 men the pop is worth (the manpower of the country decides the recruitment, not the pop)
+		entry["max_regiments"] = static_cast<int32_t>(
+			type_safe::get(pop.get_size()) / std::max<std::int32_t>(1, static_cast<std::int32_t>(type_safe::get(
+				instance_manager->definition_manager.get_define_manager().get_military_defines().get_pop_size_per_regiment()
+			)))
+		);
 		entry["recruitable"] = pop.get_type().can_be_recruited;
 		entry["culture_ok"] = Pop::is_culture_status_allowed(
 			player_country->get_allowed_regiment_cultures(), pop.get_culture_status()
@@ -3736,7 +3792,7 @@ String PlayerSingleton::get_recruitment_block_reason(int32_t regiment_type_index
 	ERR_FAIL_NULL_V(pop, String {});
 
 	return String::utf8(
-		UnitInstanceManager::get_recruitment_block_reason(*player_country, *regiment_type, *province, *pop).data()
+		instance_manager->get_unit_instance_manager().get_recruitment_block_reason(*player_country, *regiment_type, *province, *pop).data()
 	);
 }
 
@@ -3793,10 +3849,22 @@ Dictionary PlayerSingleton::get_manpower() const {
 	const Manpower manpower = instance_manager->get_unit_instance_manager().get_manpower(*player_country);
 	result["max_regiments"] = static_cast<int32_t>(manpower.max_regiments);
 	result["available_regiments"] = static_cast<int32_t>(manpower.available_regiments);
-	result["used_regiments"] = static_cast<int32_t>(manpower.max_regiments - std::min(manpower.max_regiments, manpower.available_regiments));
+	result["regiments"] = static_cast<int32_t>(manpower.regiments);
 	result["men_per_regiment"] = manpower.men_per_regiment;
-	result["max_men"] = static_cast<int64_t>(manpower.max_regiments) * manpower.men_per_regiment;
-	result["available_men"] = static_cast<int64_t>(manpower.available_regiments) * manpower.men_per_regiment;
+	result["pop_men"] = static_cast<int64_t>(manpower.pop_men);
+	result["war_bonus_men"] = static_cast<int64_t>(manpower.max_men - manpower.pop_men);
+	result["max_men"] = static_cast<int64_t>(manpower.max_men);
+	result["army_men"] = static_cast<int64_t>(manpower.army_men);
+	result["army_full_men"] = static_cast<int64_t>(manpower.army_full_men);
+	result["queued_men"] = static_cast<int64_t>(manpower.queued_men);
+	result["free_men"] = static_cast<int64_t>(manpower.free_men);
+	result["available_men"] = static_cast<int64_t>(std::max<std::int64_t>(0, manpower.free_men));
+	result["over_pct"] = static_cast<float>(manpower.over_share * 100);
+	result["combat_multiplier"] = static_cast<float>(manpower.combat_multiplier);
+	result["at_war"] = player_country->is_at_war();
+	result["reinforce_wanted_men"] = static_cast<int64_t>(player_country->reinforce_wanted_men);
+	result["reinforce_given_men"] = static_cast<int64_t>(player_country->reinforce_given_men);
+	result["reinforce_limit"] = player_country->reinforce_limit;
 	return result;
 }
 

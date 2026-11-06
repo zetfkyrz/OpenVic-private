@@ -412,17 +412,18 @@ func _update_info() -> void:
 	var regiment_count: String = str(topbar_info.get(regiment_count_key, 0))
 
 	if _military_army_size_label:
+		# The regiments of the army of the maximum the manpower gives (docs/RECRUITMENT.md: the pops of soldiers, 3000 men a regiment)
+		var manpower: Dictionary = PlayerSingleton.get_manpower()
 		var army_size_dict: Dictionary = {
 			"CURR": regiment_count, "MAX": str(topbar_info.get(max_supported_regiments_key, 0)),
 		}
-		_military_army_size_label.set_substitution_dict(army_size_dict)
-		# The manpower of the pops of soldiers (docs/RECRUITMENT.md): available of the maximum, a regiment is 3000 men
-		var manpower: Dictionary = PlayerSingleton.get_manpower()
-		var army_tooltip: String = tr(&"TOPBAR_ARMY_TOOLTIP").replace("$CURR$", army_size_dict["CURR"]).replace("$MAX$", army_size_dict["MAX"])
 		if not manpower.is_empty():
-			army_tooltip += "\n\nЛюдские ресурсы: доступно %s чел. (%d полков) из %s чел. (%d полков), полк — %d чел." % [
-				_group_thousands(int(manpower[&"available_men"])), int(manpower[&"available_regiments"]),
-				_group_thousands(int(manpower[&"max_men"])), int(manpower[&"max_regiments"]), int(manpower[&"men_per_regiment"])]
+			army_size_dict["CURR"] = ("§R" if float(manpower[&"over_pct"]) > 0.0 else "") + str(int(manpower[&"regiments"]))
+			# The regiments there are and could be: these plus the ones the free men give
+			army_size_dict["MAX"] = str(int(manpower[&"regiments"]) + int(manpower[&"available_regiments"]))
+		_military_army_size_label.set_substitution_dict(army_size_dict)
+		var army_tooltip: String = _manpower_tooltip(manpower) if not manpower.is_empty() \
+			else tr(&"TOPBAR_ARMY_TOOLTIP").replace("$CURR$", army_size_dict["CURR"]).replace("$MAX$", army_size_dict["MAX"])
 		_military_army_size_label.set_tooltip_substitution_dict({})
 		_military_army_size_label.set_tooltip_string(army_tooltip)
 
@@ -493,6 +494,35 @@ func _on_update_active_nation_management_screen(active_screen: NationManagement.
 
 
 # A number with spaces between the thousands (180 000)
+## The manpower of the player (docs/RECRUITMENT.md): the army against the maximum, where the maximum comes from, what is free, the new men of
+## yesterday and the penalty of an army over the maximum
+func _manpower_tooltip(manpower: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	lines.append("Армия: %d полков, %s чел. (по штату %s)" % [int(manpower[&"regiments"]),
+		_group_thousands(int(manpower[&"army_men"])), _group_thousands(int(manpower[&"army_full_men"]))])
+	lines.append("Можно набрать ещё %d полков (полк — %d чел.)" % [int(manpower[&"available_regiments"]), int(manpower[&"men_per_regiment"])])
+	lines.append("Людские ресурсы: максимум %s чел." % _group_thousands(int(manpower[&"max_men"])))
+	lines.append("  солдаты-попы своих провинций: %s" % _group_thousands(int(manpower[&"pop_men"])))
+	if int(manpower[&"war_bonus_men"]) > 0:
+		lines.append("  война: +%s" % _group_thousands(int(manpower[&"war_bonus_men"])))
+	lines.append("  реформы: +0")
+	var queued: int = int(manpower[&"queued_men"])
+	lines.append("В армии %s%s, свободно %s чел. (%d полков)" % [_group_thousands(int(manpower[&"army_men"])),
+		(", в наборе %s" % _group_thousands(queued)) if queued > 0 else "",
+		_group_thousands(maxi(0, int(manpower[&"free_men"]))), int(manpower[&"available_regiments"])])
+	var wanted: int = int(manpower[&"reinforce_wanted_men"])
+	if wanted > 0:
+		var limit: int = int(manpower[&"reinforce_limit"])
+		lines.append("Пополнение вчера: %s из %s чел.%s" % [_group_thousands(int(manpower[&"reinforce_given_men"])), _group_thousands(wanted),
+			" — не хватает свободных людей и товаров на складе" if limit == 3 else " — не хватает свободных людей" if limit == 1
+			else " — не хватает товаров на складе" if limit == 2 else ""])
+	lines.append("Потери в боях и от истощения — это погибшие: солдаты-попы уменьшаются, с ними и максимум.")
+	var over: float = float(manpower[&"over_pct"])
+	if over > 0.0:
+		lines.append("§RАрмия больше максимума на %d %%: атака и защита всех войск ×%.2f§W" % [int(over), float(manpower[&"combat_multiplier"])])
+	return "\n".join(lines)
+
+
 func _group_thousands(value: int) -> String:
 	var text: String = str(absi(value))
 	var grouped: String = ""

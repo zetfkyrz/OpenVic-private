@@ -63,6 +63,9 @@ func _make_text(entry: Dictionary) -> String:
 			return "Снабжение армии восстановлено: %s" % entry[&"subject"]
 		"army_surrendered":
 			return "Окружённая армия сдалась: %s" % entry[&"subject"]
+		"over_manpower":
+			# The share over the maximum in percent (docs/RECRUITMENT.md)
+			return "Армия больше людских ресурсов на %s %%: атака и защита всех войск ниже на столько же. Расформируйте лишние полки" % entry[&"subject"]
 		"leader_skill_up":
 			# name|skill|level (docs/WAR_ASSUMPTIONS.md, section 7)
 			var parts: PackedStringArray = str(entry[&"subject"]).split("|")

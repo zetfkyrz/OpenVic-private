@@ -202,10 +202,15 @@ func _update_manpower() -> void:
 	if manpower.is_empty():
 		_manpower_label.text = ""
 		return
-	_manpower_label.text = "Людские ресурсы: доступно %s чел. (%d полков) из %s чел. (%d полков), полк — %d чел." % [
-		_thousands(int(manpower[&"available_men"])), int(manpower[&"available_regiments"]),
-		_thousands(int(manpower[&"max_men"])), int(manpower[&"max_regiments"]), int(manpower[&"men_per_regiment"])]
-	_manpower_label.tooltip_text = "Солдаты-попы страны (в своих, не оккупированных провинциях) содержат полки, как в Vic2: один на каждые %d человек и ещё один. Набранные полки занимают места." % int(manpower[&"men_per_regiment"])
+	_manpower_label.text = "Полков %d, можно набрать ещё %d · Люди в армии %s из %s · свободно %s чел." % [
+		int(manpower[&"regiments"]), int(manpower[&"available_regiments"]),
+		_thousands(int(manpower[&"army_men"])), _thousands(int(manpower[&"max_men"])),
+		_thousands(int(manpower[&"available_men"]))]
+	_manpower_label.tooltip_text = ("Максимум — солдаты-попы своих, не оккупированных провинций (на войне +10 %%), полк — %d чел.\n" +
+		"Набор и пополнение берут людей из свободных; потери в боях и от истощения убивают солдат-попов.\n" +
+		"Армия больше максимума воюет слабее: атака и защита падают на процент превышения.") % int(manpower[&"men_per_regiment"])
+	if float(manpower[&"over_pct"]) > 0.0:
+		_manpower_label.text += " · превышение %d %%" % int(manpower[&"over_pct"])
 
 
 func _thousands(value: int) -> String:
@@ -263,6 +268,7 @@ func _update_pops() -> void:
 	_pops_tree.clear()
 	var root: TreeItem = _pops_tree.create_item()
 	var to_select: TreeItem = null
+	var has_free_men: bool = int(PlayerSingleton.get_manpower().get(&"available_regiments", 0)) > 0
 	for pop: Dictionary in _info[&"pops"]:
 		# Pops that can never give soldiers only clutter the list
 		if not pop[&"recruitable"]:
@@ -277,8 +283,8 @@ func _update_pops() -> void:
 			status = "не призывается"
 		elif not pop[&"culture_ok"]:
 			status = "культура не допускается"
-		elif pop[&"regiments"] >= pop[&"max_regiments"]:
-			status = "нет свободных мест"
+		elif not has_free_men:
+			status = "нет свободных людей"
 		item.set_text(4, status)
 		item.set_metadata(0, pop[&"id"])
 		if pop[&"id"] == _selected_pop_id:

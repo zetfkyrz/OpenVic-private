@@ -382,7 +382,9 @@ namespace OpenVic {
 		// Recruitment orders of the player: [{ id, type_name, province_number, province_name, days_left, days_total }]
 		godot::Array get_recruitment_queue() const;
 		bool cancel_recruitment(int64_t order_id) const;
-		// The manpower (docs/RECRUITMENT.md): {max_regiments, available_regiments, used_regiments, men_per_regiment, max_men, available_men}
+		// The manpower in men (docs/RECRUITMENT.md): {pop_men, war_bonus_men, max_men, army_men, army_full_men, queued_men, free_men, available_men,
+		// regiments, max_regiments, available_regiments, men_per_regiment, over_pct, combat_multiplier, at_war, reinforce_wanted_men,
+		// reinforce_given_men, reinforce_limit (bits: 1 the manpower, 2 the goods)}
 		godot::Dictionary get_manpower() const;
 		// The templates the player can recruit in the province: [{id, name, regiments, men, days, cost [{good_name, amount, have}], reason}]
 		godot::Array get_division_recruitment_info(int32_t province_number) const;

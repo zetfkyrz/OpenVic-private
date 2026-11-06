@@ -2,8 +2,18 @@
 # Damage = attack x conditions x density x softening (military/BattleFormulas.cpp, battle_hit). The defending side deals its damage with 1.
 # The values are estimates (assumptions), edit them freely.
 
-# By the terrain of the province of the battle (the terrain types of Vic2, map/terrain.txt); a terrain that is not listed is 1.0
+# By the terrain of the province of the battle (the terrain types of Vic2, map/terrain.txt); a terrain that is not listed is 1.0.
+# On top of the defence of the terrain (ov_war.TERRAIN_DEFENCE_PER_POINT: hills, forests +10 %, mountains, jungle +20 % to the defender):
+# the attacker climbs, wades and cuts its way, the defender stands
 terrain = {
+	mountain = 0.85
+	marsh = 0.85
+	jungle = 0.9
+	arctic = 0.9
+	forest = 0.95
+	woods = 0.95
+	hills = 0.95
+	desert = 0.95
 }
 
 # The attacker came into the province over a river: at least ov_war.RIVER_BORDER_MIN_SHARE of the border of the two provinces runs along a river
