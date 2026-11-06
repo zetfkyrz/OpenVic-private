@@ -2115,6 +2115,8 @@ Array PlayerSingleton::get_map_units() const {
 				}
 				entry["reinforce_state"] = reinforce_state;
 				entry["reinforce_men"] = reinforce_men;
+				// The canned food of the country that the grain stood in for yesterday (docs/MILITARY_SUPPLY.md)
+				entry["canned_food_from_grain"] = static_cast<float>(group.country->get_canned_food_from_grain_yesterday());
 			}
 			entry["army_ids"] = group.army_ids;
 			entry["at_sea_days"] = group.at_sea_days;

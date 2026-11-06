@@ -380,6 +380,9 @@ func _describe(unit: Dictionary) -> String:
 		elif reserve_left >= 0.0:
 			level_line += " (запас кончится через %d дн., затем −%d%% в день)" % [ceili(reserve_left), step]
 		lines.append(level_line)
+		var from_grain: float = float(unit.get(&"canned_food_from_grain", 0.0))
+		if from_grain > 0.0:
+			lines.append("Консервов нет: страна кормит войска зерном (%.1f консервов в день заменено, зерна уходит вдвое больше)" % from_grain)
 		# The overload of the province and the new men (docs/RECRUITMENT.md)
 		var overload: float = float(unit.get(&"overload_attrition_pct", 0.0))
 		if overload > 0.0:

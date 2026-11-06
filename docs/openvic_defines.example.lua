@@ -340,6 +340,7 @@ defines = {
 		SUPPLY_RESERVE_DAYS = 10, -- whole number 0 to 3650
 		START_SUPPLY_STOCKPILE_DAYS = 90, -- whole number 0 to 3650
 		SUPPLY_DAYS_PER_MONTH = 30, -- whole number 1 to 365
+		CANNED_FOOD_GRAIN_SUBSTITUTE = 2, -- number 0 to 100
 		ARMY_SUPPLY_DURABLE_SHARE = 0.01, -- fraction 0 to 10
 		ARMY_SUPPLY_CONSUMABLE_SHARE = 1, -- fraction 0 to 10
 		NAVY_SUPPLY_DURABLE_SHARE = 0.01, -- fraction 0 to 10
