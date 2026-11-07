@@ -408,6 +408,8 @@ PLANNING_MAX_TECH_RU;Максимум бонуса планирования;;;;;
 PLANNING_SPEED_TECH_RU;Скорость планирования;;;;;;;;;;;;;x
 PLAN_PLANNING_RU;Планирование: $P$%;;;;;;;;;;;;;x
 PLAN_PLANNING_TOOLTIP_RU;Бонус планирования к атаке и прорыву: растёт, пока приказ ждёт (до $MAX$%), убывает при выполнении;;;;;;;;;;;;;x
+PLAN_PREPARING;Preparation: the divisions hold the line, the planning grows ($P$% of $MAX$%); press Execute to attack;;;;;;;;;;;Подготовка: дивизии держат линию, планирование растёт ($P$% из $MAX$%); «Выполнить» — в наступление;;x
+PLAN_PREPARING_RU;Подготовка: дивизии держат линию, планирование растёт ($P$% из $MAX$%); «Выполнить» — в наступление;;;;;;;;;;;;;x
 PLAN_TOOL_BREAKTHROUGH;Breakthrough: paint a way of provinces into the enemy land, the strongest third of the divisions goes along it;;;;;;;;;;;Прорыв: проведите путь по провинциям вглубь земли врага, по нему пойдёт сильнейшая треть дивизий;;x
 PLAN_BREAKTHROUGH_LABEL;Breakthrough - $D$ div. - $GROUP$;;;;;;;;;;;Прорыв - $D$ див. - $GROUP$;;x
 PLAN_TOOL_BREAKTHROUGH_RU;Прорыв: проведите путь по провинциям вглубь земли врага, по нему пойдёт сильнейшая треть дивизий;;;;;;;;;;;;;x

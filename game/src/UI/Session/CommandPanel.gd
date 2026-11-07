@@ -695,6 +695,16 @@ func _rebuild_plate() -> void:
 	planning.add_theme_font_size_override(&"font_size", 13)
 	planning.add_theme_color_override(&"font_color", Color(0.55, 0.9, 0.5) if float(group[&"planning"]) > 0.0 else Color(0.6, 0.6, 0.6))
 	title_row.add_child(planning)
+	# The preparation (docs/COMMAND.md): an order that is not executed yet; the divisions hold the line and the bonus of the planning grows
+	if not bool(group[&"plan_active"]) and int(group[&"marshal_id"]) != 0:
+		var preparing := Label.new()
+		preparing.text = _t("PLAN_PREPARING").replace("$P$", str(roundi(float(group[&"planning"]) * 100.0))) \
+			.replace("$MAX$", str(roundi(float(group[&"planning_max"]) * 100.0)))
+		preparing.add_theme_font_size_override(&"font_size", 12)
+		preparing.add_theme_color_override(&"font_color", Color(0.75, 0.8, 0.95))
+		preparing.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		preparing.custom_minimum_size = Vector2(320.0, 0.0)
+		box.add_child(preparing)
 	# What the executed plan does (checked every day and when the execution is pressed): why the divisions stand
 	var status: int = int(group.get(&"plan_status", 0))
 	if bool(group[&"plan_active"]) and status != 0:
