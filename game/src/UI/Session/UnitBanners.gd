@@ -438,8 +438,8 @@ func _men(value: int) -> String:
 func _describe_fleet(unit: Dictionary) -> String:
 	var lines: PackedStringArray = [
 		"Флотов: %d, кораблей: %d" % [unit[&"army_count"], unit[&"regiments"]],
-		"%s: %d%%" % [tr("Strength"), roundi(float(unit[&"strength"]) * 100.0)],
-		"%s: %d%%" % [tr("Organisation"), roundi(float(unit[&"organisation"]) * 100.0)],
+		"Сила: %d%%" % roundi(float(unit[&"strength"]) * 100.0),
+		"Организация: %d%%" % roundi(float(unit[&"organisation"]) * 100.0),
 	]
 	# The roles of the ships (docs/WAR_ASSUMPTIONS.md, section 9): the light ships screen the capital ones in a battle, transports do not blockade
 	lines.append("Линейных: %d, лёгких: %d, транспортов: %d" % [int(unit.get(&"capital_ships", 0)), int(unit.get(&"light_ships", 0)),
