@@ -67,6 +67,9 @@ var _diplomacy_alert_great_power_icon: GUIIcon
 var _military_army_size_label: GUILabel
 var _military_navy_size_label: GUILabel
 var _military_mobilisation_size_label: GUILabel
+const _MobilisationText = preload("res://src/UI/Session/MobilisationText.gd")
+var _mobilisation_info: Dictionary = {}
+var _mobilisation_dialog: ConfirmationDialog
 var _military_leadership_points_label: GUILabel
 
 
@@ -252,6 +255,15 @@ func _ready() -> void:
 	_military_mobilisation_size_label = get_gui_label_from_nodepath(^"./topbar/military_manpower_value")
 	if _military_mobilisation_size_label:
 		_military_mobilisation_size_label.set_auto_translate(false)
+		# A click on the mobilisation of the top bar mobilises or demobilises the country (after a confirmation)
+		_military_mobilisation_size_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		_military_mobilisation_size_label.gui_input.connect(_on_mobilisation_label_input)
+	_mobilisation_dialog = ConfirmationDialog.new()
+	_mobilisation_dialog.title = "Мобилизация"
+	_mobilisation_dialog.ok_button_text = "Да"
+	_mobilisation_dialog.cancel_button_text = "Отмена"
+	_mobilisation_dialog.confirmed.connect(_on_mobilisation_confirmed)
+	add_child(_mobilisation_dialog)
 	_military_leadership_points_label = get_gui_label_from_nodepath(^"./topbar/military_leadership_value")
 	if _military_leadership_points_label:
 		_military_leadership_points_label.set_auto_translate(false)
@@ -435,16 +447,24 @@ func _update_info() -> void:
 	const mobilisation_regiments_key: StringName = &"mobilisation_regiments"
 	const mobilisation_impact_tooltip_key: StringName = &"mobilisation_impact_tooltip"
 
+	# The mobilisation (docs/RECRUITMENT.md): the regiments of the pool, or the mobilised ones (red); the tooltip has the pool, the days and the
+	# penalty of the economy; a click mobilises or demobilises
+	_mobilisation_info = topbar_info.get(&"mobilisation", {})
 	if _military_mobilisation_size_label:
+		var hint: String = "\n\nЩёлкните, чтобы %s." % ("демобилизоваться" if topbar_info.get(is_mobilised_key, false) else "мобилизоваться")
 		if topbar_info.get(is_mobilised_key, false):
-			_military_mobilisation_size_label.set_text("§R-")
-			_military_mobilisation_size_label.set_tooltip_string("TOPBAR_MOBILIZED")
+			var standing: int = int(_mobilisation_info.get(&"regiments", 0))
+			var pending: int = int(_mobilisation_info.get(&"pending_regiments", 0))
+			_military_mobilisation_size_label.set_text("§R%d" % standing if pending == 0 else "§R%d+%d" % [standing, pending])
+			_military_mobilisation_size_label.set_tooltip_string(_MobilisationText.tooltip(_mobilisation_info) + hint)
 		else:
 			var mobilisation_regiments: String = str(topbar_info.get(mobilisation_regiments_key, 0))
 			_military_mobilisation_size_label.set_text("§Y%s" % mobilisation_regiments)
-			_military_mobilisation_size_label.set_tooltip_string(
-				tr(&"TOPBAR_MOBILIZE_TOOLTIP").replace("$CURR$", mobilisation_regiments) + "\n\n" + topbar_info.get(mobilisation_impact_tooltip_key, "")
-			)
+			var tooltip_text: String = _MobilisationText.tooltip(_mobilisation_info)
+			if tooltip_text.is_empty():
+				tooltip_text = tr(&"TOPBAR_MOBILIZE_TOOLTIP").replace("$CURR$", mobilisation_regiments)
+			var impact_tooltip: String = topbar_info.get(mobilisation_impact_tooltip_key, "")
+			_military_mobilisation_size_label.set_tooltip_string(tooltip_text + ("\n\n" + impact_tooltip if not impact_tooltip.is_empty() else "") + hint)
 
 	const leadership_key: StringName = &"leadership"
 	const leadership_tooltip_key: StringName = &"leadership_tooltip"
@@ -521,6 +541,33 @@ func _manpower_tooltip(manpower: Dictionary) -> String:
 	if over > 0.0:
 		lines.append("§RАрмия больше максимума на %d %%: атака и защита всех войск ×%.2f§W" % [int(over), float(manpower[&"combat_multiplier"])])
 	return "\n".join(lines)
+
+
+func _on_mobilisation_label_input(event: InputEvent) -> void:
+	var button: InputEventMouseButton = event as InputEventMouseButton
+	if button == null or not button.pressed or button.button_index != MOUSE_BUTTON_LEFT or _mobilisation_info.is_empty():
+		return
+	var mobilised: bool = bool(_mobilisation_info.get(&"is_mobilised", false))
+	var reason: String = _mobilisation_info.get(&"demobilise_reason" if mobilised else &"mobilise_reason", "")
+	if not reason.is_empty():
+		_mobilisation_dialog.dialog_text = ("Демобилизоваться нельзя: " if mobilised else "Мобилизоваться нельзя: ") + reason
+		_mobilisation_dialog.get_ok_button().visible = false
+	else:
+		_mobilisation_dialog.get_ok_button().visible = true
+		if mobilised:
+			_mobilisation_dialog.dialog_text = "Демобилизовать страну?\nМобилизованные полки (%d) будут распущены, люди вернутся домой." % int(
+				_mobilisation_info.get(&"regiments", 0)) + "\nЭкономика снова заработает в полную силу."
+		else:
+			_mobilisation_dialog.dialog_text = ("Мобилизовать страну?\n%d полков из бедного населения соберутся за %d–%d дн.\n" +
+				"Пока они в армии, выпуск РГО и заводов будет на %s %% меньше.") % [int(_mobilisation_info.get(&"pool_regiments", 0)),
+				int(_mobilisation_info.get(&"days_min", 0)), int(_mobilisation_info.get(&"days_max", 0)),
+				_MobilisationText.penalty_pct(float(_mobilisation_info.get(&"planned_output_multiplier", 1.0)))]
+	_mobilisation_dialog.popup_centered()
+	accept_event()
+
+
+func _on_mobilisation_confirmed() -> void:
+	PlayerSingleton.set_mobilise(not bool(_mobilisation_info.get(&"is_mobilised", false)))
 
 
 func _group_thousands(value: int) -> String:

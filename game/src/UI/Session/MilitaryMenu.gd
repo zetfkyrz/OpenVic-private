@@ -33,6 +33,7 @@ var _mobilisation_progress_bar: GUIProgressBar
 var _mobilisation_progress_label: GUILabel
 var _mobilisation_size_label: GUILabel
 var _mobilisation_economy_impact_label: GUILabel
+const _MobilisationText = preload("res://src/UI/Session/MobilisationText.gd")
 #
 # Leaders
 var _general_count_label: GUILabel
@@ -95,7 +96,7 @@ func _ready() -> void:
 	_demobilise_button = GUINode.get_gui_icon_button_from_node(military_menu.get_node(^"./demobilize"))
 	if _demobilise_button:
 		_demobilise_button.pressed.connect(PlayerSingleton.set_mobilise.bind(false))
-		_demobilise_button.set_tooltip_string("$MILITARY_DEMOBILIZE$" + MenuSingleton.get_tooltip_separator() + "$MILITARY_DEMOBILIZE_DESC$")
+		_demobilise_button.set_tooltip_string("Демобилизация")
 	_mobilisation_progress_bar = GUINode.get_gui_progress_bar_from_node(military_menu.get_node(^"./mobilize_progress"))
 	_mobilisation_progress_label = GUINode.get_gui_label_from_node(military_menu.get_node(^"./mobilize_progress_text"))
 	_mobilisation_size_label = GUINode.get_gui_label_from_node(military_menu.get_node(^"./mob_size"))
@@ -547,10 +548,12 @@ func _update_info() -> void:
 		if _military_tactics_label:
 			_military_tactics_label.set_text("%s%%" % GUINode.float_to_string_dp(100 * military_info.get(military_info_military_tactics_key, 0), 2))
 
-		# Mobilisation
+		# Mobilisation (docs/RECRUITMENT.md): the pool of the poor pops, the days, the penalty of the economy; the reason a button is disabled
 		var is_mobilised: bool = military_info.get(military_info_is_mobilised_key, false)
 		var mobilisation_size: int = military_info.get(military_info_mobilisation_size_key, 0)
-		var can_mobilise: bool = mobilisation_size > 0
+		var mobilisation: Dictionary = military_info.get(&"mobilisation", {})
+		var mobilisation_text: String = _MobilisationText.tooltip(mobilisation)
+		var can_mobilise: bool = mobilisation_size > 0 and String(mobilisation.get(&"mobilise_reason", "")).is_empty()
 		var mobilisation_size_tooltip: String = military_info.get(
 			military_info_mobilisation_size_tooltip_key,
 			"",
@@ -563,12 +566,12 @@ func _update_info() -> void:
 			_mobilise_button.set_visible(not is_mobilised)
 			_mobilise_button.set_disabled(not can_mobilise)
 			_mobilise_button.set_tooltip_string(
-				tr(&"MILITARY_MOBILIZE") + "\n" + mobilisation_size_tooltip +
-				("\n\n" + tr(&"NOT_ENOUGH_FOR_BRIGADE") + "\n\n" if not can_mobilise else "\n\n\n") +
-				mobilisation_impact_tooltip + MenuSingleton.get_tooltip_separator() + tr(&"MILITARY_MOBILIZE_DESC")
+				"Мобилизовать\n" + mobilisation_text + ("" if mobilisation_size_tooltip.is_empty() else "\n\n" + mobilisation_size_tooltip)
 			)
 		if _demobilise_button:
 			_demobilise_button.set_visible(is_mobilised)
+			_demobilise_button.set_disabled(not String(mobilisation.get(&"demobilise_reason", "")).is_empty())
+			_demobilise_button.set_tooltip_string("Демобилизовать\n" + mobilisation_text)
 		var mobilisation_progress: float = military_info.get(
 			military_info_mobilisation_progress_key,
 			0,
@@ -580,7 +583,7 @@ func _update_info() -> void:
 		if _mobilisation_progress_bar:
 			_mobilisation_progress_bar.set_value_no_signal(mobilisation_progress)
 			_mobilisation_progress_bar.set_tooltip_string(
-				tr(&"MOBILIZATION_PROGRESS_PENDING").replace("$PROG$", mobilisation_progress_string) if is_mobilised else "MOBILIZATION_PROGRESS_NOT_MOBILIZED"
+				("Мобилизация: собрано %s%% полков" % mobilisation_progress_string) if is_mobilised else "Страна не мобилизована"
 			)
 		if _mobilisation_progress_label:
 			_mobilisation_progress_label.set_text("%s%%" % mobilisation_progress_string)
@@ -590,8 +593,13 @@ func _update_info() -> void:
 				mobilisation_size_tooltip + ("" if mobilisation_impact_tooltip.is_empty() else "\n\n\n" + mobilisation_impact_tooltip)
 			)
 		if _mobilisation_economy_impact_label:
-			_mobilisation_economy_impact_label.set_text("%s%%" % GUINode.float_to_string_dp(100 * military_info.get(military_info_mobilisation_economy_impact_key, 0), 2))
-			_mobilisation_economy_impact_label.set_tooltip_string(military_info.get(military_info_mobilisation_economy_impact_tooltip_key, ""))
+			# The penalty of the economy: now while mobilised, else the one of the whole pool
+			var output: float = float(mobilisation.get(&"output_multiplier" if is_mobilised else &"planned_output_multiplier", 1.0))
+			_mobilisation_economy_impact_label.set_text("-%s%%" % _MobilisationText.penalty_pct(output))
+			_mobilisation_economy_impact_label.set_tooltip_string(
+				"Штраф экономики: выпуск РГО и заводов меньше на долю бедного населения в армии × влияние мобилизации на экономику (%s %%)" %
+				str(roundi(float(mobilisation.get(&"economy_impact", 0.0)) * 100.0))
+			)
 
 		# Leaders
 		if _general_count_label:

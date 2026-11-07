@@ -253,6 +253,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::start_recruitment, { "regiment_type_index", "province_number", "pop_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_recruitment_queue);
 	OV_BIND_METHOD(PlayerSingleton::cancel_recruitment, { "order_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_recruitment_priority, { "order_id", "priority" });
+	OV_BIND_METHOD(PlayerSingleton::get_mobilisation);
 	OV_BIND_METHOD(PlayerSingleton::get_manpower);
 	OV_BIND_METHOD(PlayerSingleton::get_division_recruitment_info, { "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::start_division_recruitment, { "template_id", "province_number" });
@@ -1926,6 +1928,7 @@ Array PlayerSingleton::get_map_units() const {
 	struct CountryGroup {
 		CountryInstance const* country;
 		int32_t army_count = 0, regiments = 0;
+		int32_t mobilised_regiments = 0; // the regiments raised by the mobilisation (docs/RECRUITMENT.md)
 		fixed_point_t strength = 0, max_strength = 0, organisation = 0, max_organisation = 0;
 		bool in_combat = false, moving = false;
 		// The armies lose men: outside of friendly lands or without supplies
@@ -1976,6 +1979,9 @@ Array PlayerSingleton::get_map_units() const {
 
 			group->army_count++;
 			group->regiments += static_cast<int32_t>(army.get_unit_count());
+			for (RegimentInstance const& regiment : army.get_regiment_instances()) {
+				group->mobilised_regiments += regiment.is_mobilised() ? 1 : 0;
+			}
 			group->strength += army.get_total_strength();
 			group->max_strength += army.get_total_max_strength();
 			group->organisation += army.get_total_organisation();
@@ -2044,6 +2050,7 @@ Array PlayerSingleton::get_map_units() const {
 			entry["is_player"] = group.country == player_country;
 			entry["army_count"] = group.army_count;
 			entry["regiments"] = group.regiments;
+			entry["mobilised_regiments"] = group.mobilised_regiments;
 			entry["strength"] = group.max_strength > 0 ? static_cast<float>(group.strength / group.max_strength) : 0.0f;
 			entry["organisation"] =
 			    group.max_organisation > 0 ? static_cast<float>(group.organisation / group.max_organisation) : 0.0f;
@@ -2106,10 +2113,14 @@ Array PlayerSingleton::get_map_units() const {
 					} else if (group.country->is_at_war() && level < war_defines.strength_recovery_min_supply.fixed()) {
 						reinforce_state = 4;
 					} else {
+						// The share the country gave yesterday: of the soldiers for the regular regiments, of the mobilisation pool for a stack of
+						// mobilised ones only
 						CountryInstance const& owner_country = *group.country;
-						reinforce_men = owner_country.reinforce_wanted_men > 0
-							? wanted_men * owner_country.reinforce_given_men / owner_country.reinforce_wanted_men : wanted_men;
-						const std::int32_t limit = owner_country.reinforce_limit;
+						const bool mobilised_only = group.mobilised_regiments > 0 && group.mobilised_regiments == group.regiments;
+						const std::int64_t wanted_country = mobilised_only ? owner_country.mobilised_reinforce_wanted_men : owner_country.reinforce_wanted_men;
+						const std::int64_t given_country = mobilised_only ? owner_country.mobilised_reinforce_given_men : owner_country.reinforce_given_men;
+						reinforce_men = wanted_country > 0 ? wanted_men * given_country / wanted_country : wanted_men;
+						const std::int32_t limit = mobilised_only ? owner_country.mobilised_reinforce_limit : owner_country.reinforce_limit;
 						reinforce_state = limit == 3 ? 7 : limit == 2 ? 6 : limit == 1 ? 5 : 1;
 					}
 				}
@@ -3838,6 +3849,10 @@ Array PlayerSingleton::get_recruitment_queue() const {
 		entry["division_id"] = static_cast<int32_t>(order.division_id);
 		entry["template_name"] = order.template_id != 0
 			? Utilities::format(String::utf8("Шаблон %d"), static_cast<int32_t>(order.template_id)) : String {};
+		// The mobilisation, the monthly limit and the priority (docs/RECRUITMENT.md)
+		entry["mobilisation"] = order.mobilisation;
+		entry["waiting"] = order.waiting;
+		entry["priority"] = static_cast<int32_t>(order.priority);
 		result.push_back(entry);
 	}
 	return result;
@@ -3867,7 +3882,64 @@ Dictionary PlayerSingleton::get_manpower() const {
 	result["reinforce_wanted_men"] = static_cast<int64_t>(player_country->reinforce_wanted_men);
 	result["reinforce_given_men"] = static_cast<int64_t>(player_country->reinforce_given_men);
 	result["reinforce_limit"] = player_country->reinforce_limit;
+	// The monthly limit of the recruitment (ov_war.RECRUIT_MAX_REGIMENTS_PER_MONTH, 0: none) and what is left of it this month (-1: no limit)
+	UnitInstanceManager const& unit_manager = instance_manager->get_unit_instance_manager();
+	result["month_limit"] = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war.recruit_max_regiments_per_month;
+	result["month_left"] = static_cast<int64_t>(unit_manager.get_recruitment_limit_left(*player_country));
+	int32_t waiting = 0;
+	for (RecruitmentOrder const& order : unit_manager.get_recruitment_orders()) {
+		waiting += order.country == player_country && order.waiting ? 1 : 0;
+	}
+	result["waiting_orders"] = waiting;
 	return result;
+}
+
+Dictionary PlayerSingleton::get_mobilisation() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	UnitInstanceManager const& unit_manager = instance_manager->get_unit_instance_manager();
+	OpenVicWarDefines const& war_defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war;
+	const Mobilisation mobilisation = unit_manager.get_mobilisation(*player_country);
+	result["is_mobilised"] = player_country->is_mobilised();
+	result["mobilise_reason"] = String::utf8(std::string { unit_manager.get_mobilise_block_reason(*player_country) }.c_str());
+	result["demobilise_reason"] = String::utf8(std::string { unit_manager.get_demobilise_block_reason(*player_country) }.c_str());
+	result["pop_men"] = static_cast<int64_t>(mobilisation.pop_men);
+	result["share"] = static_cast<float>(mobilisation.share);
+	result["pool_men"] = static_cast<int64_t>(mobilisation.pool_men);
+	result["pool_regiments"] = static_cast<int32_t>(mobilisation.pool_regiments);
+	result["men_per_regiment"] = mobilisation.men_per_regiment;
+	result["regiments"] = static_cast<int32_t>(mobilisation.regiments);
+	result["men"] = static_cast<int64_t>(mobilisation.men);
+	result["full_men"] = static_cast<int64_t>(mobilisation.full_men);
+	result["pending_regiments"] = static_cast<int32_t>(mobilisation.pending_regiments);
+	result["days_left"] = mobilisation.days_left;
+	result["days_min"] = mobilisation.days_min;
+	result["days_max"] = mobilisation.days_max;
+	result["free_men"] = static_cast<int64_t>(mobilisation.free_men);
+	result["economy_impact"] = static_cast<float>(mobilisation.economy_impact);
+	result["output_multiplier"] = static_cast<float>(player_country->mobilisation_output_multiplier);
+	result["planned_output_multiplier"] = static_cast<float>(mobilisation.planned_output_multiplier);
+	result["at_war"] = player_country->is_at_war();
+	result["war_seen"] = player_country->mobilisation_war_seen;
+	result["peace_days"] = player_country->mobilisation_peace_days;
+	result["demobilise_days"] = war_defines.demobilise_days;
+	result["reinforce_wanted_men"] = static_cast<int64_t>(player_country->mobilised_reinforce_wanted_men);
+	result["reinforce_given_men"] = static_cast<int64_t>(player_country->mobilised_reinforce_given_men);
+	// The share of the regiments that stand (for the progress bar of the military screen)
+	const std::uint32_t total = mobilisation.regiments + mobilisation.pending_regiments;
+	result["progress"] = total > 0 ? static_cast<float>(mobilisation.regiments) / static_cast<float>(total) : 0.0f;
+	return result;
+}
+
+bool PlayerSingleton::set_recruitment_priority(int64_t order_id, int32_t priority) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<set_recruitment_priority_argument_t>(
+		player_country->index, static_cast<unique_id_t>(order_id), static_cast<std::uint32_t>(std::clamp<int32_t>(priority, 0, 2))
+	);
 }
 
 Array PlayerSingleton::get_division_recruitment_info(int32_t province_number) const {

@@ -1429,10 +1429,14 @@ Dictionary MenuSingleton::get_topbar_info() const {
 	static const StringName mobilisation_regiments_key = "mobilisation_regiments";
 	static const StringName mobilisation_impact_tooltip_key = "mobilisation_impact_tooltip";
 
+	// The mobilisation of OpenVic (docs/RECRUITMENT.md, "Мобилизация"): the pool of the poor pops; the whole state for the tooltip and the button
+	static const StringName mobilisation_key = "mobilisation";
+	const Dictionary mobilisation = PlayerSingleton::get_singleton()->get_mobilisation();
+	ret[mobilisation_key] = mobilisation;
 	if (country.is_mobilised()) {
 		ret[is_mobilised_key] = true;
 	} else {
-		ret[mobilisation_regiments_key] = static_cast<uint64_t>(country.get_mobilisation_potential_regiment_count());
+		ret[mobilisation_regiments_key] = static_cast<uint64_t>(static_cast<int32_t>(mobilisation.get("pool_regiments", 0)));
 		ret[mobilisation_impact_tooltip_key] = _make_mobilisation_impact_tooltip();
 	}
 

@@ -380,11 +380,20 @@ namespace OpenVic {
 		godot::String get_recruitment_block_reason(int32_t regiment_type_index, int32_t province_number, int32_t pop_id) const;
 		bool start_recruitment(int32_t regiment_type_index, int32_t province_number, int32_t pop_id) const;
 		// Recruitment orders of the player: [{ id, type_name, province_number, province_name, days_left, days_total }]
+		// + mobilisation (a regiment of the mobilisation, it cannot be cancelled alone), waiting (over the monthly limit), priority (0 normal,
+		//   1 high, 2 urgent)
 		godot::Array get_recruitment_queue() const;
 		bool cancel_recruitment(int64_t order_id) const;
+		// The priority of an order (of its whole division): the waiting orders of the higher priority start first (docs/RECRUITMENT.md)
+		bool set_recruitment_priority(int64_t order_id, int32_t priority) const;
+		// The mobilisation of the player (docs/RECRUITMENT.md, "Мобилизация"): {is_mobilised, mobilise_reason, demobilise_reason (empty if possible),
+		// pop_men (the poor pops of the pool), share, pool_men, pool_regiments, men_per_regiment, regiments, men, full_men, pending_regiments,
+		// days_left, days_min, days_max, free_men, economy_impact, output_multiplier (now), planned_output_multiplier (of the whole pool), at_war,
+		// war_seen, peace_days, demobilise_days, reinforce_wanted_men, reinforce_given_men, progress (0..1)}
+		godot::Dictionary get_mobilisation() const;
 		// The manpower in men (docs/RECRUITMENT.md): {pop_men, war_bonus_men, max_men, army_men, army_full_men, queued_men, free_men, available_men,
 		// regiments, max_regiments, available_regiments, men_per_regiment, over_pct, combat_multiplier, at_war, reinforce_wanted_men,
-		// reinforce_given_men, reinforce_limit (bits: 1 the manpower, 2 the goods)}
+		// reinforce_given_men, reinforce_limit (bits: 1 the manpower, 2 the goods), month_limit (0: none), month_left (-1: no limit), waiting_orders}
 		godot::Dictionary get_manpower() const;
 		// The templates the player can recruit in the province: [{id, name, regiments, men, days, cost [{good_name, amount, have}], reason}]
 		godot::Array get_division_recruitment_info(int32_t province_number) const;
