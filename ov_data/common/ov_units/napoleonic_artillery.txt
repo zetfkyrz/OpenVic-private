@@ -1,6 +1,6 @@
 # Smoothbore field artillery of the Napoleonic wars (the artillery of Vic2).
 # Starting values are estimates (the stats come from the unit of Vic2 of the same kind), see docs/WAR_ASSUMPTIONS.md.
-# The soldiers eat grain: there is almost no canned food in the world of 1836 (docs/MILITARY_SUPPLY.md); the units of the later technologies eat canned food.
+# The soldiers eat grain and fish (8 and 2): there is almost no canned food in the world of 1836 (docs/MILITARY_SUPPLY.md); the units of the later technologies eat canned food.
 napoleonic_artillery = {
 	category = artillery
 	equipment = { field_gun_0 }   # the weapons the unit may have: the best the country has is used, the lowest is what it is built with
@@ -15,7 +15,7 @@ napoleonic_artillery = {
 		speed = 4
 		reconnaissance = 0
 		manpower = 3   # strength points of the regiment (a point is ov_war.TEMPLATE_MEN_PER_STRENGTH men)
-		cost = { field_gun_0 = 10 grain = 10 liquor = 10 wine = 10 }
-		supply_cost = { field_gun_0 = 0.1 grain = 0.07 }
+		cost = { field_gun_0 = 10 grain = 8 fish = 2 liquor = 10 wine = 10 }
+		supply_cost = { field_gun_0 = 0.1 grain = 0.056 fish = 0.014 }
 	}
 }
