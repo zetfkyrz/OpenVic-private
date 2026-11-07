@@ -47,6 +47,7 @@ static func tooltip(mobilisation: Dictionary) -> String:
 		lines.append("Мобилизация: %d полков (%s чел.)" % [int(mobilisation[&"pool_regiments"]), thousands(int(mobilisation[&"pool_men"]))])
 		lines.append("  из бедного населения своих провинций (крестьяне, рабочие, ремесленники): %s чел. × %s %%" % [
 			thousands(int(mobilisation[&"pop_men"])), str(roundi(float(mobilisation[&"share"]) * 1000.0) / 10.0)])
+		lines.append("  на ненациональной земле (не ядра страны) в 100 раз меньше; с региона — не больше 25 % его населения (ненационального — 0.25 %)")
 		var days_min: int = int(mobilisation[&"days_min"])
 		var days_max: int = int(mobilisation[&"days_max"])
 		if days_max > 0:
