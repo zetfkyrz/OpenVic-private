@@ -21,6 +21,7 @@ var _humiliate_check: CheckBox
 var _cost_label: Label
 var _forecast_label: Label
 var _send_button: Button
+var _separate_button: Button
 var _white_button: Button
 var _clear_button: Button
 var _response_label: Label
@@ -95,6 +96,11 @@ func _ready() -> void:
 	_clear_button.text = "Очистить условия"
 	_clear_button.pressed.connect(_on_clear_pressed)
 	buttons.add_child(_clear_button)
+	# A country that does not lead its side can leave the war alone (docs/WAR_ASSUMPTIONS.md, "Союзники и отдельный мир")
+	_separate_button = Button.new()
+	_separate_button.text = "Выйти из войны (отдельный мир)"
+	_separate_button.pressed.connect(_on_separate_pressed)
+	buttons.add_child(_separate_button)
 
 	_response_label = Label.new()
 	_response_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -165,6 +171,12 @@ func _refresh() -> void:
 
 func _refresh_inner() -> void:
 	_info = PlayerSingleton.get_peace_info(_war_id) if _war_id > 0 else {}
+	if _separate_button and not _info.is_empty():
+		_separate_button.visible = not bool(_info.get(&"leads_side", true))
+		var separate_reason: String = _info.get(&"separate_peace_reason", "")
+		_separate_button.disabled = not separate_reason.is_empty()
+		_separate_button.tooltip_text = separate_reason if not separate_reason.is_empty() \
+			else "Страна выходит из войны с белым миром: оккупированное возвращается, перемирие с противником"
 	if _info.is_empty():
 		# The war is over
 		_header_label.text = "Война окончена или не выбрана."
@@ -172,6 +184,7 @@ func _refresh_inner() -> void:
 		_offers_tree.clear()
 		_send_button.disabled = true
 		_white_button.disabled = true
+		_separate_button.visible = false
 		_accept_button.disabled = true
 		_decline_button.disabled = true
 		return
@@ -302,6 +315,11 @@ func _on_white_pressed() -> void:
 	# White peace: no terms
 	PlayerSingleton.set_peace_demand(_war_id, 4, 0, true)
 	PlayerSingleton.send_peace_offer(_war_id)
+
+
+func _on_separate_pressed() -> void:
+	PlayerSingleton.separate_peace(_war_id)
+	_refresh()
 
 
 func _on_clear_pressed() -> void:

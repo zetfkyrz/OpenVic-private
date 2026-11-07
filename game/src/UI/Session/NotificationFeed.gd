@@ -53,6 +53,14 @@ func _make_text(entry: Dictionary) -> String:
 			return "%s объявляет нам войну!" % entry[&"country"]
 		"peace_signed":
 			return "Заключён мир: %s и %s" % [entry[&"country"], entry[&"other"]]
+		"ally_joined_war":
+			return "В войну на стороне %s вступил союзник: %s" % [entry[&"country"], entry[&"other"]]
+		"joined_war":
+			return "Союзник позвал нас в войну: мы воюем на стороне %s (выйти — отдельным миром в окне мира)" % entry[&"other"]
+		"casus_belli_ready":
+			return "Война обоснована: есть повод для войны против %s (на год)" % entry[&"other"]
+		"separate_peace":
+			return "Отдельный мир: %s вышла из войны с %s" % [entry[&"country"], entry[&"other"]]
 		"army_no_supply":
 			if not _supply_messages_enabled():
 				return ""

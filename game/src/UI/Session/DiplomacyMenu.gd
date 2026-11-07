@@ -319,17 +319,25 @@ func _describe_relation(relation: Dictionary) -> String:
 
 	var parts: PackedStringArray
 	if relation[&"at_war"]:
-		parts.append("At war")
+		parts.append("Война")
 	if relation[&"allied"]:
-		parts.append("Allied")
+		parts.append("Союз")
 	if relation[&"we_have_military_access"]:
-		parts.append("We have military access")
+		parts.append("у нас проход войск")
 	if relation[&"they_have_military_access"]:
-		parts.append("They have military access")
+		parts.append("у них проход войск")
 	if relation[&"we_subsidise"]:
-		parts.append("We send war subsidies")
+		parts.append("мы платим субсидии")
 	if parts.is_empty():
-		parts.append("Peace")
+		parts.append("Мир")
+	# The casus belli and the justification of a war (docs/WAR_ASSUMPTIONS.md, "Обоснование войны")
+	if relation.get(&"has_casus_belli", false):
+		parts.append("повод для войны: ещё %d дн." % int(relation[&"casus_belli_days"]))
+	elif relation.get(&"justifying", false):
+		parts.append("обоснование: %d дн." % int(relation[&"justify_days_left"]))
+	elif not relation[&"at_war"] and not relation[&"allied"]:
+		# A war without it costs no_cb_infamy of infamy and no_cb_exhaustion of war exhaustion (the label is short)
+		parts.append("повода нет")
 
 	return ", ".join(parts)
 
@@ -345,6 +353,13 @@ func _is_action_available(identifier: String, relation: Dictionary) -> bool:
 			return not allied and not at_war
 		"end_alliance":
 			return allied
+		"justify_war":
+			# One justification at a time, not against a country we already have a casus belli against
+			return not at_war and not allied and not relation.get(&"has_casus_belli", false) \
+				and not relation.get(&"justifying", false) and not relation.get(&"justifying_other", false)
+		"call_ally":
+			# Into our war (docs/WAR_ASSUMPTIONS.md, "Союзники и отдельный мир"); the simulation checks the rest
+			return allied and not at_war
 		"declare_war":
 			return not at_war and not allied
 		"offer_peace":

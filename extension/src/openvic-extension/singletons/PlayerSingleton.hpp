@@ -386,6 +386,8 @@ namespace OpenVic {
 		bool cancel_recruitment(int64_t order_id) const;
 		// The priority of an order (of its whole division): the waiting orders of the higher priority start first (docs/RECRUITMENT.md)
 		bool set_recruitment_priority(int64_t order_id, int32_t priority) const;
+		// The player, who does not lead his side, leaves the war with a white peace (docs/WAR_ASSUMPTIONS.md, "Союзники и отдельный мир")
+		bool separate_peace(int32_t war_id) const;
 		// The mobilisation of the player (docs/RECRUITMENT.md, "Мобилизация"): {is_mobilised, mobilise_reason, demobilise_reason (empty if possible),
 		// pop_men (the poor pops of the pool), share, pool_men, pool_regiments, men_per_regiment, regiments, men, full_men, pending_regiments,
 		// days_left, days_min, days_max, free_men, economy_impact, output_multiplier (now), planned_output_multiplier (of the whole pool), at_war,

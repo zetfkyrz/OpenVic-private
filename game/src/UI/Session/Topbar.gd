@@ -545,6 +545,10 @@ func _manpower_tooltip(manpower: Dictionary) -> String:
 			" — не хватает свободных людей и товаров на складе" if limit == 3 else " — не хватает свободных людей" if limit == 1
 			else " — не хватает товаров на складе" if limit == 2 else ""])
 	lines.append("Потери в боях и от истощения — это погибшие: солдаты-попы уменьшаются, с ними и максимум.")
+	var exhaustion: float = float(manpower.get(&"war_exhaustion", 0.0))
+	if exhaustion > 0.0 or bool(manpower[&"at_war"]):
+		lines.append("Усталость от войны: %.1f из %d (выпуск заводов и РГО −%d %%; растёт от потерь, оккупации и блокады, в мире −1 в месяц)" % [
+			exhaustion, int(manpower.get(&"war_exhaustion_max", 0.0)), int(exhaustion)])
 	var over: float = float(manpower[&"over_pct"])
 	if float(manpower[&"combat_multiplier"]) < 1.0:
 		lines.append("§RАрмия больше максимума на %d %%: атака и защита всех войск ×%.2f§W" % [int(over), float(manpower[&"combat_multiplier"])])

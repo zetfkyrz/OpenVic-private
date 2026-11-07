@@ -254,6 +254,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_recruitment_queue);
 	OV_BIND_METHOD(PlayerSingleton::cancel_recruitment, { "order_id" });
 	OV_BIND_METHOD(PlayerSingleton::set_recruitment_priority, { "order_id", "priority" });
+	OV_BIND_METHOD(PlayerSingleton::separate_peace, { "war_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_mobilisation);
 	OV_BIND_METHOD(PlayerSingleton::get_manpower);
 	OV_BIND_METHOD(PlayerSingleton::get_division_recruitment_info, { "province_number" });
@@ -710,6 +711,24 @@ Dictionary PlayerSingleton::get_diplomatic_relation(int32_t country_index) const
 	result["they_subsidise"] = relations.get_war_subsidies_to(other, player);
 	result["we_have_vision"] = relations.get_has_vision(player, other);
 	result["they_have_vision"] = relations.get_has_vision(other, player);
+	// The justification of a war against the other country and the casus belli (docs/WAR_ASSUMPTIONS.md, "Обоснование войны")
+	const Date today = instance_manager->get_today();
+	result["has_casus_belli"] = player->has_casus_belli_against(*other, today);
+	std::int32_t cb_days = 0;
+	for (auto const& [target, until] : player->casus_belli) {
+		if (target == other && until >= today) {
+			cb_days = std::max(cb_days, static_cast<std::int32_t>((until - today).to_int()));
+		}
+	}
+	result["casus_belli_days"] = cb_days;
+	result["justifying"] = player->justify_target == other;
+	result["justifying_other"] = player->justify_target != nullptr && player->justify_target != other;
+	result["justify_days_left"] = player->justify_target == other ? player->justify_days_left : 0;
+	OpenVicWarDefines const& war_defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war;
+	result["no_cb_infamy"] = static_cast<float>(war_defines.no_cb_war_infamy);
+	result["no_cb_exhaustion"] = static_cast<float>(war_defines.no_cb_war_exhaustion);
+	result["justify_days"] = war_defines.justify_war_days;
+	result["justify_infamy"] = static_cast<float>(war_defines.justify_war_infamy);
 
 	return result;
 }
@@ -3882,6 +3901,9 @@ Dictionary PlayerSingleton::get_manpower() const {
 	result["reinforce_wanted_men"] = static_cast<int64_t>(player_country->reinforce_wanted_men);
 	result["reinforce_given_men"] = static_cast<int64_t>(player_country->reinforce_given_men);
 	result["reinforce_limit"] = player_country->reinforce_limit;
+	// The war exhaustion (docs/WAR_ASSUMPTIONS.md): every point takes 1 % of the output of the factories and the RGOs (the modifier of Vic2)
+	result["war_exhaustion"] = static_cast<float>(player_country->get_war_exhaustion());
+	result["war_exhaustion_max"] = static_cast<float>(player_country->get_war_exhaustion_max());
 	// The monthly limit of the recruitment (ov_war.RECRUIT_MAX_REGIMENTS_PER_MONTH, 0: none) and what is left of it this month (-1: no limit)
 	UnitInstanceManager const& unit_manager = instance_manager->get_unit_instance_manager();
 	result["month_limit"] = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war.recruit_max_regiments_per_month;
@@ -3931,6 +3953,13 @@ Dictionary PlayerSingleton::get_mobilisation() const {
 	const std::uint32_t total = mobilisation.regiments + mobilisation.pending_regiments;
 	result["progress"] = total > 0 ? static_cast<float>(mobilisation.regiments) / static_cast<float>(total) : 0.0f;
 	return result;
+}
+
+bool PlayerSingleton::separate_peace(int32_t war_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<separate_peace_argument_t>(player_country->index, static_cast<std::uint32_t>(war_id));
 }
 
 bool PlayerSingleton::set_recruitment_priority(int64_t order_id, int32_t priority) const {
@@ -4175,6 +4204,9 @@ Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
 	result["our_score"] = static_cast<float>(war->get_score(we_attack));
 	result["their_score"] = static_cast<float>(war->get_score(!we_attack));
 	result["goal_type"] = static_cast<int32_t>(war->goal.type);
+	// The separate peace (docs/WAR_ASSUMPTIONS.md): only for a country that does not lead its side; empty reason: the enemy lets it go
+	result["leads_side"] = !war->get_side(we_attack).empty() && war->get_side(we_attack).front() == player_country;
+	result["separate_peace_reason"] = String::utf8(war_manager.get_separate_peace_block_reason(*instance_manager, *war, *player_country).data());
 	result["goal_name"] = war->goal.state_province != nullptr ? state_name(*menu_singleton, *war->goal.state_province) : String {};
 
 	Array attackers, defenders;
