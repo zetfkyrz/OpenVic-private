@@ -361,6 +361,11 @@ func _describe(unit: Dictionary) -> String:
 		"Войска: %s из %s чел. (%d%%)" % [_men(int(unit.get(&"men", 0))), _men(int(unit.get(&"max_men", 0))), roundi(float(unit[&"strength"]) * 100.0)],
 		"Организация: %d%%" % roundi(float(unit[&"organisation"]) * 100.0),
 	]
+	# The regiments raised by the mobilisation (docs/RECRUITMENT.md): out of the manpower of the soldiers, they go home with the demobilisation
+	var mobilised: int = int(unit.get(&"mobilised_regiments", 0))
+	if mobilised > 0:
+		lines.insert(1, ("§YМобилизованные: все %d полков§W" % mobilised) if mobilised == int(unit[&"regiments"])
+			else "§YМобилизованные: %d из %d полков§W" % [mobilised, int(unit[&"regiments"])])
 	# The supply of the player's divisions: is it enough, the reserve, the level and how it changes a day
 	if unit[&"is_player"] and unit.has(&"supply_arrived"):
 		var arrived: float = float(unit[&"supply_arrived"])

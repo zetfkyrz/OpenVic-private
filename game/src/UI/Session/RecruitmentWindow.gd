@@ -27,7 +27,11 @@ var _reason_label: Label
 var _recruit_button: Button
 var _queue_tree: Tree
 var _cancel_button: Button
+var _priority_option: OptionButton
 var _selected_order_id: int = 0
+# The order selected in the queue is a regiment of the mobilisation (it cannot be cancelled alone)
+var _selected_mobilisation: bool = false
+const _PRIORITY_NAMES: PackedStringArray = ["обычный", "высокий", "срочный"]
 var _type_signature: String = ""
 
 
@@ -110,23 +114,39 @@ func _ready() -> void:
 	root.add_child(queue_caption)
 
 	_queue_tree = Tree.new()
-	_queue_tree.columns = 3
+	_queue_tree.columns = 5
 	_queue_tree.column_titles_visible = true
 	_queue_tree.hide_root = true
 	_queue_tree.select_mode = Tree.SELECT_ROW
 	_queue_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_queue_tree.custom_minimum_size = Vector2(0, 100)
-	var queue_titles: PackedStringArray = ["Полк", "Провинция", "Осталось"]
+	var queue_titles: PackedStringArray = ["Полк", "Провинция", "Осталось", "Приоритет", "Состояние"]
 	for column: int in queue_titles.size():
 		_queue_tree.set_column_title(column, queue_titles[column])
 	_queue_tree.item_selected.connect(_on_order_selected)
 	_queue_tree.nothing_selected.connect(_on_order_deselected)
 	root.add_child(_queue_tree)
 
+	# The priority of the selected order: the orders that wait for the monthly limit start by it (docs/RECRUITMENT.md)
+	var order_row := HBoxContainer.new()
+	order_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(order_row)
+	var priority_caption := Label.new()
+	priority_caption.text = "Приоритет:"
+	order_row.add_child(priority_caption)
+	_priority_option = OptionButton.new()
+	for priority_name: String in _PRIORITY_NAMES:
+		_priority_option.add_item(priority_name)
+	_priority_option.tooltip_text = ("Заказы сверх лимита набора в месяц ждут в очереди и начинаются в следующих месяцах:\n" +
+		"сначала с более высоким приоритетом, при равном — более старые. Для дивизии — сразу для всех её полков.")
+	_priority_option.disabled = true
+	_priority_option.item_selected.connect(_on_priority_selected)
+	order_row.add_child(_priority_option)
 	_cancel_button = Button.new()
 	_cancel_button.text = "Отменить набор (товары возвращаются)"
+	_cancel_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_cancel_button.pressed.connect(_on_cancel_pressed)
-	root.add_child(_cancel_button)
+	order_row.add_child(_cancel_button)
 
 	GameSingleton.gamestate_updated.connect(_refresh)
 
@@ -209,8 +229,17 @@ func _update_manpower() -> void:
 	_manpower_label.tooltip_text = ("Максимум — солдаты-попы своих, не оккупированных провинций (на войне +10 %%), полк — %d чел.\n" +
 		"Набор и пополнение берут людей из свободных; потери в боях и от истощения убивают солдат-попов.\n" +
 		"Армия больше максимума воюет слабее: атака и защита падают на процент превышения.") % int(manpower[&"men_per_regiment"])
-	if float(manpower[&"over_pct"]) > 0.0:
+	if float(manpower[&"combat_multiplier"]) < 1.0:
 		_manpower_label.text += " · превышение %d %%" % int(manpower[&"over_pct"])
+	# The monthly limit of the recruitment (ov_war.RECRUIT_MAX_REGIMENTS_PER_MONTH, 0: none)
+	var month_limit: int = int(manpower.get(&"month_limit", 0))
+	if month_limit > 0:
+		_manpower_label.text += " · в этом месяце можно начать ещё %d из %d полков" % [maxi(0, int(manpower.get(&"month_left", 0))), month_limit]
+		var waiting: int = int(manpower.get(&"waiting_orders", 0))
+		if waiting > 0:
+			_manpower_label.text += ", ждут лимита: %d" % waiting
+		_manpower_label.tooltip_text += ("\nЛимит набора: %d полков в месяц. Заказы сверх него ждут в очереди (людей и товаров не берут) " +
+			"и начинаются в следующих месяцах по приоритету.") % month_limit
 
 
 func _thousands(value: int) -> String:
@@ -348,20 +377,43 @@ func _update_queue() -> void:
 			continue
 		shown_divisions[division_id] = true
 		var item: TreeItem = _queue_tree.create_item(root)
+		var mobilisation: bool = bool(order.get(&"mobilisation", false))
+		var waiting: bool = bool(order.get(&"waiting", false))
 		if division_id != 0:
 			item.set_text(0, "Дивизия (%s, %d полков)" % [order[&"template_name"], int(division_counts[division_id])])
 		else:
 			item.set_text(0, order[&"type_name"])
 		item.set_text(1, order[&"province_name"])
-		item.set_text(2, "%d из %d дн." % [order[&"days_left"], order[&"days_total"]])
+		item.set_text(2, ("%d дн. после начала" % int(order[&"days_total"])) if waiting else "%d из %d дн." % [order[&"days_left"], order[&"days_total"]])
+		item.set_text(3, "—" if mobilisation or bool(order.get(&"is_ship", false)) else _PRIORITY_NAMES[clampi(int(order.get(&"priority", 0)), 0, 2)])
+		item.set_text(4, "мобилизация" if mobilisation else ("ждёт лимита месяца" if waiting else "набирается"))
+		if waiting:
+			item.set_custom_color(4, Color(0.95, 0.75, 0.35))
+		elif mobilisation:
+			item.set_custom_color(4, Color(0.9, 0.85, 0.5))
 		item.set_metadata(0, order[&"id"])
+		item.set_metadata(1, mobilisation)
+		item.set_metadata(2, int(order.get(&"priority", 0)))
+		item.set_metadata(3, bool(order.get(&"is_ship", false)))
 		if order[&"id"] == _selected_order_id:
 			to_select = item
 	if to_select != null:
 		to_select.select(0)
+		_update_order_controls(to_select)
 	else:
 		_selected_order_id = 0
-	_cancel_button.disabled = _selected_order_id == 0
+		_update_order_controls(null)
+
+
+## The cancel and the priority of the selected order: a regiment of the mobilisation is cancelled only by the demobilisation, a ship has no priority
+func _update_order_controls(item: TreeItem) -> void:
+	_selected_mobilisation = item != null and bool(item.get_metadata(1))
+	var is_ship: bool = item != null and bool(item.get_metadata(3))
+	_cancel_button.disabled = _selected_order_id == 0 or _selected_mobilisation
+	_cancel_button.tooltip_text = "Мобилизованные полки отменяет только демобилизация" if _selected_mobilisation else ""
+	_priority_option.disabled = _selected_order_id == 0 or _selected_mobilisation or is_ship
+	if item != null:
+		_priority_option.select(clampi(int(item.get_metadata(2)), 0, 2))
 
 
 func _on_selected_province_pressed() -> void:
@@ -399,16 +451,21 @@ func _on_recruit_pressed() -> void:
 func _on_order_selected() -> void:
 	var item: TreeItem = _queue_tree.get_selected()
 	_selected_order_id = item.get_metadata(0) if item != null else 0
-	_cancel_button.disabled = _selected_order_id == 0
+	_update_order_controls(item)
 
 
 func _on_order_deselected() -> void:
 	_queue_tree.deselect_all()
 	_selected_order_id = 0
-	_cancel_button.disabled = true
+	_update_order_controls(null)
+
+
+func _on_priority_selected(index: int) -> void:
+	if _selected_order_id != 0 and not _selected_mobilisation:
+		PlayerSingleton.set_recruitment_priority(_selected_order_id, index)
 
 
 func _on_cancel_pressed() -> void:
-	if _selected_order_id != 0:
+	if _selected_order_id != 0 and not _selected_mobilisation:
 		PlayerSingleton.cancel_recruitment(_selected_order_id)
 		_selected_order_id = 0

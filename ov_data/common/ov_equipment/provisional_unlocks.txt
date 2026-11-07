@@ -14,6 +14,10 @@ step = { year = 1850 unlock = { "equipment:rifle_2" "equipment:field_gun_2" } }
 step = { year = 1865 unlock = { "equipment:rifle_3" "equipment:field_gun_3" } }
 step = { year = 1885 unlock = { "equipment:rifle_4" "equipment:field_gun_4" } }
 
+# The mobilisation (mechanic:mobilisation): the player researches it (general_staff, year_hint 1855), the AI countries get it in that year
+# (docs/RECRUITMENT.md, "Мобилизация")
+step = { year = 1855 unlock = { "mechanic:mobilisation" } }
+
 # The limits of the templates: 3 ranks and 2 rows to start, up to 6 and 4; 1 company slot of a rank to start, up to 4
 step = { year = 1845 modifier = { max_columns_add = 1 } }
 step = { year = 1860 modifier = { max_columns_add = 1 max_company_slots = 1 } }

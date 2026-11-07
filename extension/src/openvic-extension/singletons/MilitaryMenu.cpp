@@ -519,9 +519,14 @@ Dictionary MenuSingleton::get_military_menu_info() {
 	static const StringName military_info_mobilisation_economy_impact_tooltip_key = "mobilisation_economy_impact_tooltip";
 
 	ret[military_info_is_mobilised_key] = country->is_mobilised();
-	// TODO - get mobilisation progress from SIM
-	// ret[military_info_mobilisation_progress_key] = static_cast<real_t>(country->get_mobilisation_progress());
-	ret[military_info_mobilisation_size_key] = static_cast<uint64_t>(country->get_mobilisation_potential_regiment_count());
+	// The mobilisation of OpenVic (docs/RECRUITMENT.md, "Мобилизация"): the pool of the poor pops, the share of the regiments that stand
+	{
+		const Dictionary mobilisation = PlayerSingleton::get_singleton()->get_mobilisation();
+		ret[military_info_mobilisation_progress_key] = static_cast<real_t>(static_cast<float>(mobilisation.get("progress", 0.0f)));
+		ret[military_info_mobilisation_size_key] = static_cast<uint64_t>(static_cast<int32_t>(mobilisation.get("pool_regiments", 0)));
+		static const StringName military_info_mobilisation_key = "mobilisation";
+		ret[military_info_mobilisation_key] = mobilisation;
+	}
 
 	{
 		static const StringName mobilisation_size_tooltip_localisation_key = "MOB_SIZE_IRO";
