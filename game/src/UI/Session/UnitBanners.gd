@@ -441,10 +441,15 @@ func _describe_fleet(unit: Dictionary) -> String:
 		"%s: %d%%" % [tr("Strength"), roundi(float(unit[&"strength"]) * 100.0)],
 		"%s: %d%%" % [tr("Organisation"), roundi(float(unit[&"organisation"]) * 100.0)],
 	]
+	# The roles of the ships (docs/WAR_ASSUMPTIONS.md, section 9): the light ships screen the capital ones in a battle, transports do not blockade
+	lines.append("Линейных: %d, лёгких: %d, транспортов: %d" % [int(unit.get(&"capital_ships", 0)), int(unit.get(&"light_ships", 0)),
+		int(unit.get(&"transports", 0))])
 	if unit.get(&"carried", 0) > 0:
 		lines.append("Перевозит полков: %d" % unit[&"carried"])
 	if unit.get(&"blockade", false):
 		lines.append("Порт заблокирован")
+	if unit.get(&"out_of_range", false):
+		lines.append("Вне дальности военно-морских баз: корабли теряют организацию и силу")
 	if unit[&"in_combat"]:
 		lines.append("Морской бой")
 	elif unit[&"moving"]:

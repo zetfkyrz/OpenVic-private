@@ -1962,6 +1962,8 @@ Array PlayerSingleton::get_map_units() const {
 		fixed_point_t load_ratio = 0;
 		bool friendly = true, cut_off = false;
 		fixed_point_t reinforce_strength = 0; // the strength the regiments want today
+		bool out_of_range = false; // a fleet far from the naval bases of its country and its allies (docs/WAR_ASSUMPTIONS.md, section 9)
+		std::int32_t capital_ships = 0, light_ships = 0, transports = 0; // the roles of the ships of a fleet
 		Array army_ids;
 		Array paths;
 		// Position of the last army of the group, which is also the one drawn on the map
@@ -2203,6 +2205,12 @@ Array PlayerSingleton::get_map_units() const {
 			if (war_manager.is_blockaded(province)) {
 				group->attrition = true;
 			}
+			group->out_of_range = group->out_of_range || navy.is_out_of_range();
+			for (ShipInstance const& ship : navy.get_ship_instances()) {
+				group->capital_ships += ship.get_ship_type().is_capital;
+				group->transports += ship.get_ship_type().is_transport;
+				group->light_ships += !ship.get_ship_type().is_capital && !ship.get_ship_type().is_transport;
+			}
 
 			if (navy.is_moving()) {
 				PackedVector2Array path_positions = get_unit_path_positions(*game_singleton, navy);
@@ -2232,6 +2240,10 @@ Array PlayerSingleton::get_map_units() const {
 			entry["moving"] = group.moving;
 			entry["attrition"] = false;
 			entry["blockade"] = group.attrition;
+			entry["out_of_range"] = group.out_of_range;
+			entry["capital_ships"] = group.capital_ships;
+			entry["light_ships"] = group.light_ships;
+			entry["transports"] = group.transports;
 			entry["army_ids"] = group.army_ids;
 			entry["is_navy"] = true;
 			entry["occupied"] = false;
