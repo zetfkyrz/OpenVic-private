@@ -154,6 +154,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::move_army, { "army_id", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::queue_army_move, { "army_id", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::stop_army, { "army_id" });
+	OV_BIND_METHOD(PlayerSingleton::set_army_stance, { "army_id", "stance" });
+	OV_BIND_METHOD(PlayerSingleton::follow_army, { "army_id", "target_id" });
+	OV_BIND_METHOD(PlayerSingleton::army_to_port, { "army_id" });
 	OV_BIND_METHOD(PlayerSingleton::propose_peace, { "war_id", "peace_type" });
 	OV_BIND_METHOD(PlayerSingleton::create_front, { "enemy_country_index" });
 	OV_BIND_METHOD(PlayerSingleton::delete_front, { "front_id" });
@@ -2842,8 +2845,54 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	result["manual_order"] = army.is_manual_order();
 	result["army_group_colour"] = make_command_colour(army.get_country().find_army_group(army.get_army_group_id()));
 	result["supply_leader_bonus"] = static_cast<float>(army.get_supply_leader_bonus());
+	// The orders of the army (docs/WAR_ASSUMPTIONS.md, section 10): the stance, the army it follows and the armies of the country it can follow
+	result["stance"] = static_cast<int32_t>(army.get_stance());
+	result["follow_army_id"] = static_cast<int64_t>(army.get_follow_army_id());
+	Array follow_candidates;
+	for (ArmyInstance const& other : army.get_country().get_armies()) {
+		if (other.unique_id == army.unique_id || other.empty()) {
+			continue;
+		}
+		Dictionary candidate;
+		candidate["id"] = static_cast<int64_t>(other.unique_id);
+		candidate["name"] = Utilities::format(String::utf8("%s (%s)"), convert_to<String>(other.get_name()), province_name_of(other.get_location()));
+		follow_candidates.push_back(candidate);
+	}
+	result["follow_candidates"] = follow_candidates;
 
 	return result;
+}
+
+bool PlayerSingleton::set_army_stance(int64_t army_id, int32_t stance) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstanceGroup* group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(static_cast<unique_id_t>(army_id));
+	ERR_FAIL_NULL_V(group, false);
+	ERR_FAIL_COND_V(&group->get_country() != player_country, false);
+	return instance_manager->queue_game_action<set_army_stance_argument_t>(
+		static_cast<unique_id_t>(army_id), static_cast<std::uint32_t>(std::clamp<int32_t>(stance, 0, 3))
+	);
+}
+
+bool PlayerSingleton::follow_army(int64_t army_id, int64_t target_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstanceGroup* group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(static_cast<unique_id_t>(army_id));
+	ERR_FAIL_NULL_V(group, false);
+	ERR_FAIL_COND_V(&group->get_country() != player_country, false);
+	return instance_manager->queue_game_action<follow_army_argument_t>(static_cast<unique_id_t>(army_id), static_cast<unique_id_t>(target_id));
+}
+
+bool PlayerSingleton::army_to_port(int64_t army_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	UnitInstanceGroup* group = instance_manager->get_unit_instance_manager().get_unit_instance_group_by_unique_id(static_cast<unique_id_t>(army_id));
+	ERR_FAIL_NULL_V(group, false);
+	ERR_FAIL_COND_V(&group->get_country() != player_country, false);
+	return instance_manager->queue_game_action<army_to_port_argument_t>(static_cast<unique_id_t>(army_id));
 }
 
 Array PlayerSingleton::get_army_groups() const {

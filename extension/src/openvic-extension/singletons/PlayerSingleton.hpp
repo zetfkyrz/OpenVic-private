@@ -169,6 +169,11 @@ namespace OpenVic {
 		bool move_army(int64_t army_id, int32_t province_number) const;
 		// Adds the province to the end of the route of the army (Shift + right click)
 		bool queue_army_move(int64_t army_id, int32_t province_number) const;
+		// The orders of an army (docs/WAR_ASSUMPTIONS.md, section 10): the stance (0 normal, 1 entrench, 2 raid, 3 rest), follow another army (0: stop),
+		// go to the nearest naval base
+		bool set_army_stance(int64_t army_id, int32_t stance) const;
+		bool follow_army(int64_t army_id, int64_t target_id) const;
+		bool army_to_port(int64_t army_id) const;
 		bool stop_army(int64_t army_id) const;
 		// peace_type: 0 = white peace, 1 = take the states occupied by us, 2 = give the states occupied by the enemy
 		bool propose_peace(int32_t war_id, int32_t peace_type) const;

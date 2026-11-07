@@ -49,6 +49,11 @@ var _general_signature: String = ""
 var _merge_signature: String = ""
 var _board_option: OptionButton
 var _board_button: Button
+var _stance_option: OptionButton
+var _follow_option: OptionButton
+var _follow_button: Button
+var _port_button: Button
+var _follow_signature: String = ""
 var _board_signature: String = ""
 
 var _recruitment_window: Control
@@ -238,6 +243,41 @@ func _ready() -> void:
 	_board_button.pressed.connect(_on_board_pressed)
 	board_row.add_child(_board_button)
 
+	# The orders (docs/WAR_ASSUMPTIONS.md, section 10): the stance, follow another army, to the port
+	var stance_row := HBoxContainer.new()
+	stance_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(stance_row)
+	var stance_caption := Label.new()
+	stance_caption.text = "Стойка:"
+	stance_row.add_child(stance_caption)
+	_stance_option = OptionButton.new()
+	for stance_name: String in ["Обычная", "Окопаться", "Рейд", "Отдых"]:
+		_stance_option.add_item(stance_name)
+	_stance_option.set_item_tooltip(0, "Обычное окапывание и восстановление")
+	_stance_option.set_item_tooltip(1, "Окапывается вдвое быстрее и на уровень глубже")
+	_stance_option.set_item_tooltip(2, "На земле врага кормится с провинции (истощение вдвое меньше) и вдвое режет выпуск её РГО; защита −20 %")
+	_stance_option.set_item_tooltip(3, "Организация восстанавливается вдвое быстрее, но армия не окапывается; защита −20 %")
+	_stance_option.item_selected.connect(_on_stance_selected)
+	stance_row.add_child(_stance_option)
+	_port_button = Button.new()
+	_port_button.text = "В порт"
+	_port_button.tooltip_text = "Идти по суше в ближайший свой порт с военно-морской базой"
+	_port_button.pressed.connect(_on_port_pressed)
+	stance_row.add_child(_port_button)
+
+	var follow_row := HBoxContainer.new()
+	follow_row.add_theme_constant_override(&"separation", 6)
+	root.add_child(follow_row)
+	var follow_caption := Label.new()
+	follow_caption.text = "Следовать за:"
+	follow_row.add_child(follow_caption)
+	_follow_option = OptionButton.new()
+	_follow_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	follow_row.add_child(_follow_option)
+	_follow_button = Button.new()
+	_follow_button.pressed.connect(_on_follow_pressed)
+	follow_row.add_child(_follow_button)
+
 	var bottom_row := HBoxContainer.new()
 	bottom_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(bottom_row)
@@ -255,7 +295,8 @@ func _ready() -> void:
 	bottom_row.add_child(_disband_army_button)
 
 	# A drop-down must not widen the window to its longest item (a long template or general name stretched every row after a button press)
-	for option: OptionButton in [_priority_option, _global_priority_option, _general_option, _template_option, _group_option, _merge_option, _board_option]:
+	for option: OptionButton in [_priority_option, _global_priority_option, _general_option, _template_option, _group_option, _merge_option, _board_option,
+			_follow_option]:
 		option.fit_to_longest_item = false
 		option.clip_text = true
 		option.custom_minimum_size.x = 120.0
@@ -327,6 +368,7 @@ func _refresh() -> void:
 	_split_button.disabled = not can_split
 	_disband_regiment_button.disabled = _selected_regiment_id == 0 or _details[&"in_combat"]
 	_stop_button.disabled = not _details[&"moving"]
+	_update_orders()
 	_disband_army_button.disabled = _details[&"in_combat"]
 	_disband_army_button.text = "Подтвердить роспуск армии" if _disband_armed else "Распустить армию"
 
@@ -650,6 +692,41 @@ func _on_assign_pressed() -> void:
 
 func _on_remove_leader_pressed() -> void:
 	PlayerSingleton.set_army_leader(_army_ids[_index], 0)
+
+
+## The stance, the army it follows and the list of the armies it can follow
+func _update_orders() -> void:
+	_stance_option.select(clampi(int(_details.get(&"stance", 0)), 0, 3))
+	var candidates: Array = _details.get(&"follow_candidates", [])
+	var signature: String = str(candidates)
+	if signature != _follow_signature:
+		_follow_signature = signature
+		_follow_option.clear()
+		for candidate: Dictionary in candidates:
+			_follow_option.add_item(candidate[&"name"])
+			_follow_option.set_item_metadata(_follow_option.item_count - 1, candidate[&"id"])
+	var following: int = int(_details.get(&"follow_army_id", 0))
+	if following != 0:
+		for item: int in _follow_option.item_count:
+			if int(_follow_option.get_item_metadata(item)) == following:
+				_follow_option.select(item)
+	_follow_button.text = "Перестать" if following != 0 else "Следовать"
+	_follow_button.disabled = following == 0 and _follow_option.item_count == 0
+
+
+func _on_stance_selected(index: int) -> void:
+	PlayerSingleton.set_army_stance(_army_ids[_index], index)
+
+
+func _on_follow_pressed() -> void:
+	if int(_details.get(&"follow_army_id", 0)) != 0:
+		PlayerSingleton.follow_army(_army_ids[_index], 0)
+	elif _follow_option.item_count > 0 and _follow_option.selected >= 0:
+		PlayerSingleton.follow_army(_army_ids[_index], _follow_option.get_item_metadata(_follow_option.selected))
+
+
+func _on_port_pressed() -> void:
+	PlayerSingleton.army_to_port(_army_ids[_index])
 
 
 func _on_stop_pressed() -> void:
