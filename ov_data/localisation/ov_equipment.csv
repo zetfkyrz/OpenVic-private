@@ -467,6 +467,7 @@ PLAN_STATUS_6;Every division holds its province: more divisions or the aggressiv
 PLAN_STATUS_7;The targets open a wide flank: only the aggressive mode attacks them;;;;;;;;;;;Цели открывают широкий фланг: атакует только агрессивный режим;;x
 PLAN_STATUS_8;The chance of a victory is too low: the best $P$%, needed $NEED$%;;;;;;;;;;;Шанс победы мал: лучший $P$%, нужно $NEED$%;;x
 PLAN_STATUS_9;The front only holds the line: draw an offensive;;;;;;;;;;;Фронт только держит линию: нарисуйте план наступления;;x
+PLAN_STATUS_10;The divisions gather against a strong point;;;;;;;;;;;Дивизии сосредотачиваются против сильной точки;;x
 PLAN_STATUS_1_RU;Наступает: отдано приказов атаки — $N$;;;;;;;;;;;;;x
 PLAN_STATUS_2_RU;Идёт бой;;;;;;;;;;;;;x
 PLAN_STATUS_3_RU;Нет войны с теми, против кого построен фронт: атаковать некого;;;;;;;;;;;;;x
@@ -476,3 +477,4 @@ PLAN_STATUS_6_RU;Каждая дивизия держит свою провин�
 PLAN_STATUS_7_RU;Цели открывают широкий фланг: атакует только агрессивный режим;;;;;;;;;;;;;x
 PLAN_STATUS_8_RU;Шанс победы мал: лучший $P$%, нужно $NEED$%;;;;;;;;;;;;;x
 PLAN_STATUS_9_RU;Фронт только держит линию: нарисуйте план наступления;;;;;;;;;;;;;x
+PLAN_STATUS_10_RU;Дивизии сосредотачиваются против сильной точки;;;;;;;;;;;;;x
