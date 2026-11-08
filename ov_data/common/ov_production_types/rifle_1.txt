@@ -1,4 +1,5 @@
-# Percussion-cap muskets: the recipe of the base game plus a little machine parts.
+# Percussion-cap muskets: the recipe of the base game with a little more steel. (The machine parts it had are not made by anyone in 1836, they become
+# available with an invention, so the factories made nothing; version 74.)
 # A production type that a factory of small_arms_factory can make instead of the one of the building (docs/EQUIPMENT_MODDING.md). The recipes are estimates,
 # see docs/WAR_ASSUMPTIONS.md. It is available to a country that has the unlock of the weapon it makes (equipment:rifle_1).
 rifle_1_factory = {
@@ -6,8 +7,7 @@ rifle_1_factory = {
 	building = small_arms_factory
 	input_goods = {
 		ammunition = 2.0
-		steel = 3.5
-		machine_parts = 0.25
+		steel = 3.75
 	}
 	output_goods = rifle_1
 	value = 2
