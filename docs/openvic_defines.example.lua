@@ -288,7 +288,7 @@ defines = {
 		MARSHAL_MAX_ATTACHED = 12, -- whole number 1 to 64
 		MARSHAL_MAX_ATTACHED_LIMIT = 48, -- whole number 1 to 64
 		THEATRES_MAX = 8, -- whole number 1 to 32
-		TRANSPORT_UNLIMITED = 1, -- whole number 0 to 1
+		TRANSPORT_UNLIMITED = 0, -- whole number 0 to 1
 		EQUIPMENT_UPGRADES_PER_DAY = 1, -- whole number 0 to 1000
 		EQUIPMENT_BELOW_MIN_PENALTY = 0.25, -- fraction 0 to 1
 		RIFLE_0_FOR_RIFLE_1_PENALTY = 0.1, -- fraction 0 to 1
@@ -342,6 +342,7 @@ defines = {
 		PORT_STEP_DISTANCE = 10, -- whole number 1 to 10000
 		REGIMENTS_PER_TRANSPORT = 4, -- whole number 0 to 1000
 		SEA_TRANSFER_ENABLED = 1, -- whole number 0 to 1
+		SEA_TRANSFER_NEEDS_SHIPS = 1, -- whole number 0 to 1
 		SEA_TRANSFER_SPEED = 8, -- number 0.1 to 1000
 		LANDING_ORGANISATION_DIVISOR = 2, -- whole number 1 to 1000
 	},

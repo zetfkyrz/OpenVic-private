@@ -1,0 +1,8 @@
+# The regiments a ship carries (decision of the owner 2026-11-09): a clipper transport 1, a steam transport and an ironclad 2; the ships that are not here
+# carry none. A transport type of a mod that is not here carries ov_war.REGIMENTS_PER_TRANSPORT. ov_war.TRANSPORT_UNLIMITED = 1 lifts the limit.
+# An army (its divisions are not split) goes on board only when the free room of the navy is enough for all of its regiments.
+transport_capacity = {
+	clipper_transport = 1
+	steam_transport = 2
+	ironclad = 2
+}
