@@ -8,7 +8,7 @@ law_group = {
 	replaces = { economic_policy }
 	variant = { id = traditionalism lean = -1 name = law_traditionalism start_from = { uncivilised } inherit = { state_capitalism } }
 	variant = { id = interventionism lean = -0.2 name = law_interventionism default = yes start_from = { interventionism state_capitalism } inherit = { interventionism } }
-	variant = { id = agrarianism lean = -0.6 name = law_agrarianism inherit = { interventionism } }
+	variant = { id = agrarianism lean = -0.6 name = law_agrarianism inherit = { interventionism } modifier = { farm_rgo_output_global = 0.1 } }
 	variant = { id = laissez_faire lean = 0.4 name = law_laissez_faire start_from = { laissez_faire } inherit = { laissez_faire } }
 	variant = { id = command_economy lean = 1 name = law_command_economy start_from = { planned_economy } inherit = { planned_economy } }
 	variant = { id = cooperative_ownership lean = 0.9 name = law_cooperative_ownership inherit = { planned_economy } }
@@ -32,11 +32,11 @@ law_group = {
 	column = economy
 	order = 3
 	name = law_group_taxation
-	variant = { id = consumption_tax lean = -0.3 name = law_consumption_tax }
-	variant = { id = land_tax lean = -0.6 name = law_land_tax }
-	variant = { id = per_capita_tax lean = -0.8 name = law_per_capita_tax start_from = { uncivilised } }
+	variant = { id = consumption_tax lean = -0.3 name = law_consumption_tax effects = { tax_poor = -0.2 tax_middle = -0.2 tax_rich = -0.2 } }
+	variant = { id = land_tax lean = -0.6 name = law_land_tax effects = { tax_poor = -0.3 tax_middle = -0.5 tax_rich = 0.3 } }
+	variant = { id = per_capita_tax lean = -0.8 name = law_per_capita_tax start_from = { uncivilised } effects = { tax_poor = 0.3 tax_rich = -0.3 } }
 	variant = { id = proportional_tax lean = 0.2 name = law_proportional_tax default = yes }
-	variant = { id = graduated_tax lean = 0.8 name = law_graduated_tax }
+	variant = { id = graduated_tax lean = 0.8 name = law_graduated_tax effects = { tax_poor = -0.5 tax_rich = 0.5 } }
 }
 
 law_group = {
@@ -44,11 +44,11 @@ law_group = {
 	column = economy
 	order = 4
 	name = law_group_land_reform
-	variant = { id = serfdom lean = -1 name = law_serfdom start_from = { RUS } }
+	variant = { id = serfdom lean = -1 name = law_serfdom start_from = { RUS } effects = { rgo_owner_share = 0.5 } }
 	variant = { id = tenant_farmers lean = -0.3 name = law_tenant_farmers default = yes }
-	variant = { id = homesteading lean = 0.5 name = law_homesteading start_from = { USA } }
-	variant = { id = commercialized_agriculture lean = 0.2 name = law_commercialized_agriculture }
-	variant = { id = collectivized_agriculture lean = 1 name = law_collectivized_agriculture }
+	variant = { id = homesteading lean = 0.5 name = law_homesteading start_from = { USA } effects = { rgo_owner_share = -0.5 } }
+	variant = { id = commercialized_agriculture lean = 0.2 name = law_commercialized_agriculture modifier = { farm_rgo_output_global = 0.15 } }
+	variant = { id = collectivized_agriculture lean = 1 name = law_collectivized_agriculture effects = { rgo_owner_share = -1 } modifier = { farm_rgo_output_global = -0.1 } }
 }
 
 law_group = {
@@ -56,9 +56,9 @@ law_group = {
 	column = economy
 	order = 5
 	name = law_group_colonization
-	variant = { id = no_colonial_affairs lean = 0.3 name = law_no_colonial_affairs default = yes }
-	variant = { id = colonial_resettlement lean = 0 name = law_colonial_resettlement }
-	variant = { id = colonial_exploitation lean = -0.5 name = law_colonial_exploitation start_from = { ENG FRA NET SPA POR } }
+	variant = { id = no_colonial_affairs lean = 0.3 name = law_no_colonial_affairs default = yes effects = { colonial_points = -1 } }
+	variant = { id = colonial_resettlement lean = 0 name = law_colonial_resettlement effects = { colonial_points = 0.25 } }
+	variant = { id = colonial_exploitation lean = -0.5 name = law_colonial_exploitation start_from = { ENG FRA NET SPA POR } effects = { colonial_points = 0.5 } }
 }
 
 law_group = {
@@ -66,10 +66,10 @@ law_group = {
 	column = economy
 	order = 6
 	name = law_group_policing
-	variant = { id = no_police lean = 0.2 name = law_no_police start_from = { uncivilised } }
+	variant = { id = no_police lean = 0.2 name = law_no_police start_from = { uncivilised } effects = { militancy_growth = 0.2 } }
 	variant = { id = local_police lean = 0 name = law_local_police default = yes }
-	variant = { id = dedicated_police lean = -0.2 name = law_dedicated_police }
-	variant = { id = militarized_police lean = -0.8 name = law_militarized_police }
+	variant = { id = dedicated_police lean = -0.2 name = law_dedicated_police effects = { militancy_growth = -0.2 } }
+	variant = { id = militarized_police lean = -0.8 name = law_militarized_police effects = { militancy_growth = -0.4 consciousness_growth = 0.2 } }
 }
 
 law_group = {
@@ -91,7 +91,7 @@ law_group = {
 	name = law_group_health_system
 	replaces = { health_care }
 	variant = { id = no_health_system lean = -0.6 name = law_no_health_system default = yes start_from = { no_health_care } inherit = { no_health_care } }
-	variant = { id = charitable_health_system lean = -0.2 name = law_charitable_health_system start_from = { trinket_health_care low_health_care } inherit = { low_health_care } }
-	variant = { id = private_health_insurance lean = 0.3 name = law_private_health_insurance start_from = { acceptable_health_care } inherit = { acceptable_health_care } }
-	variant = { id = public_health_insurance lean = 0.9 name = law_public_health_insurance start_from = { good_health_care } inherit = { good_health_care } }
+	variant = { id = charitable_health_system lean = -0.2 name = law_charitable_health_system start_from = { trinket_health_care low_health_care } inherit = { low_health_care } modifier = { population_growth_pct = 0.05 } }
+	variant = { id = private_health_insurance lean = 0.3 name = law_private_health_insurance start_from = { acceptable_health_care } inherit = { acceptable_health_care } modifier = { population_growth_pct = 0.1 } }
+	variant = { id = public_health_insurance lean = 0.9 name = law_public_health_insurance start_from = { good_health_care } inherit = { good_health_care } modifier = { population_growth_pct = 0.2 } }
 }

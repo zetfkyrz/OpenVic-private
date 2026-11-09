@@ -48,11 +48,11 @@ law_group = {
 	order = 3
 	name = law_group_citizenship
 	replaces = { citizenship_policy }
-	variant = { id = ethnostate lean = -1 name = law_ethnostate inherit = { residency } }
+	variant = { id = ethnostate lean = -1 name = law_ethnostate inherit = { residency } effects = { assimilation = 0.5 } }
 	variant = { id = national_supremacy lean = -0.5 name = law_national_supremacy default = yes start_from = { residency } inherit = { residency } }
-	variant = { id = racial_segregation lean = -0.7 name = law_racial_segregation inherit = { limited_citizenship } }
-	variant = { id = cultural_exclusion lean = 0 name = law_cultural_exclusion start_from = { limited_citizenship } inherit = { limited_citizenship } }
-	variant = { id = multicultural lean = 0.8 name = law_multicultural start_from = { full_citizenship } inherit = { full_citizenship } }
+	variant = { id = racial_segregation lean = -0.7 name = law_racial_segregation inherit = { limited_citizenship } effects = { assimilation = 0.25 } }
+	variant = { id = cultural_exclusion lean = 0 name = law_cultural_exclusion start_from = { limited_citizenship } inherit = { limited_citizenship } effects = { assimilation = 0.5 } }
+	variant = { id = multicultural lean = 0.8 name = law_multicultural start_from = { full_citizenship } inherit = { full_citizenship } effects = { assimilation = -1 } }
 }
 
 law_group = {
@@ -120,8 +120,8 @@ law_group = {
 	order = 7
 	name = law_group_naval_model
 	variant = { id = coastal_defence lean = 0 name = law_coastal_defence default = yes }
-	variant = { id = merchant_navy lean = 0.3 name = law_merchant_navy }
-	variant = { id = capital_ship_navy lean = -0.3 name = law_capital_ship_navy start_from = { ENG FRA } }
+	variant = { id = merchant_navy lean = 0.3 name = law_merchant_navy effects = { transport_room_add = 1 } }
+	variant = { id = capital_ship_navy lean = -0.3 name = law_capital_ship_navy start_from = { ENG FRA } effects = { warship_room_add = 1 } }
 }
 
 law_group = {
@@ -129,8 +129,8 @@ law_group = {
 	column = power
 	order = 8
 	name = law_group_internal_security
-	variant = { id = no_home_affairs lean = 0.3 name = law_no_home_affairs default = yes }
-	variant = { id = national_guard lean = -0.3 name = law_national_guard start_from = { absolute_monarchy prussian_constitutionalism } }
-	variant = { id = secret_police lean = -1 name = law_secret_police }
-	variant = { id = guaranteed_liberties lean = 0.8 name = law_guaranteed_liberties }
+	variant = { id = no_home_affairs lean = 0.3 name = law_no_home_affairs default = yes effects = { militancy_growth = 0.1 } }
+	variant = { id = national_guard lean = -0.3 name = law_national_guard start_from = { absolute_monarchy prussian_constitutionalism } effects = { militancy_growth = -0.15 } }
+	variant = { id = secret_police lean = -1 name = law_secret_police effects = { consciousness_growth = -0.3 militancy_growth = 0.1 } }
+	variant = { id = guaranteed_liberties lean = 0.8 name = law_guaranteed_liberties effects = { militancy_growth = -0.1 consciousness_growth = 0.1 } }
 }

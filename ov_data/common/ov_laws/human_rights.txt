@@ -6,10 +6,10 @@ law_group = {
 	order = 1
 	name = law_group_free_speech
 	replaces = { press_rights public_meetings }
-	variant = { id = outlawed_dissent lean = -1 name = law_outlawed_dissent start_from = { state_press } inherit = { state_press no_meeting } }
-	variant = { id = censorship lean = -0.5 name = law_censorship default = yes start_from = { censored_press } inherit = { censored_press no_meeting } }
+	variant = { id = outlawed_dissent lean = -1 name = law_outlawed_dissent start_from = { state_press } inherit = { state_press no_meeting } effects = { consciousness_growth = -0.5 militancy_growth = 0.1 } }
+	variant = { id = censorship lean = -0.5 name = law_censorship default = yes start_from = { censored_press } inherit = { censored_press no_meeting } effects = { consciousness_growth = -0.2 } }
 	variant = { id = right_of_assembly lean = 0.3 name = law_right_of_assembly start_from = { yes_meeting } inherit = { censored_press yes_meeting } }
-	variant = { id = protected_speech lean = 0.8 name = law_protected_speech start_from = { free_press } inherit = { free_press yes_meeting } }
+	variant = { id = protected_speech lean = 0.8 name = law_protected_speech start_from = { free_press } inherit = { free_press yes_meeting } effects = { consciousness_growth = 0.2 militancy_growth = -0.1 } }
 }
 
 law_group = {
@@ -63,8 +63,8 @@ law_group = {
 	order = 6
 	name = law_group_migration
 	variant = { id = no_migration_controls lean = 0.3 name = law_no_migration_controls default = yes }
-	variant = { id = migration_controls lean = -0.3 name = law_migration_controls }
-	variant = { id = closed_borders lean = -0.8 name = law_closed_borders start_from = { JAP } }
+	variant = { id = migration_controls lean = -0.3 name = law_migration_controls effects = { no_immigration = 1 } }
+	variant = { id = closed_borders lean = -0.8 name = law_closed_borders start_from = { JAP } effects = { no_emigration = 1 no_immigration = 1 } }
 }
 
 law_group = {
@@ -73,7 +73,7 @@ law_group = {
 	order = 7
 	name = law_group_slavery
 	replaces = { slavery }
-	variant = { id = slavery_banned lean = 0 name = law_slavery_banned default = yes start_from = { no_slavery } inherit = { no_slavery } }
+	variant = { id = slavery_banned lean = 0 name = law_slavery_banned default = yes start_from = { no_slavery } inherit = { no_slavery } effects = { free_slaves = 0.1 } }
 	variant = { id = debt_slavery lean = -0.9 name = law_debt_slavery inherit = { yes_slavery } }
 	variant = { id = colonial_slavery lean = -0.8 name = law_colonial_slavery inherit = { yes_slavery } }
 	variant = { id = slave_trade lean = -1 name = law_slave_trade start_from = { yes_slavery } inherit = { yes_slavery } }
