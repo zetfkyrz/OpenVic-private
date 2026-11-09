@@ -3380,6 +3380,12 @@ Array PlayerSingleton::get_laws() const {
 		entry["name"] = convert_to<String>(group.name_key.empty() ? group.identifier : group.name_key);
 		LawVariant const* const current = player_country->get_law(group_index);
 		entry["current"] = current != nullptr ? static_cast<int64_t>(current->index) : -1;
+		// The law of the group that is being passed (the way (b)): its support of the last month (-1..1) and the months of the stall
+		LawVariant const* const proposal = player_country->get_law_proposal();
+		const bool proposed_here = proposal != nullptr && proposal->group_index == group_index;
+		entry["proposal"] = proposed_here ? static_cast<int64_t>(proposal->index) : -1;
+		entry["support"] = proposed_here ? static_cast<double>(player_country->get_law_support()) : 0.0;
+		entry["stall"] = proposed_here ? static_cast<int64_t>(player_country->get_law_stall_months()) : 0;
 		Array variants;
 		for (const std::size_t variant_index : group.variants) {
 			LawVariant const& variant = law_manager.get_variants()[variant_index];

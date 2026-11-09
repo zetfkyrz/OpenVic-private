@@ -148,6 +148,19 @@ func _make_row(group: Dictionary) -> Control:
 			option.tooltip_text = _describe(variant)
 	option.item_selected.connect(func(item: int) -> void: _on_law_selected(option, item, current))
 	box.add_child(option)
+	# The law that is being passed: its name, the support of the voters, the months of the stall (a click on the law in force withdraws it)
+	var proposal: int = int(group.get("proposal", -1))
+	if proposal >= 0:
+		var proposed_name: String = ""
+		for variant: Dictionary in variants:
+			if int(variant["index"]) == proposal:
+				proposed_name = _t(String(variant["name"]))
+		var status := Label.new()
+		status.text = _t("LAWS_PROPOSAL") % [proposed_name, roundi(float(group["support"]) * 100.0), int(group["stall"])]
+		status.add_theme_color_override(&"font_color", Color(0.95, 0.78, 0.35))
+		status.add_theme_font_size_override(&"font_size", 13)
+		status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(status)
 	return panel
 
 
@@ -181,10 +194,8 @@ func _describe(variant: Dictionary) -> String:
 func _on_law_selected(option: OptionButton, item: int, current: int) -> void:
 	if _building:
 		return
-	var index: int = option.get_item_id(item)
-	if index == current:
-		return
-	PlayerSingleton.set_law(index)
+	# Another variant is proposed; the law in force withdraws the proposal of the group
+	PlayerSingleton.set_law(option.get_item_id(item))
 
 
 func _on_mobilisation_selected(item: int) -> void:

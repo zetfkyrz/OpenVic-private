@@ -6,20 +6,24 @@
 #   modifier = { ... }    modifiers of the country (the effects of Vic2)
 #   rules = { ... }       rules of Vic2
 #   effects = { ... }     the effects of OpenVic (politics/Law.hpp: army_attack, manpower, corruption...)
+#   lean = -1..1          from the most reactionary to the most radical: the voters whose ideologies have a close lean (ideology_lean) like it
 # replaces = { ... } on a group: the Vic2 reform and party policy groups that have no effect of their own any more.
+
+# The lean of the ideologies (the laws they like): the support of a law is worked out from the ideologies of the voters
+ideology_lean = { reactionary = -1 conservative = -0.4 liberal = 0.4 anarcho_liberal = 0.6 socialist = 0.8 communist = 1 fascist = -0.8 }
 
 law_group = {
 	id = governance_principles
 	column = power
 	order = 1
 	name = law_group_governance_principles
-	variant = { id = chiefdom name = law_chiefdom start_from = { uncivilised } }
-	variant = { id = monarchy name = law_monarchy default = yes start_from = { absolute_monarchy prussian_constitutionalism hms_government } }
-	variant = { id = presidential_republic name = law_presidential_republic start_from = { presidential_dictatorship bourgeois_dictatorship } }
-	variant = { id = parliamentary_republic name = law_parliamentary_republic start_from = { democracy } }
-	variant = { id = theocracy name = law_theocracy start_from = { theocracy } }
-	variant = { id = council_republic name = law_council_republic start_from = { proletarian_dictatorship } }
-	variant = { id = corporate_state name = law_corporate_state start_from = { fascist_dictatorship } }
+	variant = { id = chiefdom lean = -1 name = law_chiefdom start_from = { uncivilised } }
+	variant = { id = monarchy lean = -0.5 name = law_monarchy default = yes start_from = { absolute_monarchy prussian_constitutionalism hms_government } }
+	variant = { id = presidential_republic lean = 0.3 name = law_presidential_republic start_from = { presidential_dictatorship bourgeois_dictatorship } }
+	variant = { id = parliamentary_republic lean = 0.6 name = law_parliamentary_republic start_from = { democracy } }
+	variant = { id = theocracy lean = -1 name = law_theocracy start_from = { theocracy } }
+	variant = { id = council_republic lean = 1 name = law_council_republic start_from = { proletarian_dictatorship } }
+	variant = { id = corporate_state lean = -0.3 name = law_corporate_state start_from = { fascist_dictatorship } }
 }
 
 law_group = {
@@ -28,14 +32,14 @@ law_group = {
 	order = 2
 	name = law_group_distribution_of_power
 	replaces = { vote_franschise }
-	variant = { id = autocracy name = law_autocracy default = yes start_from = { none_voting } inherit = { none_voting } }
-	variant = { id = technocracy name = law_technocracy inherit = { none_voting } }
-	variant = { id = oligarchy name = law_oligarchy inherit = { wealth_voting } }
-	variant = { id = landed_voting name = law_landed_voting start_from = { landed_voting } inherit = { landed_voting } }
-	variant = { id = wealth_voting name = law_wealth_voting start_from = { wealth_weighted_voting wealth_voting } inherit = { wealth_voting } }
-	variant = { id = census_suffrage name = law_census_suffrage start_from = { universal_weighted_voting } inherit = { universal_weighted_voting } }
-	variant = { id = universal_suffrage name = law_universal_suffrage start_from = { universal_voting } inherit = { universal_voting } }
-	variant = { id = single_party_state name = law_single_party_state inherit = { none_voting } }
+	variant = { id = autocracy lean = -1 effects = { vote_rich = 1 } name = law_autocracy default = yes start_from = { none_voting } inherit = { none_voting } }
+	variant = { id = technocracy lean = -0.3 effects = { vote_middle = 1 vote_rich = 0.5 } name = law_technocracy inherit = { none_voting } }
+	variant = { id = oligarchy lean = -0.6 effects = { vote_rich = 1 } name = law_oligarchy inherit = { wealth_voting } }
+	variant = { id = landed_voting lean = -0.5 effects = { vote_rich = 1 vote_poor = 0.2 } name = law_landed_voting start_from = { landed_voting } inherit = { landed_voting } }
+	variant = { id = wealth_voting lean = -0.2 effects = { vote_rich = 1 vote_middle = 1 } name = law_wealth_voting start_from = { wealth_weighted_voting wealth_voting } inherit = { wealth_voting } }
+	variant = { id = census_suffrage lean = 0.3 effects = { vote_rich = 1 vote_middle = 1 vote_poor = 0.5 } name = law_census_suffrage start_from = { universal_weighted_voting } inherit = { universal_weighted_voting } }
+	variant = { id = universal_suffrage lean = 0.8 effects = { vote_rich = 1 vote_middle = 1 vote_poor = 1 } name = law_universal_suffrage start_from = { universal_voting } inherit = { universal_voting } }
+	variant = { id = single_party_state lean = -0.8 effects = { vote_rich = 1 vote_middle = 0.5 } name = law_single_party_state inherit = { none_voting } }
 }
 
 law_group = {
@@ -44,11 +48,11 @@ law_group = {
 	order = 3
 	name = law_group_citizenship
 	replaces = { citizenship_policy }
-	variant = { id = ethnostate name = law_ethnostate inherit = { residency } }
-	variant = { id = national_supremacy name = law_national_supremacy default = yes start_from = { residency } inherit = { residency } }
-	variant = { id = racial_segregation name = law_racial_segregation inherit = { limited_citizenship } }
-	variant = { id = cultural_exclusion name = law_cultural_exclusion start_from = { limited_citizenship } inherit = { limited_citizenship } }
-	variant = { id = multicultural name = law_multicultural start_from = { full_citizenship } inherit = { full_citizenship } }
+	variant = { id = ethnostate lean = -1 name = law_ethnostate inherit = { residency } }
+	variant = { id = national_supremacy lean = -0.5 name = law_national_supremacy default = yes start_from = { residency } inherit = { residency } }
+	variant = { id = racial_segregation lean = -0.7 name = law_racial_segregation inherit = { limited_citizenship } }
+	variant = { id = cultural_exclusion lean = 0 name = law_cultural_exclusion start_from = { limited_citizenship } inherit = { limited_citizenship } }
+	variant = { id = multicultural lean = 0.8 name = law_multicultural start_from = { full_citizenship } inherit = { full_citizenship } }
 }
 
 law_group = {
@@ -57,10 +61,10 @@ law_group = {
 	order = 4
 	name = law_group_church_and_state
 	replaces = { religious_policy }
-	variant = { id = state_religion name = law_state_religion default = yes start_from = { moralism } inherit = { moralism } }
-	variant = { id = freedom_of_conscience name = law_freedom_of_conscience start_from = { pluralism } inherit = { pluralism } }
-	variant = { id = total_separation name = law_total_separation start_from = { secularized } inherit = { secularized } }
-	variant = { id = state_atheism name = law_state_atheism start_from = { pro_atheism } inherit = { pro_atheism } }
+	variant = { id = state_religion lean = -0.8 name = law_state_religion default = yes start_from = { moralism } inherit = { moralism } }
+	variant = { id = freedom_of_conscience lean = 0 name = law_freedom_of_conscience start_from = { pluralism } inherit = { pluralism } }
+	variant = { id = total_separation lean = 0.6 name = law_total_separation start_from = { secularized } inherit = { secularized } }
+	variant = { id = state_atheism lean = 1 name = law_state_atheism start_from = { pro_atheism } inherit = { pro_atheism } }
 }
 
 # Decision of the owner 2026-11-10
@@ -70,15 +74,15 @@ law_group = {
 	order = 5
 	name = law_group_bureaucracy
 	variant = {
-		id = hereditary_bureaucrats
+		id = hereditary_bureaucrats lean = -0.8
 		name = law_hereditary_bureaucrats
 		start_from = { uncivilised }
 		# work 5 % better, 90 % fewer pops become bureaucrats, 5 % of the taxes stay with the bureaucrats, 10 % less pay
 		effects = { bureaucrat_efficiency = 0.05 bureaucrat_promotion = -0.9 corruption = 0.05 bureaucrat_wage = -0.1 }
 	}
-	variant = { id = appointed_bureaucrats name = law_appointed_bureaucrats default = yes }
+	variant = { id = appointed_bureaucrats lean = 0 name = law_appointed_bureaucrats default = yes }
 	variant = {
-		id = elected_bureaucrats
+		id = elected_bureaucrats lean = 0.7
 		name = law_elected_bureaucrats
 		# no corruption, twice as many pops become bureaucrats, 15 % more pay
 		effects = { bureaucrat_promotion = 1.0 bureaucrat_wage = 0.15 }
@@ -92,19 +96,19 @@ law_group = {
 	order = 6
 	name = law_group_army_model
 	variant = {
-		id = professional_army
+		id = professional_army lean = -0.2
 		name = law_professional_army
 		effects = { army_attack = 0.2 army_defence = 0.2 military_wage = 0.25 mobilisation_size = -0.5 }
 	}
-	variant = { id = national_army name = law_national_army default = yes }
+	variant = { id = national_army lean = 0 name = law_national_army default = yes }
 	variant = {
-		id = national_militia
+		id = national_militia lean = 0.5
 		name = law_national_militia
 		start_from = { uncivilised }
 		effects = { manpower = 0.5 army_attack = -0.2 army_defence = -0.2 army_home_bonus = 0.1 }
 	}
 	variant = {
-		id = mobilisation_army
+		id = mobilisation_army lean = -0.6
 		name = law_mobilisation_army
 		effects = { mobilisation_size = 1.0 mobilisation_impact = 0.25 army_attack = -0.2 army_defence = -0.2 }
 	}
@@ -115,9 +119,9 @@ law_group = {
 	column = power
 	order = 7
 	name = law_group_naval_model
-	variant = { id = coastal_defence name = law_coastal_defence default = yes }
-	variant = { id = merchant_navy name = law_merchant_navy }
-	variant = { id = capital_ship_navy name = law_capital_ship_navy start_from = { ENG FRA } }
+	variant = { id = coastal_defence lean = 0 name = law_coastal_defence default = yes }
+	variant = { id = merchant_navy lean = 0.3 name = law_merchant_navy }
+	variant = { id = capital_ship_navy lean = -0.3 name = law_capital_ship_navy start_from = { ENG FRA } }
 }
 
 law_group = {
@@ -125,8 +129,8 @@ law_group = {
 	column = power
 	order = 8
 	name = law_group_internal_security
-	variant = { id = no_home_affairs name = law_no_home_affairs default = yes }
-	variant = { id = national_guard name = law_national_guard start_from = { absolute_monarchy prussian_constitutionalism } }
-	variant = { id = secret_police name = law_secret_police }
-	variant = { id = guaranteed_liberties name = law_guaranteed_liberties }
+	variant = { id = no_home_affairs lean = 0.3 name = law_no_home_affairs default = yes }
+	variant = { id = national_guard lean = -0.3 name = law_national_guard start_from = { absolute_monarchy prussian_constitutionalism } }
+	variant = { id = secret_police lean = -1 name = law_secret_police }
+	variant = { id = guaranteed_liberties lean = 0.8 name = law_guaranteed_liberties }
 }

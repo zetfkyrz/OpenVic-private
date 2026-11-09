@@ -162,6 +162,12 @@ defines = {
 		MIN_MILITANT_SHARE = 0.15, -- number 0 to 1
 		UPRISING_COOLDOWN_DAYS = 365, -- whole number 0 to 36500
 		AI_SUPPRESSION_DAYS = 90, -- whole number 0 to 36500
+		LAW_PASS_BASE = 0.05, -- fraction 0 to 1
+		LAW_PASS_PER_SUPPORT = 1, -- fraction 0 to 10
+		LAW_STALL_MONTHS = 12, -- whole number 1 to 1200
+		AI_LAW_MONTH = 1, -- whole number 0 to 12
+		AI_LAW_MIN_SUPPORT = 0.1, -- fraction 0 to 1
+		LAW_STATUS_QUO = 0.1, -- fraction 0 to 1
 	},
 	ov_colonisation = {
 		MAX_COLONIAL_RANK = 16, -- whole number 1 to 1000

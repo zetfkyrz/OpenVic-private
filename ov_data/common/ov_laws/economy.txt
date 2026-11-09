@@ -6,12 +6,12 @@ law_group = {
 	order = 1
 	name = law_group_economic_system
 	replaces = { economic_policy }
-	variant = { id = traditionalism name = law_traditionalism start_from = { uncivilised } inherit = { state_capitalism } }
-	variant = { id = interventionism name = law_interventionism default = yes start_from = { interventionism state_capitalism } inherit = { interventionism } }
-	variant = { id = agrarianism name = law_agrarianism inherit = { interventionism } }
-	variant = { id = laissez_faire name = law_laissez_faire start_from = { laissez_faire } inherit = { laissez_faire } }
-	variant = { id = command_economy name = law_command_economy start_from = { planned_economy } inherit = { planned_economy } }
-	variant = { id = cooperative_ownership name = law_cooperative_ownership inherit = { planned_economy } }
+	variant = { id = traditionalism lean = -1 name = law_traditionalism start_from = { uncivilised } inherit = { state_capitalism } }
+	variant = { id = interventionism lean = -0.2 name = law_interventionism default = yes start_from = { interventionism state_capitalism } inherit = { interventionism } }
+	variant = { id = agrarianism lean = -0.6 name = law_agrarianism inherit = { interventionism } }
+	variant = { id = laissez_faire lean = 0.4 name = law_laissez_faire start_from = { laissez_faire } inherit = { laissez_faire } }
+	variant = { id = command_economy lean = 1 name = law_command_economy start_from = { planned_economy } inherit = { planned_economy } }
+	variant = { id = cooperative_ownership lean = 0.9 name = law_cooperative_ownership inherit = { planned_economy } }
 }
 
 # Isolationism: no trade with other countries at all (decision of the owner 2026-11-10)
@@ -21,10 +21,10 @@ law_group = {
 	order = 2
 	name = law_group_trade_policy
 	replaces = { trade_policy }
-	variant = { id = isolationism name = law_isolationism inherit = { protectionism } effects = { no_foreign_trade = 1 } }
-	variant = { id = mercantilism name = law_mercantilism inherit = { protectionism } }
-	variant = { id = protectionism name = law_protectionism default = yes start_from = { protectionism } inherit = { protectionism } }
-	variant = { id = free_trade name = law_free_trade start_from = { free_trade } inherit = { free_trade } }
+	variant = { id = isolationism lean = -1 name = law_isolationism inherit = { protectionism } effects = { no_foreign_trade = 1 } }
+	variant = { id = mercantilism lean = -0.6 name = law_mercantilism inherit = { protectionism } }
+	variant = { id = protectionism lean = -0.2 name = law_protectionism default = yes start_from = { protectionism } inherit = { protectionism } }
+	variant = { id = free_trade lean = 0.5 name = law_free_trade start_from = { free_trade } inherit = { free_trade } }
 }
 
 law_group = {
@@ -32,11 +32,11 @@ law_group = {
 	column = economy
 	order = 3
 	name = law_group_taxation
-	variant = { id = consumption_tax name = law_consumption_tax }
-	variant = { id = land_tax name = law_land_tax }
-	variant = { id = per_capita_tax name = law_per_capita_tax start_from = { uncivilised } }
-	variant = { id = proportional_tax name = law_proportional_tax default = yes }
-	variant = { id = graduated_tax name = law_graduated_tax }
+	variant = { id = consumption_tax lean = -0.3 name = law_consumption_tax }
+	variant = { id = land_tax lean = -0.6 name = law_land_tax }
+	variant = { id = per_capita_tax lean = -0.8 name = law_per_capita_tax start_from = { uncivilised } }
+	variant = { id = proportional_tax lean = 0.2 name = law_proportional_tax default = yes }
+	variant = { id = graduated_tax lean = 0.8 name = law_graduated_tax }
 }
 
 law_group = {
@@ -44,11 +44,11 @@ law_group = {
 	column = economy
 	order = 4
 	name = law_group_land_reform
-	variant = { id = serfdom name = law_serfdom start_from = { RUS } }
-	variant = { id = tenant_farmers name = law_tenant_farmers default = yes }
-	variant = { id = homesteading name = law_homesteading start_from = { USA } }
-	variant = { id = commercialized_agriculture name = law_commercialized_agriculture }
-	variant = { id = collectivized_agriculture name = law_collectivized_agriculture }
+	variant = { id = serfdom lean = -1 name = law_serfdom start_from = { RUS } }
+	variant = { id = tenant_farmers lean = -0.3 name = law_tenant_farmers default = yes }
+	variant = { id = homesteading lean = 0.5 name = law_homesteading start_from = { USA } }
+	variant = { id = commercialized_agriculture lean = 0.2 name = law_commercialized_agriculture }
+	variant = { id = collectivized_agriculture lean = 1 name = law_collectivized_agriculture }
 }
 
 law_group = {
@@ -56,9 +56,9 @@ law_group = {
 	column = economy
 	order = 5
 	name = law_group_colonization
-	variant = { id = no_colonial_affairs name = law_no_colonial_affairs default = yes }
-	variant = { id = colonial_resettlement name = law_colonial_resettlement }
-	variant = { id = colonial_exploitation name = law_colonial_exploitation start_from = { ENG FRA NET SPA POR } }
+	variant = { id = no_colonial_affairs lean = 0.3 name = law_no_colonial_affairs default = yes }
+	variant = { id = colonial_resettlement lean = 0 name = law_colonial_resettlement }
+	variant = { id = colonial_exploitation lean = -0.5 name = law_colonial_exploitation start_from = { ENG FRA NET SPA POR } }
 }
 
 law_group = {
@@ -66,10 +66,10 @@ law_group = {
 	column = economy
 	order = 6
 	name = law_group_policing
-	variant = { id = no_police name = law_no_police start_from = { uncivilised } }
-	variant = { id = local_police name = law_local_police default = yes }
-	variant = { id = dedicated_police name = law_dedicated_police }
-	variant = { id = militarized_police name = law_militarized_police }
+	variant = { id = no_police lean = 0.2 name = law_no_police start_from = { uncivilised } }
+	variant = { id = local_police lean = 0 name = law_local_police default = yes }
+	variant = { id = dedicated_police lean = -0.2 name = law_dedicated_police }
+	variant = { id = militarized_police lean = -0.8 name = law_militarized_police }
 }
 
 law_group = {
@@ -78,10 +78,10 @@ law_group = {
 	order = 7
 	name = law_group_education_system
 	replaces = { school_reforms }
-	variant = { id = no_schools name = law_no_schools default = yes start_from = { no_schools } inherit = { no_schools } }
-	variant = { id = religious_schools name = law_religious_schools start_from = { low_schools } inherit = { low_schools } }
-	variant = { id = private_schools name = law_private_schools start_from = { acceptable_schools } inherit = { acceptable_schools } }
-	variant = { id = public_schools name = law_public_schools start_from = { good_schools } inherit = { good_schools } }
+	variant = { id = no_schools lean = -0.8 name = law_no_schools default = yes start_from = { no_schools } inherit = { no_schools } }
+	variant = { id = religious_schools lean = -0.5 name = law_religious_schools start_from = { low_schools } inherit = { low_schools } }
+	variant = { id = private_schools lean = 0.2 name = law_private_schools start_from = { acceptable_schools } inherit = { acceptable_schools } }
+	variant = { id = public_schools lean = 0.8 name = law_public_schools start_from = { good_schools } inherit = { good_schools } }
 }
 
 law_group = {
@@ -90,8 +90,8 @@ law_group = {
 	order = 8
 	name = law_group_health_system
 	replaces = { health_care }
-	variant = { id = no_health_system name = law_no_health_system default = yes start_from = { no_health_care } inherit = { no_health_care } }
-	variant = { id = charitable_health_system name = law_charitable_health_system start_from = { trinket_health_care low_health_care } inherit = { low_health_care } }
-	variant = { id = private_health_insurance name = law_private_health_insurance start_from = { acceptable_health_care } inherit = { acceptable_health_care } }
-	variant = { id = public_health_insurance name = law_public_health_insurance start_from = { good_health_care } inherit = { good_health_care } }
+	variant = { id = no_health_system lean = -0.6 name = law_no_health_system default = yes start_from = { no_health_care } inherit = { no_health_care } }
+	variant = { id = charitable_health_system lean = -0.2 name = law_charitable_health_system start_from = { trinket_health_care low_health_care } inherit = { low_health_care } }
+	variant = { id = private_health_insurance lean = 0.3 name = law_private_health_insurance start_from = { acceptable_health_care } inherit = { acceptable_health_care } }
+	variant = { id = public_health_insurance lean = 0.9 name = law_public_health_insurance start_from = { good_health_care } inherit = { good_health_care } }
 }
