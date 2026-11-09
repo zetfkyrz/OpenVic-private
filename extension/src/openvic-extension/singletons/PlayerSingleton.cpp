@@ -125,6 +125,10 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_auto_create_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_auto_assign_leaders, { "value" });
 	OV_BIND_METHOD(PlayerSingleton::set_mobilise, { "value" });
+	OV_BIND_METHOD(PlayerSingleton::get_laws);
+	OV_BIND_METHOD(PlayerSingleton::set_law, { "variant_index" });
+	OV_BIND_METHOD(PlayerSingleton::get_mobilisation_level);
+	OV_BIND_METHOD(PlayerSingleton::set_mobilisation_level, { "level" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_tariff_info);
@@ -3349,6 +3353,80 @@ Array PlayerSingleton::get_army_technologies() const {
 		result.push_back(entry);
 	}
 	return result;
+}
+
+Array PlayerSingleton::get_laws() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	LawManager const& law_manager = instance_manager->definition_manager.get_politics_manager().get_law_manager();
+	const auto add_modifier_values = [](Dictionary& modifiers, ModifierValue const& value) {
+		for (auto const& [effect, amount] : value.get_values()) {
+			if (effect == nullptr) {
+				continue;
+			}
+			const String key = convert_to<String>(effect->get_identifier());
+			const double previous = modifiers.has(key) ? static_cast<double>(modifiers[key]) : 0.0;
+			modifiers[key] = previous + static_cast<double>(amount);
+		}
+	};
+	for (std::size_t group_index = 0; group_index < law_manager.get_groups().size(); ++group_index) {
+		LawGroup const& group = law_manager.get_groups()[group_index];
+		Dictionary entry;
+		entry["id"] = convert_to<String>(group.identifier);
+		entry["column"] = convert_to<String>(group.column);
+		entry["order"] = group.order;
+		entry["name"] = convert_to<String>(group.name_key.empty() ? group.identifier : group.name_key);
+		LawVariant const* const current = player_country->get_law(group_index);
+		entry["current"] = current != nullptr ? static_cast<int64_t>(current->index) : -1;
+		Array variants;
+		for (const std::size_t variant_index : group.variants) {
+			LawVariant const& variant = law_manager.get_variants()[variant_index];
+			Dictionary item;
+			item["index"] = static_cast<int64_t>(variant.index);
+			item["id"] = convert_to<String>(variant.get_identifier());
+			item["name"] = convert_to<String>(variant.name_key.empty() ? variant.get_identifier() : std::string_view { variant.name_key });
+			Dictionary effects;
+			for (std::size_t effect = 0; effect < LAW_EFFECT_COUNT; ++effect) {
+				if (variant.effects[effect] != fixed_point_t::_0) {
+					effects[convert_to<String>(law_effect_name(static_cast<law_effect_t>(effect)))] = static_cast<double>(variant.effects[effect]);
+				}
+			}
+			item["effects"] = effects;
+			Dictionary modifiers;
+			add_modifier_values(modifiers, variant);
+			for (Modifier const* inherited : variant.inherited_modifiers) {
+				add_modifier_values(modifiers, *inherited);
+			}
+			item["modifiers"] = modifiers;
+			variants.push_back(item);
+		}
+		entry["variants"] = variants;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::set_law(int32_t variant_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(variant_index < 0, false);
+	return instance_manager->queue_game_action<set_law_argument_t>(player_country->index, static_cast<std::uint32_t>(variant_index));
+}
+
+int32_t PlayerSingleton::get_mobilisation_level() const {
+	ERR_FAIL_NULL_V(player_country, 1);
+	return player_country->get_mobilisation_level();
+}
+
+bool PlayerSingleton::set_mobilisation_level(int32_t level) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(level < 0 || level > 2, false);
+	return instance_manager->queue_game_action<set_mobilisation_level_argument_t>(player_country->index, static_cast<std::uint32_t>(level));
 }
 
 bool PlayerSingleton::start_army_research(int32_t technology_index) const {

@@ -1,0 +1,294 @@
+LAW_EFFECT_army_attack;Army attack;;;;;;;;;;;Атака армии;;x
+LAW_EFFECT_army_defence;Army defence;;;;;;;;;;;Защита армии;;x
+LAW_EFFECT_army_home_bonus;Attack and defence on national land;;;;;;;;;;;Атака и защита на национальной земле;;x
+LAW_EFFECT_military_wage;Military pay;;;;;;;;;;;Зарплата военных;;x
+LAW_EFFECT_manpower;Manpower;;;;;;;;;;;Людские ресурсы;;x
+LAW_EFFECT_mobilisation_size;Mobilisation size;;;;;;;;;;;Объём мобилизации;;x
+LAW_EFFECT_mobilisation_impact;Mobilisation impact on the economy;;;;;;;;;;;Влияние мобилизации на экономику;;x
+LAW_EFFECT_bureaucrat_efficiency;Bureaucrat efficiency;;;;;;;;;;;Работа чиновников;;x
+LAW_EFFECT_bureaucrat_promotion;Promotion to bureaucrats;;;;;;;;;;;Переход попов в чиновники;;x
+LAW_EFFECT_corruption;Taxes kept by bureaucrats;;;;;;;;;;;Налогов забирают чиновники;;x
+LAW_EFFECT_bureaucrat_wage;Bureaucrat pay;;;;;;;;;;;Зарплата чиновников;;x
+LAW_EFFECT_no_foreign_trade;No trade with other countries;;;;;;;;;;;Нет торговли с другими странами;;x
+LAWS_NO_EFFECTS;No special effects yet;;;;;;;;;;;Без особых эффектов (пока);;x
+LAWS_WINDOW;Laws;;;;;;;;;;;Законы;;x
+LAWS_COLUMN_power;Power structure;;;;;;;;;;;Вертикаль власти;;x
+LAWS_COLUMN_economy;Economy;;;;;;;;;;;Экономика;;x
+LAWS_COLUMN_human_rights;Human rights;;;;;;;;;;;Права человека;;x
+LAWS_MOBILISATION_LEVEL;Mobilisation;;;;;;;;;;;Вид мобилизации;;x
+LAWS_MOBILISATION_0;Limited (25%);;;;;;;;;;;Ограниченная (25 %);;x
+LAWS_MOBILISATION_1;Standard (50%);;;;;;;;;;;Стандартная (50 %);;x
+LAWS_MOBILISATION_2;Extended (100%);;;;;;;;;;;Расширенная (100 %);;x
+law_group_governance_principles;Governance principles;;;;;;;;;;;Принципы управления;;x
+law_group_distribution_of_power;Distribution of power;;;;;;;;;;;Распределение власти;;x
+law_group_citizenship;Citizenship;;;;;;;;;;;Гражданство;;x
+law_group_church_and_state;Church and state;;;;;;;;;;;Церковь и государство;;x
+law_group_bureaucracy;Bureaucracy;;;;;;;;;;;Бюрократия;;x
+law_group_army_model;Army model;;;;;;;;;;;Модель армии;;x
+law_group_naval_model;Naval model;;;;;;;;;;;Модель флота;;x
+law_group_internal_security;Internal security;;;;;;;;;;;Внутренняя безопасность;;x
+law_group_economic_system;Economic system;;;;;;;;;;;Экономическая система;;x
+law_group_trade_policy;Trade policy;;;;;;;;;;;Торговая политика;;x
+law_group_taxation;Taxation;;;;;;;;;;;Налогообложение;;x
+law_group_land_reform;Land reform;;;;;;;;;;;Земельная реформа;;x
+law_group_colonization;Colonization;;;;;;;;;;;Колонизация;;x
+law_group_policing;Policing;;;;;;;;;;;Полиция;;x
+law_group_education_system;Education system;;;;;;;;;;;Система образования;;x
+law_group_health_system;Health system;;;;;;;;;;;Система здравоохранения;;x
+law_group_free_speech;Free speech;;;;;;;;;;;Свобода слова;;x
+law_group_labor_rights;Workers rights;;;;;;;;;;;Права трудящихся;;x
+law_group_childrens_rights;Childrens rights;;;;;;;;;;;Права детей;;x
+law_group_womens_rights;Womens rights;;;;;;;;;;;Права женщин;;x
+law_group_welfare;Social policy;;;;;;;;;;;Социальная политика;;x
+law_group_migration;Migration;;;;;;;;;;;Миграция;;x
+law_group_slavery;Slavery;;;;;;;;;;;Рабство;;x
+law_group_workers_associations;Workers associations;;;;;;;;;;;Объединения работников;;x
+law_chiefdom;Chiefdom;;;;;;;;;;;Вождество;;x
+law_monarchy;Monarchy;;;;;;;;;;;Монархия;;x
+law_presidential_republic;Presidential republic;;;;;;;;;;;Президентская республика;;x
+law_parliamentary_republic;Parliamentary republic;;;;;;;;;;;Парламентская республика;;x
+law_theocracy;Theocracy;;;;;;;;;;;Теократия;;x
+law_council_republic;Council republic;;;;;;;;;;;Советская республика;;x
+law_corporate_state;Corporate state;;;;;;;;;;;Корпоративное государство;;x
+law_autocracy;Autocracy;;;;;;;;;;;Автократия;;x
+law_technocracy;Technocracy;;;;;;;;;;;Технократия;;x
+law_oligarchy;Oligarchy;;;;;;;;;;;Олигархия;;x
+law_landed_voting;Landed voting;;;;;;;;;;;Голосуют землевладельцы;;x
+law_wealth_voting;Wealth voting;;;;;;;;;;;Голосуют богатые;;x
+law_census_suffrage;Census suffrage;;;;;;;;;;;Цензовое избирательное право;;x
+law_universal_suffrage;Universal suffrage;;;;;;;;;;;Всеобщее избирательное право;;x
+law_single_party_state;Single-party state;;;;;;;;;;;Однопартийное государство;;x
+law_ethnostate;Ethnostate;;;;;;;;;;;Этнократия;;x
+law_national_supremacy;National supremacy;;;;;;;;;;;Национальное превосходство;;x
+law_racial_segregation;Racial segregation;;;;;;;;;;;Расовая сегрегация;;x
+law_cultural_exclusion;Cultural exclusion;;;;;;;;;;;Культурное отчуждение;;x
+law_multicultural;Multiculturalism;;;;;;;;;;;Мультикультурализм;;x
+law_state_religion;State religion;;;;;;;;;;;Государственная религия;;x
+law_freedom_of_conscience;Freedom of conscience;;;;;;;;;;;Свобода совести;;x
+law_total_separation;Total separation;;;;;;;;;;;Полное отделение;;x
+law_state_atheism;State atheism;;;;;;;;;;;Государственный атеизм;;x
+law_hereditary_bureaucrats;Hereditary bureaucrats;;;;;;;;;;;Наследственные чиновники;;x
+law_appointed_bureaucrats;Appointed bureaucrats;;;;;;;;;;;Назначаемые чиновники;;x
+law_elected_bureaucrats;Elected bureaucrats;;;;;;;;;;;Выборные чиновники;;x
+law_professional_army;Professional army;;;;;;;;;;;Профессиональная армия;;x
+law_national_army;National army;;;;;;;;;;;Национальная армия;;x
+law_national_militia;National militia;;;;;;;;;;;Национальное ополчение;;x
+law_mobilisation_army;Mobilisation army;;;;;;;;;;;Мобилизационная армия;;x
+law_coastal_defence;Coastal defence;;;;;;;;;;;Береговая оборона;;x
+law_merchant_navy;Merchant navy;;;;;;;;;;;Торговый флот;;x
+law_capital_ship_navy;Capital ship navy;;;;;;;;;;;Флот крупных кораблей;;x
+law_no_home_affairs;No home affairs;;;;;;;;;;;Нет министерства;;x
+law_national_guard;National guard;;;;;;;;;;;Национальная гвардия;;x
+law_secret_police;Secret police;;;;;;;;;;;Тайная полиция;;x
+law_guaranteed_liberties;Guaranteed liberties;;;;;;;;;;;Гарантированные свободы;;x
+law_traditionalism;Traditionalism;;;;;;;;;;;Традиционализм;;x
+law_interventionism;Interventionism;;;;;;;;;;;Интервенционизм;;x
+law_agrarianism;Agrarianism;;;;;;;;;;;Аграрная экономика;;x
+law_laissez_faire;Laissez-faire;;;;;;;;;;;Невмешательство;;x
+law_command_economy;Command economy;;;;;;;;;;;Командная экономика;;x
+law_cooperative_ownership;Cooperative ownership;;;;;;;;;;;Кооперативная собственность;;x
+law_isolationism;Isolationism;;;;;;;;;;;Изоляционизм;;x
+law_mercantilism;Mercantilism;;;;;;;;;;;Меркантилизм;;x
+law_protectionism;Protectionism;;;;;;;;;;;Протекционизм;;x
+law_free_trade;Free trade;;;;;;;;;;;Свободная торговля;;x
+law_consumption_tax;Consumption taxes;;;;;;;;;;;Налог с потребления;;x
+law_land_tax;Land-based taxation;;;;;;;;;;;Поземельный налог;;x
+law_per_capita_tax;Per-capita taxation;;;;;;;;;;;Налог на душу населения;;x
+law_proportional_tax;Proportional taxation;;;;;;;;;;;Пропорциональный налог;;x
+law_graduated_tax;Graduated taxation;;;;;;;;;;;Прогрессивный налог;;x
+law_serfdom;Serfdom;;;;;;;;;;;Крепостное право;;x
+law_tenant_farmers;Tenant farmers;;;;;;;;;;;Арендное земледелие;;x
+law_homesteading;Homesteading;;;;;;;;;;;Крестьянское землевладение;;x
+law_commercialized_agriculture;Commercialized agriculture;;;;;;;;;;;Коммерческое сельское хозяйство;;x
+law_collectivized_agriculture;Collectivized agriculture;;;;;;;;;;;Коллективизация;;x
+law_no_colonial_affairs;No colonial affairs;;;;;;;;;;;Нет колониальной политики;;x
+law_colonial_resettlement;Colonial resettlement;;;;;;;;;;;Переселение в колонии;;x
+law_colonial_exploitation;Colonial exploitation;;;;;;;;;;;Колониальная эксплуатация;;x
+law_no_police;No police;;;;;;;;;;;Нет полиции;;x
+law_local_police;Local police;;;;;;;;;;;Местная полиция;;x
+law_dedicated_police;Dedicated police;;;;;;;;;;;Профессиональная полиция;;x
+law_militarized_police;Militarized police;;;;;;;;;;;Военизированная полиция;;x
+law_no_schools;No schools;;;;;;;;;;;Нет школ;;x
+law_religious_schools;Religious schools;;;;;;;;;;;Религиозные школы;;x
+law_private_schools;Private schools;;;;;;;;;;;Частные школы;;x
+law_public_schools;Public schools;;;;;;;;;;;Государственные школы;;x
+law_no_health_system;No health system;;;;;;;;;;;Нет системы здравоохранения;;x
+law_charitable_health_system;Charitable health system;;;;;;;;;;;Благотворительная медицина;;x
+law_private_health_insurance;Private health insurance;;;;;;;;;;;Частное страхование;;x
+law_public_health_insurance;Public health insurance;;;;;;;;;;;Государственное страхование;;x
+law_outlawed_dissent;Outlawed dissent;;;;;;;;;;;Запрет инакомыслия;;x
+law_censorship;Censorship;;;;;;;;;;;Цензура;;x
+law_right_of_assembly;Right of assembly;;;;;;;;;;;Право собраний;;x
+law_protected_speech;Protected speech;;;;;;;;;;;Защищённая свобода слова;;x
+law_no_workers_rights;No workers rights;;;;;;;;;;;Нет прав трудящихся;;x
+law_regulatory_bodies;Regulatory bodies;;;;;;;;;;;Регулирующие органы;;x
+law_worker_protections;Worker protections;;;;;;;;;;;Защита работников;;x
+law_child_labor_allowed;Child labor allowed;;;;;;;;;;;Детский труд разрешён;;x
+law_restricted_child_labor;Restricted child labor;;;;;;;;;;;Ограниченный детский труд;;x
+law_compulsory_primary_school;Compulsory primary school;;;;;;;;;;;Обязательная начальная школа;;x
+law_legal_guardianship;Legal guardianship;;;;;;;;;;;Опека;;x
+law_women_own_property;Women own property;;;;;;;;;;;Право собственности для женщин;;x
+law_women_in_the_workplace;Women in the workplace;;;;;;;;;;;Женщины на работе;;x
+law_womens_suffrage;Womens suffrage;;;;;;;;;;;Избирательное право женщин;;x
+law_no_social_security;No social security;;;;;;;;;;;Нет социальной защиты;;x
+law_poor_laws;Poor laws;;;;;;;;;;;Законы о бедняках;;x
+law_wage_subsidies;Wage subsidies;;;;;;;;;;;Субсидии на зарплату;;x
+law_old_age_pension;Old age pension;;;;;;;;;;;Пенсии;;x
+law_no_migration_controls;No migration controls;;;;;;;;;;;Миграция не контролируется;;x
+law_migration_controls;Migration controls;;;;;;;;;;;Контроль миграции;;x
+law_closed_borders;Closed borders;;;;;;;;;;;Закрытые границы;;x
+law_slavery_banned;Slavery banned;;;;;;;;;;;Рабство запрещено;;x
+law_debt_slavery;Debt slavery;;;;;;;;;;;Долговое рабство;;x
+law_colonial_slavery;Colonial slavery;;;;;;;;;;;Колониальное рабство;;x
+law_slave_trade;Slave trade;;;;;;;;;;;Работорговля;;x
+law_assembly_laws;Assembly laws;;;;;;;;;;;Законы о собраниях;;x
+law_state_unions;State unions;;;;;;;;;;;Государственные профсоюзы;;x
+law_non_political_unions;Non-political unions;;;;;;;;;;;Неполитические профсоюзы;;x
+law_free_unions;Free unions;;;;;;;;;;;Свободные профсоюзы;;x
+LAW_EFFECT_army_attack_RU;Атака армии;;;;;;;;;;;;;x
+LAW_EFFECT_army_defence_RU;Защита армии;;;;;;;;;;;;;x
+LAW_EFFECT_army_home_bonus_RU;Атака и защита на национальной земле;;;;;;;;;;;;;x
+LAW_EFFECT_military_wage_RU;Зарплата военных;;;;;;;;;;;;;x
+LAW_EFFECT_manpower_RU;Людские ресурсы;;;;;;;;;;;;;x
+LAW_EFFECT_mobilisation_size_RU;Объём мобилизации;;;;;;;;;;;;;x
+LAW_EFFECT_mobilisation_impact_RU;Влияние мобилизации на экономику;;;;;;;;;;;;;x
+LAW_EFFECT_bureaucrat_efficiency_RU;Работа чиновников;;;;;;;;;;;;;x
+LAW_EFFECT_bureaucrat_promotion_RU;Переход попов в чиновники;;;;;;;;;;;;;x
+LAW_EFFECT_corruption_RU;Налогов забирают чиновники;;;;;;;;;;;;;x
+LAW_EFFECT_bureaucrat_wage_RU;Зарплата чиновников;;;;;;;;;;;;;x
+LAW_EFFECT_no_foreign_trade_RU;Нет торговли с другими странами;;;;;;;;;;;;;x
+LAWS_NO_EFFECTS_RU;Без особых эффектов (пока);;;;;;;;;;;;;x
+LAWS_WINDOW_RU;Законы;;;;;;;;;;;;;x
+LAWS_COLUMN_power_RU;Вертикаль власти;;;;;;;;;;;;;x
+LAWS_COLUMN_economy_RU;Экономика;;;;;;;;;;;;;x
+LAWS_COLUMN_human_rights_RU;Права человека;;;;;;;;;;;;;x
+LAWS_MOBILISATION_LEVEL_RU;Вид мобилизации;;;;;;;;;;;;;x
+LAWS_MOBILISATION_0_RU;Ограниченная (25 %);;;;;;;;;;;;;x
+LAWS_MOBILISATION_1_RU;Стандартная (50 %);;;;;;;;;;;;;x
+LAWS_MOBILISATION_2_RU;Расширенная (100 %);;;;;;;;;;;;;x
+law_group_governance_principles_RU;Принципы управления;;;;;;;;;;;;;x
+law_group_distribution_of_power_RU;Распределение власти;;;;;;;;;;;;;x
+law_group_citizenship_RU;Гражданство;;;;;;;;;;;;;x
+law_group_church_and_state_RU;Церковь и государство;;;;;;;;;;;;;x
+law_group_bureaucracy_RU;Бюрократия;;;;;;;;;;;;;x
+law_group_army_model_RU;Модель армии;;;;;;;;;;;;;x
+law_group_naval_model_RU;Модель флота;;;;;;;;;;;;;x
+law_group_internal_security_RU;Внутренняя безопасность;;;;;;;;;;;;;x
+law_group_economic_system_RU;Экономическая система;;;;;;;;;;;;;x
+law_group_trade_policy_RU;Торговая политика;;;;;;;;;;;;;x
+law_group_taxation_RU;Налогообложение;;;;;;;;;;;;;x
+law_group_land_reform_RU;Земельная реформа;;;;;;;;;;;;;x
+law_group_colonization_RU;Колонизация;;;;;;;;;;;;;x
+law_group_policing_RU;Полиция;;;;;;;;;;;;;x
+law_group_education_system_RU;Система образования;;;;;;;;;;;;;x
+law_group_health_system_RU;Система здравоохранения;;;;;;;;;;;;;x
+law_group_free_speech_RU;Свобода слова;;;;;;;;;;;;;x
+law_group_labor_rights_RU;Права трудящихся;;;;;;;;;;;;;x
+law_group_childrens_rights_RU;Права детей;;;;;;;;;;;;;x
+law_group_womens_rights_RU;Права женщин;;;;;;;;;;;;;x
+law_group_welfare_RU;Социальная политика;;;;;;;;;;;;;x
+law_group_migration_RU;Миграция;;;;;;;;;;;;;x
+law_group_slavery_RU;Рабство;;;;;;;;;;;;;x
+law_group_workers_associations_RU;Объединения работников;;;;;;;;;;;;;x
+law_chiefdom_RU;Вождество;;;;;;;;;;;;;x
+law_monarchy_RU;Монархия;;;;;;;;;;;;;x
+law_presidential_republic_RU;Президентская республика;;;;;;;;;;;;;x
+law_parliamentary_republic_RU;Парламентская республика;;;;;;;;;;;;;x
+law_theocracy_RU;Теократия;;;;;;;;;;;;;x
+law_council_republic_RU;Советская республика;;;;;;;;;;;;;x
+law_corporate_state_RU;Корпоративное государство;;;;;;;;;;;;;x
+law_autocracy_RU;Автократия;;;;;;;;;;;;;x
+law_technocracy_RU;Технократия;;;;;;;;;;;;;x
+law_oligarchy_RU;Олигархия;;;;;;;;;;;;;x
+law_landed_voting_RU;Голосуют землевладельцы;;;;;;;;;;;;;x
+law_wealth_voting_RU;Голосуют богатые;;;;;;;;;;;;;x
+law_census_suffrage_RU;Цензовое избирательное право;;;;;;;;;;;;;x
+law_universal_suffrage_RU;Всеобщее избирательное право;;;;;;;;;;;;;x
+law_single_party_state_RU;Однопартийное государство;;;;;;;;;;;;;x
+law_ethnostate_RU;Этнократия;;;;;;;;;;;;;x
+law_national_supremacy_RU;Национальное превосходство;;;;;;;;;;;;;x
+law_racial_segregation_RU;Расовая сегрегация;;;;;;;;;;;;;x
+law_cultural_exclusion_RU;Культурное отчуждение;;;;;;;;;;;;;x
+law_multicultural_RU;Мультикультурализм;;;;;;;;;;;;;x
+law_state_religion_RU;Государственная религия;;;;;;;;;;;;;x
+law_freedom_of_conscience_RU;Свобода совести;;;;;;;;;;;;;x
+law_total_separation_RU;Полное отделение;;;;;;;;;;;;;x
+law_state_atheism_RU;Государственный атеизм;;;;;;;;;;;;;x
+law_hereditary_bureaucrats_RU;Наследственные чиновники;;;;;;;;;;;;;x
+law_appointed_bureaucrats_RU;Назначаемые чиновники;;;;;;;;;;;;;x
+law_elected_bureaucrats_RU;Выборные чиновники;;;;;;;;;;;;;x
+law_professional_army_RU;Профессиональная армия;;;;;;;;;;;;;x
+law_national_army_RU;Национальная армия;;;;;;;;;;;;;x
+law_national_militia_RU;Национальное ополчение;;;;;;;;;;;;;x
+law_mobilisation_army_RU;Мобилизационная армия;;;;;;;;;;;;;x
+law_coastal_defence_RU;Береговая оборона;;;;;;;;;;;;;x
+law_merchant_navy_RU;Торговый флот;;;;;;;;;;;;;x
+law_capital_ship_navy_RU;Флот крупных кораблей;;;;;;;;;;;;;x
+law_no_home_affairs_RU;Нет министерства;;;;;;;;;;;;;x
+law_national_guard_RU;Национальная гвардия;;;;;;;;;;;;;x
+law_secret_police_RU;Тайная полиция;;;;;;;;;;;;;x
+law_guaranteed_liberties_RU;Гарантированные свободы;;;;;;;;;;;;;x
+law_traditionalism_RU;Традиционализм;;;;;;;;;;;;;x
+law_interventionism_RU;Интервенционизм;;;;;;;;;;;;;x
+law_agrarianism_RU;Аграрная экономика;;;;;;;;;;;;;x
+law_laissez_faire_RU;Невмешательство;;;;;;;;;;;;;x
+law_command_economy_RU;Командная экономика;;;;;;;;;;;;;x
+law_cooperative_ownership_RU;Кооперативная собственность;;;;;;;;;;;;;x
+law_isolationism_RU;Изоляционизм;;;;;;;;;;;;;x
+law_mercantilism_RU;Меркантилизм;;;;;;;;;;;;;x
+law_protectionism_RU;Протекционизм;;;;;;;;;;;;;x
+law_free_trade_RU;Свободная торговля;;;;;;;;;;;;;x
+law_consumption_tax_RU;Налог с потребления;;;;;;;;;;;;;x
+law_land_tax_RU;Поземельный налог;;;;;;;;;;;;;x
+law_per_capita_tax_RU;Налог на душу населения;;;;;;;;;;;;;x
+law_proportional_tax_RU;Пропорциональный налог;;;;;;;;;;;;;x
+law_graduated_tax_RU;Прогрессивный налог;;;;;;;;;;;;;x
+law_serfdom_RU;Крепостное право;;;;;;;;;;;;;x
+law_tenant_farmers_RU;Арендное земледелие;;;;;;;;;;;;;x
+law_homesteading_RU;Крестьянское землевладение;;;;;;;;;;;;;x
+law_commercialized_agriculture_RU;Коммерческое сельское хозяйство;;;;;;;;;;;;;x
+law_collectivized_agriculture_RU;Коллективизация;;;;;;;;;;;;;x
+law_no_colonial_affairs_RU;Нет колониальной политики;;;;;;;;;;;;;x
+law_colonial_resettlement_RU;Переселение в колонии;;;;;;;;;;;;;x
+law_colonial_exploitation_RU;Колониальная эксплуатация;;;;;;;;;;;;;x
+law_no_police_RU;Нет полиции;;;;;;;;;;;;;x
+law_local_police_RU;Местная полиция;;;;;;;;;;;;;x
+law_dedicated_police_RU;Профессиональная полиция;;;;;;;;;;;;;x
+law_militarized_police_RU;Военизированная полиция;;;;;;;;;;;;;x
+law_no_schools_RU;Нет школ;;;;;;;;;;;;;x
+law_religious_schools_RU;Религиозные школы;;;;;;;;;;;;;x
+law_private_schools_RU;Частные школы;;;;;;;;;;;;;x
+law_public_schools_RU;Государственные школы;;;;;;;;;;;;;x
+law_no_health_system_RU;Нет системы здравоохранения;;;;;;;;;;;;;x
+law_charitable_health_system_RU;Благотворительная медицина;;;;;;;;;;;;;x
+law_private_health_insurance_RU;Частное страхование;;;;;;;;;;;;;x
+law_public_health_insurance_RU;Государственное страхование;;;;;;;;;;;;;x
+law_outlawed_dissent_RU;Запрет инакомыслия;;;;;;;;;;;;;x
+law_censorship_RU;Цензура;;;;;;;;;;;;;x
+law_right_of_assembly_RU;Право собраний;;;;;;;;;;;;;x
+law_protected_speech_RU;Защищённая свобода слова;;;;;;;;;;;;;x
+law_no_workers_rights_RU;Нет прав трудящихся;;;;;;;;;;;;;x
+law_regulatory_bodies_RU;Регулирующие органы;;;;;;;;;;;;;x
+law_worker_protections_RU;Защита работников;;;;;;;;;;;;;x
+law_child_labor_allowed_RU;Детский труд разрешён;;;;;;;;;;;;;x
+law_restricted_child_labor_RU;Ограниченный детский труд;;;;;;;;;;;;;x
+law_compulsory_primary_school_RU;Обязательная начальная школа;;;;;;;;;;;;;x
+law_legal_guardianship_RU;Опека;;;;;;;;;;;;;x
+law_women_own_property_RU;Право собственности для женщин;;;;;;;;;;;;;x
+law_women_in_the_workplace_RU;Женщины на работе;;;;;;;;;;;;;x
+law_womens_suffrage_RU;Избирательное право женщин;;;;;;;;;;;;;x
+law_no_social_security_RU;Нет социальной защиты;;;;;;;;;;;;;x
+law_poor_laws_RU;Законы о бедняках;;;;;;;;;;;;;x
+law_wage_subsidies_RU;Субсидии на зарплату;;;;;;;;;;;;;x
+law_old_age_pension_RU;Пенсии;;;;;;;;;;;;;x
+law_no_migration_controls_RU;Миграция не контролируется;;;;;;;;;;;;;x
+law_migration_controls_RU;Контроль миграции;;;;;;;;;;;;;x
+law_closed_borders_RU;Закрытые границы;;;;;;;;;;;;;x
+law_slavery_banned_RU;Рабство запрещено;;;;;;;;;;;;;x
+law_debt_slavery_RU;Долговое рабство;;;;;;;;;;;;;x
+law_colonial_slavery_RU;Колониальное рабство;;;;;;;;;;;;;x
+law_slave_trade_RU;Работорговля;;;;;;;;;;;;;x
+law_assembly_laws_RU;Законы о собраниях;;;;;;;;;;;;;x
+law_state_unions_RU;Государственные профсоюзы;;;;;;;;;;;;;x
+law_non_political_unions_RU;Неполитические профсоюзы;;;;;;;;;;;;;x
+law_free_unions_RU;Свободные профсоюзы;;;;;;;;;;;;;x

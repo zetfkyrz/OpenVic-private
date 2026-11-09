@@ -253,6 +253,13 @@ namespace OpenVic {
 		// effects: [{ key, scope, value }], can_start, block_reason }]
 		godot::Array get_army_tech_branches() const;
 		godot::Array get_army_technologies() const;
+		// The laws of the player (docs/LAWS_DESIGN.md): the groups by column and order, every group with its variants (index, id, name, effects of
+		// OpenVic, modifiers of Vic2 with the inherited ones) and the variant in force
+		godot::Array get_laws() const;
+		bool set_law(int32_t variant_index) const;
+		// The kind of the mobilisation: 0 limited, 1 standard, 2 extended
+		int32_t get_mobilisation_level() const;
+		bool set_mobilisation_level(int32_t level) const;
 		bool start_army_research(int32_t technology_index) const;
 		bool cancel_army_research(int32_t technology_index) const;
 		// { ranks, depth, company_slots (what the country may use), row_weight_shift, max_ranks, max_depth, max_company_slots (the size of cells) }
