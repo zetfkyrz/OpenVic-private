@@ -1,0 +1,5 @@
+# The days of the construction of buildings of the base game, instead of their "time" in common/buildings.txt (BuildingTypeManager::load_ov_buildings_file).
+# Decision of the owner 2026-11-09 (simulation version 75): in 1836 the world has no distillery and one winery, and the ones the AI started were
+# still being built after 2 years (730 days in the base game), so the liquor and the wine of the pops and the armies came only from the artisans.
+liquor_distillery = { time = 165 }
+winery = { time = 365 }
