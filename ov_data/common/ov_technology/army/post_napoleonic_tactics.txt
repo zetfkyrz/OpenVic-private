@@ -8,7 +8,8 @@ post_napoleonic_tactics = {
 	research_days = 730
 	year_hint = 1845   # a hint for the AI, nothing more
 	prerequisite = { standardized_army }
-	# supply:rifle_1_for_rifle_0: the supply of the regiments takes rifle_1 for the rifle_0 the stockpile lacks (decision of the owner 2026-11-09)
-	unlocks = { "unit:dragoons" "unit:hussars" "unit:cuirassiers" "supply:rifle_1_for_rifle_0" }
+	# supply:rifle_1_first: the supply of the regiments takes rifle_1 first (for the regiments with muskets too), what it lacks as rifle_0; the regiments
+	# armed with rifle_1 that get rifle_0 lose a share of their attack and defence (ov_war.RIFLE_0_FOR_RIFLE_1_PENALTY; decision of the owner 2026-11-09)
+	unlocks = { "unit:dragoons" "unit:hussars" "unit:cuirassiers" "supply:rifle_1_first" }
 	modifiers = { max_columns_add = 1 }
 }
