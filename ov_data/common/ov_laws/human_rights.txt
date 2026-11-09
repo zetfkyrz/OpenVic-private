@@ -1,0 +1,92 @@
+# The laws of the rights of the people (docs/LAWS_DESIGN.md, column "human_rights"). The keys: see power.txt.
+
+law_group = {
+	id = free_speech
+	column = human_rights
+	order = 1
+	name = law_group_free_speech
+	replaces = { press_rights public_meetings }
+	variant = { id = outlawed_dissent name = law_outlawed_dissent start_from = { state_press } inherit = { state_press no_meeting } }
+	variant = { id = censorship name = law_censorship default = yes start_from = { censored_press } inherit = { censored_press no_meeting } }
+	variant = { id = right_of_assembly name = law_right_of_assembly start_from = { yes_meeting } inherit = { censored_press yes_meeting } }
+	variant = { id = protected_speech name = law_protected_speech start_from = { free_press } inherit = { free_press yes_meeting } }
+}
+
+law_group = {
+	id = labor_rights
+	column = human_rights
+	order = 2
+	name = law_group_labor_rights
+	replaces = { work_hours safety_regulations wage_reform }
+	variant = { id = no_workers_rights name = law_no_workers_rights default = yes start_from = { no_work_hour_limit } inherit = { no_work_hour_limit no_safety no_minimum_wage } }
+	variant = { id = regulatory_bodies name = law_regulatory_bodies start_from = { fourteen_hours twelve_hours } inherit = { twelve_hours low_safety low_minimum_wage } }
+	variant = { id = worker_protections name = law_worker_protections start_from = { ten_hours eight_hours } inherit = { eight_hours good_safety good_minimum_wage } }
+}
+
+law_group = {
+	id = childrens_rights
+	column = human_rights
+	order = 3
+	name = law_group_childrens_rights
+	variant = { id = child_labor_allowed name = law_child_labor_allowed default = yes }
+	variant = { id = restricted_child_labor name = law_restricted_child_labor }
+	variant = { id = compulsory_primary_school name = law_compulsory_primary_school }
+}
+
+law_group = {
+	id = womens_rights
+	column = human_rights
+	order = 4
+	name = law_group_womens_rights
+	variant = { id = legal_guardianship name = law_legal_guardianship default = yes }
+	variant = { id = women_own_property name = law_women_own_property }
+	variant = { id = women_in_the_workplace name = law_women_in_the_workplace }
+	variant = { id = womens_suffrage name = law_womens_suffrage }
+}
+
+# The social spending is what these laws pay: unemployment subsidies and pensions (the modifiers unemployment_benefit and pension_level)
+law_group = {
+	id = welfare
+	column = human_rights
+	order = 5
+	name = law_group_welfare
+	replaces = { unemployment_subsidies pensions }
+	variant = { id = no_social_security name = law_no_social_security default = yes start_from = { no_subsidies } inherit = { no_subsidies no_pensions } }
+	variant = { id = poor_laws name = law_poor_laws start_from = { trinket_subsidies low_subsidies } inherit = { low_subsidies no_pensions } }
+	variant = { id = wage_subsidies name = law_wage_subsidies start_from = { acceptable_subsidies good_subsidies } inherit = { acceptable_subsidies no_pensions } }
+	variant = { id = old_age_pension name = law_old_age_pension start_from = { trinket_pensions low_pensions acceptable_pensions good_pensions } inherit = { acceptable_subsidies acceptable_pensions } }
+}
+
+law_group = {
+	id = migration
+	column = human_rights
+	order = 6
+	name = law_group_migration
+	variant = { id = no_migration_controls name = law_no_migration_controls default = yes }
+	variant = { id = migration_controls name = law_migration_controls }
+	variant = { id = closed_borders name = law_closed_borders start_from = { JAP } }
+}
+
+law_group = {
+	id = slavery
+	column = human_rights
+	order = 7
+	name = law_group_slavery
+	replaces = { slavery }
+	variant = { id = slavery_banned name = law_slavery_banned default = yes start_from = { no_slavery } inherit = { no_slavery } }
+	variant = { id = debt_slavery name = law_debt_slavery inherit = { yes_slavery } }
+	variant = { id = colonial_slavery name = law_colonial_slavery inherit = { yes_slavery } }
+	variant = { id = slave_trade name = law_slave_trade start_from = { yes_slavery } inherit = { yes_slavery } }
+}
+
+law_group = {
+	id = workers_associations
+	column = human_rights
+	order = 8
+	name = law_group_workers_associations
+	replaces = { trade_unions }
+	variant = { id = assembly_laws name = law_assembly_laws default = yes start_from = { no_trade_unions } inherit = { no_trade_unions } }
+	variant = { id = state_unions name = law_state_unions start_from = { state_controlled } inherit = { state_controlled } }
+	variant = { id = non_political_unions name = law_non_political_unions start_from = { non_socialist } inherit = { non_socialist } }
+	variant = { id = free_unions name = law_free_unions start_from = { all_trade_unions } inherit = { all_trade_unions } }
+}
