@@ -10,6 +10,8 @@
 
 # The weapons
 step = { year = 1836 unlock = { "equipment:rifle_1" "equipment:field_gun_1" } }
+# The supply takes rifle_1 for the missing rifle_0: the player researches it (post_napoleonic_tactics, year_hint 1845), the AI countries get it in that year
+step = { year = 1845 unlock = { "supply:rifle_1_for_rifle_0" } }
 step = { year = 1850 unlock = { "equipment:rifle_2" "equipment:field_gun_2" } }
 step = { year = 1865 unlock = { "equipment:rifle_3" "equipment:field_gun_3" } }
 step = { year = 1885 unlock = { "equipment:rifle_4" "equipment:field_gun_4" } }

@@ -42,6 +42,7 @@ defines = {
 		PROMOTION_PER_MONTH = 0.04, -- fraction 0 to 1
 		CRAFTSMEN_DEMOTION_UNEMPLOYMENT = 0.25, -- fraction 0 to 1
 		PEASANTS_PROMOTION_UNEMPLOYMENT = 0.15, -- fraction 0 to 1
+		FACTORY_JOB_PROMOTION_SHARE = 0.005, -- fraction 0 to 1
 		MIGRATION_PER_MONTH = 0.003, -- fraction 0 to 1
 		MIGRATION_SCORE_MARGIN = 0.08, -- fraction 0 to 1
 		MIGRATION_UNEMPLOYMENT_THRESHOLD = 0.2, -- fraction 0 to 1

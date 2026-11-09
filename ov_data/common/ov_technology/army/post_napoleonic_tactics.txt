@@ -8,6 +8,7 @@ post_napoleonic_tactics = {
 	research_days = 730
 	year_hint = 1845   # a hint for the AI, nothing more
 	prerequisite = { standardized_army }
-	unlocks = { "unit:dragoons" "unit:hussars" "unit:cuirassiers" }
+	# supply:rifle_1_for_rifle_0: the supply of the regiments takes rifle_1 for the rifle_0 the stockpile lacks (decision of the owner 2026-11-09)
+	unlocks = { "unit:dragoons" "unit:hussars" "unit:cuirassiers" "supply:rifle_1_for_rifle_0" }
 	modifiers = { max_columns_add = 1 }
 }
