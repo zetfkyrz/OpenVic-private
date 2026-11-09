@@ -33,6 +33,12 @@ defines = {
 		BUDGET_MIN_TARIFF = 0.01, -- fraction 0 to 1
 		BUDGET_MAX_TARIFF = 0.5, -- fraction 0 to 1
 		BUDGET_POOR_NEEDS_MIN = 0.5, -- fraction 0 to 1
+		AI_TRANSPORT_ENABLED = 1, -- whole number 0 to 1
+		AI_TRANSPORT_REGIMENT_SHARE = 0.25, -- fraction 0 to 1
+		AI_TRANSPORT_MIN_REGIMENTS = 2, -- whole number 0 to 1000
+		AI_LANDING_ENABLED = 1, -- whole number 0 to 1
+		AI_LANDING_MIN_RATIO = 1, -- fraction 0 to 100
+		AI_LANDING_FORCE_RATIO = 1.5, -- fraction 0 to 100
 	},
 	ov_population = {
 		GROWTH_BREAKEVEN_LIFE_NEEDS = 0.2, -- fraction 0 to 1
