@@ -2,6 +2,9 @@ extends GUINode
 
 const _screen: NationManagement.Screen = NationManagement.Screen.POLITICS
 const _gui_file: String = "country_politics"
+const _LawsPanel: GDScript = preload("res://src/UI/Session/LawsPanel.gd")
+## Where the laws stand in the window (the area of the tabs, under their buttons)
+const _LAWS_RECT: Rect2 = Rect2(384, 44, 626, 574)
 
 var _active: bool = false
 #
@@ -55,6 +58,14 @@ var _westernize_button: GUIIconButton
 #
 # Release Nations
 var _release_nation_listbox: GUIListBox
+#
+# The tab that is shown (0 reforms: the laws of OpenVic, 1 movements, 2 decisions, 3 release nations) and the windows of the tabs
+var _tab: int = 0
+var _laws_panel: Control
+var _movements_window: Panel
+var _decisions_window: Panel
+var _release_nations_window: Panel
+var _vic2_reform_windows: Array[Panel] = []
 
 
 func _ready() -> void:
@@ -111,14 +122,21 @@ func _ready() -> void:
 	_movements_tab = GUINode.get_gui_icon_button_from_node(politics_menu.get_node(^"./movements_tab"))
 	_decisions_tab = GUINode.get_gui_icon_button_from_node(politics_menu.get_node(^"./decisions_tab"))
 	_release_nations_tab = GUINode.get_gui_icon_button_from_node(politics_menu.get_node(^"./release_nations_tab"))
+	var tab_index: int = 0
+	for tab_button: GUIIconButton in [_reforms_tab, _movements_tab, _decisions_tab, _release_nations_tab]:
+		if tab_button:
+			tab_button.pressed.connect(_set_tab.bind(tab_index))
+		tab_index += 1
 
 	# Decisions
 	var decisions_window: Panel = GUINode.get_panel_from_node(politics_menu.get_node(^"./decision_window"))
+	_decisions_window = decisions_window
 	if decisions_window:
 		_decisions_listbox = GUINode.get_gui_listbox_from_node(decisions_window.get_node(^"./decision_listbox"))
 
 	# Movements
 	var movements_window: Panel = GUINode.get_panel_from_node(politics_menu.get_node(^"./movements_window"))
+	_movements_window = movements_window
 	if movements_window:
 		_suppression_value = GUINode.get_gui_label_from_node(movements_window.get_node(^"./suppression_value"))
 		_sortby_size_button = GUINode.get_gui_icon_button_from_node(movements_window.get_node(^"./sortby_size_button"))
@@ -134,11 +152,20 @@ func _ready() -> void:
 		_rebels_listbox = GUINode.get_gui_listbox_from_node(movements_window.get_node(^"./rebel_listbox"))
 
 
+	# The reforms of Victoria 2 are replaced by the laws of OpenVic (docs/LAWS_DESIGN.md): their windows stay hidden, the laws take the tab
 	var reforms_window: Panel  = GUINode.get_panel_from_node(politics_menu.get_node(^"./reforms_window"))
+	if reforms_window:
+		_vic2_reform_windows.append(reforms_window)
+	_laws_panel = Control.new()
+	_laws_panel.set_script(_LawsPanel)
+	_laws_panel.position = _LAWS_RECT.position
+	_laws_panel.size = _LAWS_RECT.size
+	politics_menu.add_child(_laws_panel)
 
 	# Unciv Reforms
 	var unciv_reforms_window: Panel = GUINode.get_panel_from_node(politics_menu.get_node(^"./unciv_reforms_window"))
 	if unciv_reforms_window:
+		_vic2_reform_windows.append(unciv_reforms_window)
 		_research_points_value = GUINode.get_gui_label_from_node(unciv_reforms_window.get_node(^"./research_points_val"))
 		_unciv_progress = GUINode.get_gui_progress_bar_from_node(unciv_reforms_window.get_node(^"./civ_progress"))
 		_westernize_button = GUINode.get_gui_icon_button_from_node(unciv_reforms_window.get_node(^"./westernize_button"))
@@ -147,10 +174,30 @@ func _ready() -> void:
 
 	# Release Nations
 	var release_nations_window: Panel = GUINode.get_panel_from_node(politics_menu.get_node(^"./release_nation"))
+	_release_nations_window = release_nations_window
 	if release_nations_window:
 		_release_nation_listbox = GUINode.get_gui_listbox_from_node(release_nations_window.get_node(^"./nations"))
 
+	_update_tabs()
 	_update_info()
+
+
+func _set_tab(tab: int) -> void:
+	_tab = tab
+	_update_tabs()
+
+
+func _update_tabs() -> void:
+	for window: Panel in _vic2_reform_windows:
+		window.hide()
+	if _laws_panel:
+		_laws_panel.visible = _tab == 0
+	if _movements_window:
+		_movements_window.visible = _tab == 1
+	if _decisions_window:
+		_decisions_window.visible = _tab == 2
+	if _release_nations_window:
+		_release_nations_window.visible = _tab == 3
 
 
 func _notification(what: int) -> void:
@@ -168,5 +215,7 @@ func _update_info() -> void:
 	if _active:
 		# TODO - update UI state
 		show()
+		if _laws_panel:
+			_laws_panel.refresh()
 	else:
 		hide()

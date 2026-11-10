@@ -3431,7 +3431,7 @@ bool PlayerSingleton::set_mobilisation_level(int32_t level) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
-	ERR_FAIL_COND_V(level < 0 || level > 2, false);
+	ERR_FAIL_COND_V(level < 0 || level > 3, false);
 	return instance_manager->queue_game_action<set_mobilisation_level_argument_t>(player_country->index, static_cast<std::uint32_t>(level));
 }
 

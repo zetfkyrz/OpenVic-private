@@ -17,9 +17,12 @@ LAWS_COLUMN_power;Power structure;;;;;;;;;;;Вертикаль власти;;x
 LAWS_COLUMN_economy;Economy;;;;;;;;;;;Экономика;;x
 LAWS_COLUMN_human_rights;Human rights;;;;;;;;;;;Права человека;;x
 LAWS_MOBILISATION_LEVEL;Mobilisation;;;;;;;;;;;Вид мобилизации;;x
-LAWS_MOBILISATION_0;Limited (25%);;;;;;;;;;;Ограниченная (25 %);;x
+LAWS_MOBILISATION_0;Small (25%);;;;;;;;;;;Малая (25 %);;x
+LAWS_MOBILISATION_0_RU;Малая (25 %);;;;;;;;;;;;;x
 LAWS_MOBILISATION_1;Standard (50%);;;;;;;;;;;Стандартная (50 %);;x
-LAWS_MOBILISATION_2;Extended (100%);;;;;;;;;;;Расширенная (100 %);;x
+LAWS_MOBILISATION_1_RU;Стандартная (50 %);;;;;;;;;;;;;x
+LAWS_MOBILISATION_2;Extended (75%);;;;;;;;;;;Расширенная (75 %);;x
+LAWS_MOBILISATION_2_RU;Расширенная (75 %);;;;;;;;;;;;;x
 law_group_governance_principles;Governance principles;;;;;;;;;;;Принципы управления;;x
 law_group_distribution_of_power;Distribution of power;;;;;;;;;;;Распределение власти;;x
 law_group_citizenship;Citizenship;;;;;;;;;;;Гражданство;;x
@@ -165,9 +168,6 @@ LAWS_COLUMN_power_RU;Вертикаль власти;;;;;;;;;;;;;x
 LAWS_COLUMN_economy_RU;Экономика;;;;;;;;;;;;;x
 LAWS_COLUMN_human_rights_RU;Права человека;;;;;;;;;;;;;x
 LAWS_MOBILISATION_LEVEL_RU;Вид мобилизации;;;;;;;;;;;;;x
-LAWS_MOBILISATION_0_RU;Ограниченная (25 %);;;;;;;;;;;;;x
-LAWS_MOBILISATION_1_RU;Стандартная (50 %);;;;;;;;;;;;;x
-LAWS_MOBILISATION_2_RU;Расширенная (100 %);;;;;;;;;;;;;x
 law_group_governance_principles_RU;Принципы управления;;;;;;;;;;;;;x
 law_group_distribution_of_power_RU;Распределение власти;;;;;;;;;;;;;x
 law_group_citizenship_RU;Гражданство;;;;;;;;;;;;;x
@@ -356,3 +356,9 @@ LAW_EFFECT_law_pass_speed;Speed of passing laws;;;;;;;;;;;Скорость пр�
 LAW_EFFECT_law_pass_speed_RU;Скорость принятия законов;;;;;;;;;;;;;x
 LAW_EFFECT_savings_threshold;Savings pops keep;;;;;;;;;;;Сбережения, которые попы оставляют себе;;x
 LAW_EFFECT_savings_threshold_RU;Сбережения, которые попы оставляют себе;;;;;;;;;;;;;x
+LAWS_MOBILISATION_3;Full (100%);;;;;;;;;;;Полная (100 %);;x
+LAWS_MOBILISATION_3_RU;Полная (100 %);;;;;;;;;;;;;x
+LAWS_MOBILISATION_TOOLTIP;The share of the men fit for service the mobilisation raises;;;;;;;;;;;Какую долю годных к службе поднимает мобилизация;;x
+LAWS_MOBILISATION_TOOLTIP_RU;Какую долю годных к службе поднимает мобилизация;;;;;;;;;;;;;x
+LAWS_MOBILISATION_SHORT;Mobilisation;;;;;;;;;;;Мобилизация;;x
+LAWS_MOBILISATION_SHORT_RU;Мобилизация;;;;;;;;;;;;;x

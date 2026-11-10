@@ -34,6 +34,10 @@ var _mobilisation_progress_label: GUILabel
 var _mobilisation_size_label: GUILabel
 var _mobilisation_economy_impact_label: GUILabel
 const _MobilisationText = preload("res://src/UI/Session/MobilisationText.gd")
+## The kinds of the mobilisation (the share of the pool it raises: ov_war.MOBILISATION_LEVEL_*), chosen in the window of the armies under the
+## priority of the supply
+const _MOBILISATION_LEVELS: int = 4
+var _mobilisation_level_option: OptionButton
 #
 # Leaders
 var _general_count_label: GUILabel
@@ -173,19 +177,32 @@ func _ready() -> void:
 
 		_table_listboxes.push_back(GUINode.get_gui_listbox_from_node(army_window.get_node(^"./unit_listbox")))
 
-		# The priority of the supply for all the armies (an army with its own priority keeps it); the list is made a little shorter for it
+		# The priority of the supply for all the armies (an army with its own priority keeps it) and the kind of the mobilisation; the list is
+		# made shorter for them
 		var army_listbox: Control = army_window.get_node(^"./unit_listbox")
-		army_listbox.custom_minimum_size.y = army_listbox.size.y - 34.0
-		army_listbox.size.y = army_listbox.size.y - 34.0
+		army_listbox.custom_minimum_size.y = army_listbox.size.y - 68.0
+		army_listbox.size.y = army_listbox.size.y - 68.0
 		army_listbox.clip_contents = true
 		_global_priority_option = OptionButton.new()
 		for text: String in ["Снабжение армий: стандартный", "Снабжение армий: повышенный", "Снабжение армий: максимальный"]:
 			_global_priority_option.add_item(text)
-		_global_priority_option.position = Vector2(10, 60.0 + 429.0 - 34.0 + 4.0)
+		_global_priority_option.position = Vector2(10, 60.0 + 429.0 - 68.0 + 4.0)
 		_global_priority_option.size = Vector2(316, 28)
 		_global_priority_option.tooltip_text = "Приоритет снабжения армий, у которых нет своего." + char(10) + "Стандартный: отправляется ровно то, что нужно армии." + char(10) + "Повышенный: больше, чтобы покрыть потери (до 2.5 потребности)." + char(10) + "Максимальный: до 5 потребностей. Сверх нормы тратятся товары из запаса." + char(10) + "Армия со своим приоритетом (панель армии) его сохраняет."
 		_global_priority_option.item_selected.connect(PlayerSingleton.set_global_supply_priority)
 		army_window.add_child(_global_priority_option)
+		_mobilisation_level_option = OptionButton.new()
+		_mobilisation_level_option.fit_to_longest_item = false
+		_mobilisation_level_option.clip_text = true
+		for level: int in _MOBILISATION_LEVELS:
+			_mobilisation_level_option.add_item(_t("LAWS_MOBILISATION_SHORT") + ": " + _t("LAWS_MOBILISATION_" + str(level)).to_lower(), level)
+		_mobilisation_level_option.position = Vector2(10, 60.0 + 429.0 - 34.0 + 4.0)
+		_mobilisation_level_option.size = Vector2(316, 28)
+		_mobilisation_level_option.tooltip_text = _t("LAWS_MOBILISATION_TOOLTIP")
+		_mobilisation_level_option.item_selected.connect(
+			func(item: int) -> void: PlayerSingleton.set_mobilisation_level(_mobilisation_level_option.get_item_id(item))
+		)
+		army_window.add_child(_mobilisation_level_option)
 	else:
 		_table_listboxes.push_back(null)
 	_table_sort_columns.push_back(TABLE_UNSORTED)
@@ -223,6 +240,12 @@ func _ready() -> void:
 	_table_sort_directions.push_back(SORT_DESCENDING)
 
 	_update_info()
+
+
+## The text in Russian (the keys with the ending _RU of ov_data/localisation), the text of the locale if there is none
+func _t(key: String) -> String:
+	var russian: String = tr(key + "_RU")
+	return russian if russian != key + "_RU" else tr(key)
 
 
 func _notification(what: int) -> void:
@@ -600,6 +623,9 @@ func _update_info() -> void:
 				"Штраф экономики: выпуск РГО и заводов меньше на долю бедного населения в армии × влияние мобилизации на экономику (%s %%)" %
 				str(roundi(float(mobilisation.get(&"economy_impact", 0.0)) * 100.0))
 			)
+
+		if _mobilisation_level_option:
+			_mobilisation_level_option.select(clampi(PlayerSingleton.get_mobilisation_level(), 0, _MOBILISATION_LEVELS - 1))
 
 		# Leaders
 		if _general_count_label:
