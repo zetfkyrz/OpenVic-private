@@ -18,9 +18,9 @@ law_group = {
 	order = 2
 	name = law_group_labor_rights
 	replaces = { work_hours safety_regulations wage_reform }
-	variant = { id = no_workers_rights lean = -0.7 name = law_no_workers_rights default = yes start_from = { no_work_hour_limit } inherit = { no_work_hour_limit no_safety no_minimum_wage } }
+	variant = { id = no_workers_rights lean = -0.7 name = law_no_workers_rights default = yes start_from = { no_work_hour_limit } inherit = { no_work_hour_limit no_safety no_minimum_wage } effects = { factory_wage = -0.2 militancy_growth = 0.1 } }
 	variant = { id = regulatory_bodies lean = 0.2 name = law_regulatory_bodies start_from = { fourteen_hours twelve_hours } inherit = { twelve_hours low_safety low_minimum_wage } }
-	variant = { id = worker_protections lean = 0.9 name = law_worker_protections start_from = { ten_hours eight_hours } inherit = { eight_hours good_safety good_minimum_wage } }
+	variant = { id = worker_protections lean = 0.9 name = law_worker_protections start_from = { ten_hours eight_hours } inherit = { eight_hours good_safety good_minimum_wage } effects = { factory_wage = 0.2 militancy_growth = -0.1 } }
 }
 
 law_group = {
@@ -28,9 +28,9 @@ law_group = {
 	column = human_rights
 	order = 3
 	name = law_group_childrens_rights
-	variant = { id = child_labor_allowed lean = -0.6 name = law_child_labor_allowed default = yes }
+	variant = { id = child_labor_allowed lean = -0.6 name = law_child_labor_allowed default = yes effects = { workforce = 0.1 literacy_poor = -0.2 literacy_middle = -0.2 literacy_rich = -0.2 } }
 	variant = { id = restricted_child_labor lean = 0.2 name = law_restricted_child_labor }
-	variant = { id = compulsory_primary_school lean = 0.8 name = law_compulsory_primary_school }
+	variant = { id = compulsory_primary_school lean = 0.8 name = law_compulsory_primary_school effects = { workforce = -0.05 literacy_poor = 0.5 } }
 }
 
 law_group = {
@@ -39,9 +39,9 @@ law_group = {
 	order = 4
 	name = law_group_womens_rights
 	variant = { id = legal_guardianship lean = -0.7 name = law_legal_guardianship default = yes }
-	variant = { id = women_own_property lean = 0 name = law_women_own_property }
-	variant = { id = women_in_the_workplace lean = 0.5 name = law_women_in_the_workplace }
-	variant = { id = womens_suffrage lean = 0.9 name = law_womens_suffrage }
+	variant = { id = women_own_property lean = 0 name = law_women_own_property effects = { savings_threshold = 0.1 } }
+	variant = { id = women_in_the_workplace lean = 0.5 name = law_women_in_the_workplace effects = { savings_threshold = 0.1 workforce = 0.25 } modifier = { population_growth_pct = -0.05 } }
+	variant = { id = womens_suffrage lean = 0.9 name = law_womens_suffrage effects = { savings_threshold = 0.1 workforce = 0.25 } modifier = { population_growth_pct = -0.05 } }
 }
 
 # The social spending is what these laws pay: unemployment subsidies and pensions (the modifiers unemployment_benefit and pension_level)
@@ -74,8 +74,8 @@ law_group = {
 	name = law_group_slavery
 	replaces = { slavery }
 	variant = { id = slavery_banned lean = 0 name = law_slavery_banned default = yes start_from = { no_slavery } inherit = { no_slavery } effects = { free_slaves = 0.1 } }
-	variant = { id = debt_slavery lean = -0.9 name = law_debt_slavery inherit = { yes_slavery } }
-	variant = { id = colonial_slavery lean = -0.8 name = law_colonial_slavery inherit = { yes_slavery } }
+	variant = { id = debt_slavery lean = -0.9 name = law_debt_slavery inherit = { yes_slavery } effects = { debt_slavery = 0.02 } }
+	variant = { id = colonial_slavery lean = -0.8 name = law_colonial_slavery inherit = { yes_slavery } effects = { free_slaves_home = 0.1 } }
 	variant = { id = slave_trade lean = -1 name = law_slave_trade start_from = { yes_slavery } inherit = { yes_slavery } }
 }
 
@@ -85,8 +85,8 @@ law_group = {
 	order = 8
 	name = law_group_workers_associations
 	replaces = { trade_unions }
-	variant = { id = assembly_laws lean = -0.8 name = law_assembly_laws default = yes start_from = { no_trade_unions } inherit = { no_trade_unions } }
+	variant = { id = assembly_laws lean = -0.8 name = law_assembly_laws default = yes start_from = { no_trade_unions } inherit = { no_trade_unions } effects = { militancy_growth = 0.1 } }
 	variant = { id = state_unions lean = -0.4 name = law_state_unions start_from = { state_controlled } inherit = { state_controlled } }
-	variant = { id = non_political_unions lean = 0.3 name = law_non_political_unions start_from = { non_socialist } inherit = { non_socialist } }
-	variant = { id = free_unions lean = 0.9 name = law_free_unions start_from = { all_trade_unions } inherit = { all_trade_unions } }
+	variant = { id = non_political_unions lean = 0.3 name = law_non_political_unions start_from = { non_socialist } inherit = { non_socialist } effects = { factory_wage = 0.1 strikes = 0.5 } }
+	variant = { id = free_unions lean = 0.9 name = law_free_unions start_from = { all_trade_unions } inherit = { all_trade_unions } effects = { factory_wage = 0.2 strikes = 1 } }
 }

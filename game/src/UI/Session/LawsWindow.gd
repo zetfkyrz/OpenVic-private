@@ -13,7 +13,7 @@ const _ROW_TEXT: Color = Color(0.93, 0.88, 0.76)
 const _ROW_MUTED: Color = Color(0.72, 0.68, 0.6)
 
 ## The effects of OpenVic (politics/Law.hpp; their names: LAW_EFFECT_<id> of ov_data/localisation/ov_laws.csv), shares unless listed here
-const _FLAG_EFFECTS: PackedStringArray = ["no_foreign_trade"]
+const _FLAG_EFFECTS: PackedStringArray = ["no_foreign_trade", "no_emigration", "no_immigration", "secular_schools"]
 
 var _columns: Dictionary = {} # column id -> VBoxContainer
 var _mobilisation: OptionButton

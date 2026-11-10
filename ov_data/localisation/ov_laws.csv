@@ -294,3 +294,65 @@ law_assembly_laws_RU;Законы о собраниях;;;;;;;;;;;;;x
 law_state_unions_RU;Государственные профсоюзы;;;;;;;;;;;;;x
 law_non_political_unions_RU;Неполитические профсоюзы;;;;;;;;;;;;;x
 law_free_unions_RU;Свободные профсоюзы;;;;;;;;;;;;;x
+LAW_EFFECT_vote_poor;Vote of the poor;;;;;;;;;;;Голос бедных;;x
+LAW_EFFECT_vote_poor_RU;Голос бедных;;;;;;;;;;;;;x
+LAW_EFFECT_vote_middle;Vote of the middle strata;;;;;;;;;;;Голос среднего слоя;;x
+LAW_EFFECT_vote_middle_RU;Голос среднего слоя;;;;;;;;;;;;;x
+LAW_EFFECT_vote_rich;Vote of the rich;;;;;;;;;;;Голос богатых;;x
+LAW_EFFECT_vote_rich_RU;Голос богатых;;;;;;;;;;;;;x
+LAW_EFFECT_tax_poor;Income tax of the poor;;;;;;;;;;;Налог с дохода бедных;;x
+LAW_EFFECT_tax_poor_RU;Налог с дохода бедных;;;;;;;;;;;;;x
+LAW_EFFECT_tax_middle;Income tax of the middle strata;;;;;;;;;;;Налог с дохода среднего слоя;;x
+LAW_EFFECT_tax_middle_RU;Налог с дохода среднего слоя;;;;;;;;;;;;;x
+LAW_EFFECT_tax_rich;Income tax of the rich;;;;;;;;;;;Налог с дохода богатых;;x
+LAW_EFFECT_tax_rich_RU;Налог с дохода богатых;;;;;;;;;;;;;x
+LAW_EFFECT_militancy_growth;Growth of militancy;;;;;;;;;;;Рост воинственности;;x
+LAW_EFFECT_militancy_growth_RU;Рост воинственности;;;;;;;;;;;;;x
+LAW_EFFECT_consciousness_growth;Growth of consciousness;;;;;;;;;;;Рост сознательности;;x
+LAW_EFFECT_consciousness_growth_RU;Рост сознательности;;;;;;;;;;;;;x
+LAW_EFFECT_rgo_owner_share;Share of the RGO owners;;;;;;;;;;;Доля владельцев РГО;;x
+LAW_EFFECT_rgo_owner_share_RU;Доля владельцев РГО;;;;;;;;;;;;;x
+LAW_EFFECT_no_emigration;Nobody leaves the country;;;;;;;;;;;Из страны никто не уезжает;;x
+LAW_EFFECT_no_emigration_RU;Из страны никто не уезжает;;;;;;;;;;;;;x
+LAW_EFFECT_no_immigration;Nobody comes from abroad;;;;;;;;;;;Из-за границы никто не приезжает;;x
+LAW_EFFECT_no_immigration_RU;Из-за границы никто не приезжает;;;;;;;;;;;;;x
+LAW_EFFECT_colonial_points;Colonial points;;;;;;;;;;;Колониальные очки;;x
+LAW_EFFECT_colonial_points_RU;Колониальные очки;;;;;;;;;;;;;x
+LAW_EFFECT_free_slaves;Slaves freed a month;;;;;;;;;;;Рабов освобождается в месяц;;x
+LAW_EFFECT_free_slaves_RU;Рабов освобождается в месяц;;;;;;;;;;;;;x
+LAW_EFFECT_transport_room_add;Regiments per transport;;;;;;;;;;;Полков на транспорт;;x
+LAW_EFFECT_transport_room_add_RU;Полков на транспорт;;;;;;;;;;;;;x
+LAW_EFFECT_warship_room_add;Regiments per carrying warship;;;;;;;;;;;Полков на военный корабль;;x
+LAW_EFFECT_warship_room_add_RU;Полков на военный корабль;;;;;;;;;;;;;x
+LAW_EFFECT_assimilation;Assimilation;;;;;;;;;;;Ассимиляция;;x
+LAW_EFFECT_assimilation_RU;Ассимиляция;;;;;;;;;;;;;x
+LAW_EFFECT_literacy_poor;Literacy growth of the poor;;;;;;;;;;;Рост грамотности бедных;;x
+LAW_EFFECT_literacy_poor_RU;Рост грамотности бедных;;;;;;;;;;;;;x
+LAW_EFFECT_literacy_middle;Literacy growth of the middle strata;;;;;;;;;;;Рост грамотности среднего слоя;;x
+LAW_EFFECT_literacy_middle_RU;Рост грамотности среднего слоя;;;;;;;;;;;;;x
+LAW_EFFECT_literacy_rich;Literacy growth of the rich;;;;;;;;;;;Рост грамотности богатых;;x
+LAW_EFFECT_literacy_rich_RU;Рост грамотности богатых;;;;;;;;;;;;;x
+LAW_EFFECT_education_cost;Cost of education;;;;;;;;;;;Стоимость образования;;x
+LAW_EFFECT_education_cost_RU;Стоимость образования;;;;;;;;;;;;;x
+LAW_EFFECT_secular_schools;Schools of the state: literacy does not need clergy;;;;;;;;;;;Государственные школы: грамотности не нужно духовенство;;x
+LAW_EFFECT_secular_schools_RU;Государственные школы: грамотности не нужно духовенство;;;;;;;;;;;;;x
+LAW_EFFECT_clergy_to_clerks;Clergy becomes clerks a month;;;;;;;;;;;Духовенства переходит в клерков в месяц;;x
+LAW_EFFECT_clergy_to_clerks_RU;Духовенства переходит в клерков в месяц;;;;;;;;;;;;;x
+LAW_EFFECT_workforce;Workforce;;;;;;;;;;;Трудоспособность;;x
+LAW_EFFECT_workforce_RU;Трудоспособность;;;;;;;;;;;;;x
+LAW_EFFECT_consumption_tax;Tax on purchases (share of the tax rate);;;;;;;;;;;Налог с покупок (доля ставки налога);;x
+LAW_EFFECT_consumption_tax_RU;Налог с покупок (доля ставки налога);;;;;;;;;;;;;x
+LAW_EFFECT_factory_wage;Factory wages;;;;;;;;;;;Зарплаты на заводах;;x
+LAW_EFFECT_factory_wage_RU;Зарплаты на заводах;;;;;;;;;;;;;x
+LAW_EFFECT_strikes;Strikes;;;;;;;;;;;Забастовки;;x
+LAW_EFFECT_strikes_RU;Забастовки;;;;;;;;;;;;;x
+LAW_EFFECT_debt_slavery;Hungry unemployed sold into slavery a month;;;;;;;;;;;Голодных безработных уходит в рабство в месяц;;x
+LAW_EFFECT_debt_slavery_RU;Голодных безработных уходит в рабство в месяц;;;;;;;;;;;;;x
+LAW_EFFECT_free_slaves_home;Slaves freed a month outside colonies;;;;;;;;;;;Рабов освобождается в месяц вне колоний;;x
+LAW_EFFECT_free_slaves_home_RU;Рабов освобождается в месяц вне колоний;;;;;;;;;;;;;x
+LAW_EFFECT_tax_clergy;Income tax of the clergy;;;;;;;;;;;Налог с дохода духовенства;;x
+LAW_EFFECT_tax_clergy_RU;Налог с дохода духовенства;;;;;;;;;;;;;x
+LAW_EFFECT_law_pass_speed;Speed of passing laws;;;;;;;;;;;Скорость принятия законов;;x
+LAW_EFFECT_law_pass_speed_RU;Скорость принятия законов;;;;;;;;;;;;;x
+LAW_EFFECT_savings_threshold;Savings pops keep;;;;;;;;;;;Сбережения, которые попы оставляют себе;;x
+LAW_EFFECT_savings_threshold_RU;Сбережения, которые попы оставляют себе;;;;;;;;;;;;;x

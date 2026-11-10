@@ -17,13 +17,13 @@ law_group = {
 	column = power
 	order = 1
 	name = law_group_governance_principles
-	variant = { id = chiefdom lean = -1 name = law_chiefdom start_from = { uncivilised } }
+	variant = { id = chiefdom lean = -1 name = law_chiefdom start_from = { uncivilised } effects = { bureaucrat_efficiency = -0.1 } }
 	variant = { id = monarchy lean = -0.5 name = law_monarchy default = yes start_from = { absolute_monarchy prussian_constitutionalism hms_government } }
-	variant = { id = presidential_republic lean = 0.3 name = law_presidential_republic start_from = { presidential_dictatorship bourgeois_dictatorship } }
+	variant = { id = presidential_republic lean = 0.3 name = law_presidential_republic start_from = { presidential_dictatorship bourgeois_dictatorship } effects = { law_pass_speed = 0.25 } }
 	variant = { id = parliamentary_republic lean = 0.6 name = law_parliamentary_republic start_from = { democracy } }
-	variant = { id = theocracy lean = -1 name = law_theocracy start_from = { theocracy } }
-	variant = { id = council_republic lean = 1 name = law_council_republic start_from = { proletarian_dictatorship } }
-	variant = { id = corporate_state lean = -0.3 name = law_corporate_state start_from = { fascist_dictatorship } }
+	variant = { id = theocracy lean = -1 name = law_theocracy start_from = { theocracy } effects = { consciousness_growth = -0.2 literacy_poor = -0.2 literacy_middle = -0.2 literacy_rich = -0.2 tax_clergy = -0.5 } }
+	variant = { id = council_republic lean = 1 name = law_council_republic start_from = { proletarian_dictatorship } effects = { vote_poor = 1 } }
+	variant = { id = corporate_state lean = -0.3 name = law_corporate_state start_from = { fascist_dictatorship } effects = { strikes = -1 militancy_growth = -0.1 } }
 }
 
 law_group = {
@@ -61,10 +61,10 @@ law_group = {
 	order = 4
 	name = law_group_church_and_state
 	replaces = { religious_policy }
-	variant = { id = state_religion lean = -0.8 name = law_state_religion default = yes start_from = { moralism } inherit = { moralism } }
+	variant = { id = state_religion lean = -0.8 name = law_state_religion default = yes start_from = { moralism } inherit = { moralism } effects = { tax_clergy = -0.5 } }
 	variant = { id = freedom_of_conscience lean = 0 name = law_freedom_of_conscience start_from = { pluralism } inherit = { pluralism } }
-	variant = { id = total_separation lean = 0.6 name = law_total_separation start_from = { secularized } inherit = { secularized } }
-	variant = { id = state_atheism lean = 1 name = law_state_atheism start_from = { pro_atheism } inherit = { pro_atheism } }
+	variant = { id = total_separation lean = 0.6 name = law_total_separation start_from = { secularized } inherit = { secularized } effects = { secular_schools = 1 } }
+	variant = { id = state_atheism lean = 1 name = law_state_atheism start_from = { pro_atheism } inherit = { pro_atheism } effects = { secular_schools = 1 clergy_to_clerks = 0.02 } }
 }
 
 # Decision of the owner 2026-11-10

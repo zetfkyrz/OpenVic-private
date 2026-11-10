@@ -32,7 +32,7 @@ law_group = {
 	column = economy
 	order = 3
 	name = law_group_taxation
-	variant = { id = consumption_tax lean = -0.3 name = law_consumption_tax effects = { tax_poor = -0.2 tax_middle = -0.2 tax_rich = -0.2 } }
+	variant = { id = consumption_tax lean = -0.3 name = law_consumption_tax effects = { tax_poor = -0.5 tax_middle = -0.5 tax_rich = -0.5 consumption_tax = 0.5 } }
 	variant = { id = land_tax lean = -0.6 name = law_land_tax effects = { tax_poor = -0.3 tax_middle = -0.5 tax_rich = 0.3 } }
 	variant = { id = per_capita_tax lean = -0.8 name = law_per_capita_tax start_from = { uncivilised } effects = { tax_poor = 0.3 tax_rich = -0.3 } }
 	variant = { id = proportional_tax lean = 0.2 name = law_proportional_tax default = yes }
@@ -68,8 +68,8 @@ law_group = {
 	name = law_group_policing
 	variant = { id = no_police lean = 0.2 name = law_no_police start_from = { uncivilised } effects = { militancy_growth = 0.2 } }
 	variant = { id = local_police lean = 0 name = law_local_police default = yes }
-	variant = { id = dedicated_police lean = -0.2 name = law_dedicated_police effects = { militancy_growth = -0.2 } }
-	variant = { id = militarized_police lean = -0.8 name = law_militarized_police effects = { militancy_growth = -0.4 consciousness_growth = 0.2 } }
+	variant = { id = dedicated_police lean = -0.2 name = law_dedicated_police effects = { militancy_growth = -0.2 bureaucrat_wage = 0.1 } }
+	variant = { id = militarized_police lean = -0.8 name = law_militarized_police effects = { militancy_growth = -0.4 consciousness_growth = 0.2 bureaucrat_wage = 0.2 } }
 }
 
 law_group = {
@@ -78,10 +78,10 @@ law_group = {
 	order = 7
 	name = law_group_education_system
 	replaces = { school_reforms }
-	variant = { id = no_schools lean = -0.8 name = law_no_schools default = yes start_from = { no_schools } inherit = { no_schools } }
-	variant = { id = religious_schools lean = -0.5 name = law_religious_schools start_from = { low_schools } inherit = { low_schools } }
-	variant = { id = private_schools lean = 0.2 name = law_private_schools start_from = { acceptable_schools } inherit = { acceptable_schools } }
-	variant = { id = public_schools lean = 0.8 name = law_public_schools start_from = { good_schools } inherit = { good_schools } }
+	variant = { id = no_schools lean = -0.8 name = law_no_schools default = yes start_from = { no_schools } inherit = { no_schools } effects = { literacy_poor = -0.5 literacy_middle = -0.5 literacy_rich = -0.5 } }
+	variant = { id = religious_schools lean = -0.5 name = law_religious_schools start_from = { low_schools } inherit = { low_schools } effects = { literacy_poor = -0.3 literacy_middle = -0.3 literacy_rich = -0.3 consciousness_growth = -0.1 education_cost = -0.3 } }
+	variant = { id = private_schools lean = 0.2 name = law_private_schools start_from = { acceptable_schools } inherit = { acceptable_schools } effects = { literacy_poor = -0.7 } }
+	variant = { id = public_schools lean = 0.8 name = law_public_schools start_from = { good_schools } inherit = { good_schools } effects = { literacy_poor = 0.2 literacy_middle = 0.2 literacy_rich = 0.2 education_cost = 0.3 } }
 }
 
 law_group = {
