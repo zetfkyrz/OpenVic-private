@@ -488,6 +488,23 @@ Dictionary MenuSingleton::get_province_info_from_number(int32_t province_number)
 	State const* state = province->get_state();
 	if (state != nullptr) {
 		ret[province_info_state_key] = Utilities::get_state_name(*this, *state);
+		// The administration of the state (version 88, docs/ADMINISTRATION.md): the share of the taxes its bureaucrats collect, their share of the
+		// people and the share it needs, the pay of the bureaucrats of the owner, whether it is the priority of the administration of the owner
+		static const StringName province_info_admin_collection_key = "admin_collection";
+		static const StringName province_info_admin_bureaucrat_share_key = "admin_bureaucrat_share";
+		static const StringName province_info_admin_needed_share_key = "admin_needed_share";
+		static const StringName province_info_admin_pay_key = "admin_pay";
+		static const StringName province_info_admin_focus_key = "admin_focus";
+		static const StringName province_info_admin_is_player_key = "admin_is_player";
+		ret[province_info_admin_collection_key] = static_cast<real_t>(state->get_admin_collection());
+		ret[province_info_admin_bureaucrat_share_key] = static_cast<real_t>(state->get_bureaucrat_share());
+		ret[province_info_admin_needed_share_key] = static_cast<real_t>(state->get_admin_needed_share());
+		CountryInstance const* const state_owner = state->get_owner();
+		if (state_owner != nullptr) {
+			ret[province_info_admin_pay_key] = static_cast<real_t>(state_owner->get_administration_pay());
+			ret[province_info_admin_focus_key] = state_owner->get_admin_focus_state() == state;
+			ret[province_info_admin_is_player_key] = state_owner == PlayerSingleton::get_singleton()->get_player_country();
+		}
 	}
 
 	ret[province_info_slave_status_key] = province->get_slave();

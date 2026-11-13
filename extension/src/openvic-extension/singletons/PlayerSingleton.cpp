@@ -129,6 +129,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_law, { "variant_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_mobilisation_level);
 	OV_BIND_METHOD(PlayerSingleton::set_mobilisation_level, { "level" });
+	OV_BIND_METHOD(PlayerSingleton::set_admin_focus, { "province_number", "set" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_tariff_info);
@@ -3433,6 +3434,15 @@ bool PlayerSingleton::set_mobilisation_level(int32_t level) const {
 	ERR_FAIL_NULL_V(instance_manager, false);
 	ERR_FAIL_COND_V(level < 0 || level > 3, false);
 	return instance_manager->queue_game_action<set_mobilisation_level_argument_t>(player_country->index, static_cast<std::uint32_t>(level));
+}
+
+bool PlayerSingleton::set_admin_focus(int32_t province_number, bool set) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* const province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	return instance_manager->queue_game_action<set_admin_focus_argument_t>(player_country->index, province->index, set);
 }
 
 bool PlayerSingleton::start_army_research(int32_t technology_index) const {

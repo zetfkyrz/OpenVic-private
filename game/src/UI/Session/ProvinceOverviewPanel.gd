@@ -13,6 +13,11 @@ var _slave_status_icon: GUIIcon
 var _colony_status_button: GUIIconButton
 var _administrative_percentage_label: GUILabel
 var _owner_percentage_label: GUILabel
+## The priority of the administration of the state (version 88, docs/ADMINISTRATION.md): the button of the national focus of Vic2
+var _admin_focus_button: GUIIconButton
+## The frames of the strip of the national focuses (GFX_province_natfocus_strip): none, promote bureaucrats (icon 7 of national_focus.txt)
+const _FOCUS_ICON_NONE: int = 1
+const _FOCUS_ICON_BUREAUCRATS: int = 7
 var _province_modifiers_overlapping_elements_box: GUIOverlappingElementsBox
 var _terrain_type_icon: GUIIcon
 var _life_rating_bar: GUIProgressBar
@@ -89,6 +94,9 @@ func _ready() -> void:
 		admin_icon.set_icon_index(MenuSingleton.get_administrative_pop_icon_index())
 	_administrative_percentage_label = get_gui_label_from_nodepath(^"./province_view/province_view_header/admin_efficiency")
 	_owner_percentage_label = get_gui_label_from_nodepath(^"./province_view/province_view_header/owner_presence")
+	_admin_focus_button = get_gui_icon_button_from_nodepath(^"./province_view/province_view_header/national_focus")
+	if _admin_focus_button:
+		_admin_focus_button.pressed.connect(_on_admin_focus_pressed)
 	_province_modifiers_overlapping_elements_box = get_gui_overlapping_elements_box_from_nodepath(^"./province_view/province_view_header/province_modifiers")
 	if _province_modifiers_overlapping_elements_box and _province_modifiers_overlapping_elements_box.set_gui_child_element_name(
 		"province_interface",
@@ -185,6 +193,30 @@ func _ready() -> void:
 	_update_info()
 
 
+## What the administration of the state does (docs/ADMINISTRATION.md)
+func _admin_tooltip() -> String:
+	var collection: float = float(_province_info.get(&"admin_collection", 1.0))
+	var has: float = float(_province_info.get(&"admin_bureaucrat_share", 0.0))
+	var needed: float = float(_province_info.get(&"admin_needed_share", 0.0))
+	var lines: PackedStringArray = [
+		"Сбор налогов в области: %d %%" % roundi(collection * 100.0),
+		"Чиновники: %.2f %% населения, нужно %.2f %%" % [has * 100.0, needed * 100.0],
+	]
+	if _province_info.has(&"admin_pay"):
+		var pay: float = float(_province_info[&"admin_pay"])
+		var pay_line: String = "Зарплата чиновников: %d %%" % roundi(pay * 100.0)
+		if pay < 0.5:
+			pay_line += " (ниже 50 %: чиновники уходят и забирают часть налогов)"
+		lines.append(pay_line)
+	lines.append("Несобранные налоги остаются у населения.")
+	lines.append("Колониям, неосновным землям, непринятым культурам и далёким от столицы областям без железных дорог нужно больше чиновников.")
+	return "\n".join(lines)
+
+
+func _on_admin_focus_pressed() -> void:
+	PlayerSingleton.set_admin_focus(_selected_province_number, not bool(_province_info.get(&"admin_focus", false)))
+
+
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_TRANSLATION_CHANGED:
@@ -255,8 +287,24 @@ func _update_info() -> void:
 				_colony_status_button.set_icon_index(colony_status)
 				_colony_status_button.show()
 
+		# The administration of the state: the share of the taxes its bureaucrats collect, the priority of the administration
+		var has_admin: bool = _province_info.has(&"admin_collection")
+		var admin_tooltip: String = _admin_tooltip() if has_admin else ""
 		if _administrative_percentage_label:
-			pass
+			_administrative_percentage_label.text = ("%d%%" % roundi(float(_province_info[&"admin_collection"]) * 100.0)) if has_admin else ""
+			_administrative_percentage_label.set_tooltip_string(admin_tooltip)
+		if _admin_focus_button:
+			var focus: bool = _province_info.get(&"admin_focus", false)
+			var mine: bool = _province_info.get(&"admin_is_player", false)
+			_admin_focus_button.visible = has_admin
+			_admin_focus_button.set_icon_index(_FOCUS_ICON_BUREAUCRATS if focus else _FOCUS_ICON_NONE)
+			_admin_focus_button.disabled = not mine
+			var focus_text: String = "Приоритет управления: чиновники приходят в эту область в 3 раза быстрее (один на страну)."
+			if mine:
+				focus_text += "\n" + ("Нажмите, чтобы снять приоритет." if focus else "Нажмите, чтобы назначить приоритет сюда.")
+			elif focus:
+				focus_text = "Приоритет управления страны-владельца."
+			_admin_focus_button.set_tooltip_string(focus_text + "\n\n" + admin_tooltip)
 
 		if _owner_percentage_label:
 			pass
