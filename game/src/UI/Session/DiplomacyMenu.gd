@@ -76,6 +76,23 @@ var _action_identifiers: PackedStringArray
 var _action_buttons: Dictionary[String, GUIIconButton]
 
 var _countries: Array = []
+## The sorting of the list of the countries by the buttons over it: the key of the country data, the best first (the first click) or the
+## other way (the second click). The priority and the leader of the sphere do not sort yet (the sphere: docs/PLAN_DIPLOMACY_VIC2.md)
+const _SORT_BUTTONS: Dictionary[String, StringName] = {
+	"sort_by_country": &"name",
+	"sort_by_prestige": &"prestige",
+	"sort_by_economic": &"industrial_power",
+	"sort_by_military": &"military_power",
+	"sort_by_total": &"total_rank",
+	"sort_by_opinion": &"opinion_level",
+	"sort_by_relation": &"relation",
+}
+## The keys whose best is the smallest (the name from A, the first place of the ranking)
+const _SORT_SMALL_FIRST: Array[StringName] = [&"name", &"total_rank"]
+var _sort_key: StringName = &""
+var _sort_best_first: bool = true
+## The order of the countries in the list the entries were last set up for
+var _list_order: PackedInt32Array = []
 var _countries_by_index: Dictionary[int, Dictionary]
 var _selected_country_index: int = -1
 
@@ -109,6 +126,10 @@ func _ready() -> void:
 		return
 
 	_country_listbox = GUINode.get_gui_listbox_from_node(_main_window.get_node(^"./country_listbox"))
+	for button_name: String in _SORT_BUTTONS:
+		var sort_button: GUIIconButton = GUINode.get_gui_icon_button_from_node(_main_window.get_node_or_null(NodePath("./" + button_name)))
+		if sort_button:
+			sort_button.pressed.connect(_on_sort_pressed.bind(_SORT_BUTTONS[button_name]))
 
 	_facts_window = _main_window.get_node_or_null(^"./diplomacy_country_facts")
 	if _facts_window:
@@ -153,6 +174,7 @@ func _update_info() -> void:
 		return
 
 	_countries = PlayerSingleton.get_diplomacy_country_list()
+	_sort_countries()
 	_countries_by_index.clear()
 	for country: Dictionary in _countries:
 		_countries_by_index[country[&"index"]] = country
@@ -188,6 +210,14 @@ func _update_country_list() -> void:
 				break
 			_country_listbox.add_child(new_entry)
 
+		_list_order = PackedInt32Array()
+
+	# The entries are set up again when the order of the countries changed (a sorting, a change of the ranking)
+	var order := PackedInt32Array()
+	for country: Dictionary in _countries:
+		order.append(int(country[&"index"]))
+	if order != _list_order:
+		_list_order = order
 		for i: int in mini(_country_listbox.get_child_count(), _countries.size()):
 			_setup_list_entry(_country_listbox.get_child(i), _countries[i])
 
@@ -207,9 +237,42 @@ func _setup_list_entry(entry: Panel, country: Dictionary) -> void:
 	if flag:
 		flag.set_flag_country_name(country[&"identifier"])
 
+	# The button selects the country the entry shows now (the entries are reused when the list is sorted)
+	entry.set_meta(&"country_index", country_index)
 	var select_button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(entry, ^"./country_select")
-	if select_button:
-		select_button.pressed.connect(_select_country.bind(country_index))
+	if select_button and not entry.has_meta(&"select_connected"):
+		entry.set_meta(&"select_connected", true)
+		select_button.pressed.connect(func() -> void: _select_country(int(entry.get_meta(&"country_index", -1))))
+
+
+## A button over the list: the first click sorts the best first, the next one the other way
+func _on_sort_pressed(key: StringName) -> void:
+	if key == _sort_key:
+		_sort_best_first = not _sort_best_first
+	else:
+		_sort_key = key
+		_sort_best_first = true
+	_sort_countries()
+	_update_country_list()
+
+
+func _sort_countries() -> void:
+	if _sort_key == &"":
+		return
+	var small_first: bool = _sort_key in _SORT_SMALL_FIRST
+	var ascending: bool = small_first == _sort_best_first
+	var key: StringName = _sort_key
+	_countries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var value_a: Variant = a.get(key, 0)
+		var value_b: Variant = b.get(key, 0)
+		if key == &"total_rank":
+			# the countries without a place of the ranking (0) are last
+			value_a = int(value_a) if int(value_a) > 0 else 1000000
+			value_b = int(value_b) if int(value_b) > 0 else 1000000
+		if value_a == value_b:
+			return String(a.get(&"name", "")) < String(b.get(&"name", ""))
+		return (value_a < value_b) if ascending else (value_a > value_b)
+	)
 
 
 # Values that change during the game: ranks, opinion and relations

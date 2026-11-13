@@ -675,6 +675,8 @@ Array PlayerSingleton::get_diplomacy_country_list() const {
 			entry[opinion_key] = menu_singleton->tr(convert_to<String>(
 			    CountryRelationManager::get_opinion_identifier(relations.get_country_opinion(player_country, &country))
 			));
+			// the level of the opinion as a number (hostile ... sphere), for the sorting of the list
+			entry["opinion_level"] = static_cast<int32_t>(relations.get_country_opinion(player_country, &country));
 		}
 
 		entries.emplace_back(std::move(name), std::move(entry));
