@@ -8,6 +8,6 @@ general_staff = {
 	research_days = 730
 	year_hint = 1855   # a hint for the AI, nothing more
 	prerequisite = { post_napoleonic_tactics }
-	unlocks = { "mechanic:mobilisation" }
+	unlocks = { "mechanic:mobilisation" "mechanic:poor_officers" }   # poor_officers: the literate poor become officers too (docs/LITERACY.md)
 	modifiers = { supply_national_pct = 0.05 attack_mult = { all = 0.05 } occupation_speed_pct = 0.25 attached_generals_add = 12 }
 }

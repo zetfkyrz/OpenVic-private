@@ -362,3 +362,5 @@ LAWS_MOBILISATION_TOOLTIP;The share of the men fit for service the mobilisation 
 LAWS_MOBILISATION_TOOLTIP_RU;Какую долю годных к службе поднимает мобилизация;;;;;;;;;;;;;x
 LAWS_MOBILISATION_SHORT;Mobilisation;;;;;;;;;;;Мобилизация;;x
 LAWS_MOBILISATION_SHORT_RU;Мобилизация;;;;;;;;;;;;;x
+MAPMODE_LITERACY;Literacy;;;;;;;;;;;Грамотность;;x
+MAPMODE_LITERACY_RU;Грамотность;;;;;;;;;;;;;x

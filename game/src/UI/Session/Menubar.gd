@@ -109,7 +109,10 @@ func _add_mapmode_button() -> void:
 	var index: int = _mapmode_buttons.size()
 	var button: GUIIconButton = get_gui_icon_button_from_nodepath("./menubar/mapmode_%d" % (index + 1))
 	if button:
-		button.tooltip_string = GameSingleton.get_mapmode_localisation_key(index)
+		# The map modes of OpenVic have their Russian name under the key with the ending _RU (ov_data/localisation)
+		var key: String = GameSingleton.get_mapmode_localisation_key(index)
+		var russian: String = tr(key + "_RU")
+		button.tooltip_string = russian if russian != key + "_RU" else key
 		button.toggle_mode = true
 		button.button_group = _mapmode_button_group
 		button.pressed.connect(_mapmode_pressed.bind(index))
