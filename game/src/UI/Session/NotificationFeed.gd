@@ -51,6 +51,24 @@ func _make_text(entry: Dictionary) -> String:
 			if we_first:
 				return "Мы объявили войну: %s" % entry[&"other"]
 			return "%s объявляет нам войну!" % entry[&"country"]
+		# The news of the world and the help of the AI (version 91, docs/DIPLOMACY.md)
+		"ai_goal":
+			var goals: Dictionary = {
+				"strengthen_army": "усилить армию",
+				"conquest": "завоевание",
+				"economic_control": "экономический контроль над соседями",
+				"coalition": "коалиция",
+			}
+			var goal_text: String = goals.get(String(entry[&"subject"]), String(entry[&"subject"]))
+			if String(entry[&"other"]) != "":
+				return "%s ставит цель: %s (%s)" % [entry[&"country"], goal_text, entry[&"other"]]
+			return "%s ставит цель: %s" % [entry[&"country"], goal_text]
+		"alliance_formed":
+			return "Союз: %s и %s" % [entry[&"country"], entry[&"other"]]
+		"ai_assist_goods":
+			return "Помощь ИИ: товара не хватает, закупка включена: %s" % entry[&"subject"]
+		"border_undefended":
+			return "Помощь ИИ: граница с %s без войск!" % entry[&"other"]
 		"peace_signed":
 			return "Заключён мир: %s и %s" % [entry[&"country"], entry[&"other"]]
 		"ally_joined_war":

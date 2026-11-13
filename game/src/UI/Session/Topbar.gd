@@ -18,6 +18,7 @@ var _speed_down_button: GUIIconButton
 var _pause_bg_button: GUIButton
 var _speed_indicator_button: GUIIconButton
 var _date_label: GUILabel
+var _ai_assist_button: CheckButton
 #
 # NationManagement.Screen-GUIIconButton
 var _nation_management_buttons: Dictionary
@@ -123,6 +124,24 @@ func _ready() -> void:
 	if _speed_indicator_button:
 		_speed_indicator_button.pressed.connect(PlayerSingleton.toggle_paused)
 	_date_label = get_gui_label_from_nodepath(^"./topbar/DateText")
+	# The help of the AI (version 91, docs/DIPLOMACY.md): under the date
+	var topbar_panel: Control = get_node_or_null(^"./topbar") as Control
+	if topbar_panel and _date_label:
+		_ai_assist_button = CheckButton.new()
+		_ai_assist_button.text = "Помощь ИИ"
+		_ai_assist_button.add_theme_font_size_override(&"font_size", 13)
+		_ai_assist_button.tooltip_text = "Помощь ИИ раз в неделю:\n— товар, которого не хватает и который не закупается, снова закупается государством;\n— в войне сообщает о границах с врагом, на которых нет наших войск."
+		_ai_assist_button.position = _date_label.position + Vector2(-8.0, 46.0)
+		# a dark plate under the text: the map is under the button
+		var plate := StyleBoxFlat.new()
+		plate.bg_color = Color(0.08, 0.06, 0.05, 0.75)
+		plate.set_corner_radius_all(4)
+		plate.content_margin_left = 6.0
+		plate.content_margin_right = 4.0
+		for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"focus"]:
+			_ai_assist_button.add_theme_stylebox_override(state, plate)
+		_ai_assist_button.toggled.connect(func(on: bool) -> void: PlayerSingleton.set_ai_assist(on))
+		topbar_panel.add_child(_ai_assist_button)
 
 	# Nation management screens
 	const screen_nodepaths: Dictionary = {
@@ -292,6 +311,8 @@ func _update_info() -> void:
 	## Time control
 	if _date_label:
 		_date_label.text = MenuSingleton.get_longform_date()
+	if _ai_assist_button:
+		_ai_assist_button.set_pressed_no_signal(PlayerSingleton.get_ai_assist())
 
 	## Production
 	for idx: int in _production_top_goods_icons.size():

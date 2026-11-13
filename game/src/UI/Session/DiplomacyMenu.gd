@@ -405,8 +405,8 @@ func _update_facts(country: Dictionary, relation: Dictionary) -> void:
 			var lines: PackedStringArray = ["Отношения: %d" % int(relation[&"relation"])]
 			var scar: int = int(relation.get(&"war_scar", 0))
 			if scar < 0:
-				lines.append("Без войны: %d, след войны: %d (заживает за %d лет после мира)" % [
-					int(relation[&"relation_base"]), scar, int(relation.get(&"war_relation_years", 20))])
+				lines.append("Без войны: %d, след войны: %d (заживает на %d в месяц после мира)" % [
+					int(relation[&"relation_base"]), scar, int(relation.get(&"war_relation_heal", 1))])
 			lines.append("Обычно от %d до 100; выше — только в союзе (до %d)" % [int(relation.get(&"relation_min", -100)), int(relation.get(&"relation_limit", 100))])
 			var process: int = int(relation.get(&"relation_process", 0))
 			if process != 0:

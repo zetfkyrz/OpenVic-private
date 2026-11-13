@@ -130,6 +130,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_mobilisation_level);
 	OV_BIND_METHOD(PlayerSingleton::set_mobilisation_level, { "level" });
 	OV_BIND_METHOD(PlayerSingleton::set_admin_focus, { "province_number", "set" });
+	OV_BIND_METHOD(PlayerSingleton::get_ai_assist);
+	OV_BIND_METHOD(PlayerSingleton::set_ai_assist, { "assist" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_tariff_info);
@@ -726,7 +728,7 @@ Dictionary PlayerSingleton::get_diplomatic_relation(int32_t country_index) const
 		result["relation_improve"] = diplomacy_defines.relation_improve_per_month;
 		result["relation_worsen"] = diplomacy_defines.relation_worsen_per_month;
 		result["relation_min"] = diplomacy_defines.relation_min;
-		result["war_relation_years"] = diplomacy_defines.war_relation_recovery_years;
+		result["war_relation_heal"] = diplomacy_defines.war_relation_heal_per_month;
 	}
 	result["opinion"] = static_cast<int32_t>(opinion);
 	result["opinion_identifier"] = convert_to<String>(CountryRelationManager::get_opinion_identifier(opinion));
@@ -3456,6 +3458,17 @@ bool PlayerSingleton::set_mobilisation_level(int32_t level) const {
 	return instance_manager->queue_game_action<set_mobilisation_level_argument_t>(player_country->index, static_cast<std::uint32_t>(level));
 }
 
+bool PlayerSingleton::get_ai_assist() const {
+	return player_country != nullptr && player_country->get_ai_assist();
+}
+
+bool PlayerSingleton::set_ai_assist(bool assist) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<set_ai_assist_argument_t>(player_country->index, assist);
+}
+
 bool PlayerSingleton::set_admin_focus(int32_t province_number, bool set) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
@@ -4752,8 +4765,10 @@ Array PlayerSingleton::get_notifications(int64_t after_id) const {
 		if (static_cast<int64_t>(entry.id) <= after_id) {
 			continue;
 		}
-		// Only what concerns the player: his own events and the wars and peace he is a part of
-		const bool mine = entry.country == player_country || entry.other_country == player_country;
+		// Only what concerns the player: his own events and the wars and peace he is a part of; and the news of the world (version 91: the
+		// goals of the great powers and their alliances)
+		const bool mine = entry.country == player_country || entry.other_country == player_country
+			|| entry.kind == "ai_goal" || entry.kind == "alliance_formed";
 		if (!mine) {
 			continue;
 		}

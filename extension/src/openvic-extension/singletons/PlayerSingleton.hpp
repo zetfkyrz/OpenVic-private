@@ -262,6 +262,9 @@ namespace OpenVic {
 		bool set_mobilisation_level(int32_t level) const;
 		// The priority of the administration (version 88): the state of the province gets the bureaucrats faster; false clears it
 		bool set_admin_focus(int32_t province_number, bool set) const;
+		// The help of the AI for the player (version 91): the goods of the stockpile and the borders without troops in a war
+		bool get_ai_assist() const;
+		bool set_ai_assist(bool assist) const;
 		bool start_army_research(int32_t technology_index) const;
 		bool cancel_army_research(int32_t technology_index) const;
 		// { ranks, depth, company_slots (what the country may use), row_weight_shift, max_ranks, max_depth, max_company_slots (the size of cells) }
