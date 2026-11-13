@@ -10,7 +10,29 @@ const _ACTIONS_PER_ROW: int = 2
 const _ACTION_SIZE: Vector2 = Vector2(160, 24)
 
 # Actions that cannot be used yet (they depend on systems which do not exist, e.g. wars with allies)
-const _UNAVAILABLE_ACTIONS: PackedStringArray = ["call_ally", "command_units", "justify_war", "expel_advisors"]
+# The influence and the sphere wait for their own system (docs/PLAN_DIPLOMACY_VIC2.md, "Сфера влияния"): their buttons are hidden for now
+const _UNAVAILABLE_ACTIONS: PackedStringArray = [
+	"call_ally", "command_units", "justify_war", "expel_advisors", "discredit", "ban_embassy", "increase_opinion", "decrease_opinion",
+	"add_to_sphere", "remove_from_foreign_sphere", "remove_from_own_sphere",
+]
+## The names of the diplomatic actions (the identifiers of the simulation are English)
+const _ACTION_NAMES: Dictionary[String, String] = {
+	"form_alliance": "Предложить союз",
+	"end_alliance": "Расторгнуть союз",
+	"call_ally": "Призвать союзника",
+	"request_military_access": "Запросить проход войск",
+	"give_military_access": "Дать проход войск",
+	"increase_relations": "Улучшать отношения",
+	"decrease_relations": "Ухудшать отношения",
+	"war_subsidies": "Платить субсидии",
+	"end_war_subsidies": "Прекратить субсидии",
+	"declare_war": "Объявить войну",
+	"offer_peace": "Мирные переговоры",
+	"command_units": "Командовать войсками",
+	"justify_war": "Обосновать войну",
+	"give_vision": "Дать обзор",
+	"remove_vision": "Отозвать обзор",
+}
 
 # Labels of the country list entries (diplomacy_country_info), filled from the country data
 const _LIST_COLUMNS: Dictionary[NodePath, StringName] = {
@@ -218,7 +240,7 @@ func _generate_action_buttons() -> void:
 			option.queue_free()
 			continue
 
-		button.set_text(identifier.capitalize())
+		button.set_text(_ACTION_NAMES.get(identifier, identifier.capitalize()))
 		button.pressed.connect(_on_action_pressed.bind(action_index))
 
 		_main_window.add_child(option)
@@ -281,11 +303,32 @@ func _update_selected_country() -> void:
 		if not visible_for_relation:
 			continue
 
+		_update_action_text(identifier, button, relation)
 		option.position = _ACTIONS_POSITION + Vector2(
 			(slot % _ACTIONS_PER_ROW) * _ACTION_SIZE.x,
 			(slot / _ACTIONS_PER_ROW) * _ACTION_SIZE.y,
 		)
 		slot += 1
+
+
+## The buttons of the relations start and stop a monthly process (version 90, docs/DIPLOMACY.md): the text says which, the tooltip what it costs
+func _update_action_text(identifier: String, button: GUIIconButton, relation: Dictionary) -> void:
+	if identifier != "increase_relations" and identifier != "decrease_relations":
+		return
+	var improve: bool = identifier == "increase_relations"
+	var process: int = int(relation.get(&"relation_process", 0))
+	var active: bool = (process > 0) if improve else (process < 0)
+	button.set_text(("Прекратить улучшение" if improve else "Прекратить ухудшение") if active else _ACTION_NAMES[identifier])
+	var step: int = int(relation.get(&"relation_improve" if improve else &"relation_worsen", 0))
+	var limit: int = int(relation.get(&"relation_limit", 100)) if improve else int(relation.get(&"relation_min", -100))
+	button.set_tooltip_string(
+		"Каждый месяц %s%d к отношениям за %s очко дипломатии, пока отношения не дойдут до %d.\nОчки: %s из %s, +%s в месяц." % [
+			"+" if improve else "-", step, GUINode.float_to_string_dp(float(relation.get(&"relation_process_cost", 1.0)), 1), limit,
+			GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points", 0.0)), 1),
+			GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_max", 10.0)), 0),
+			GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_gain", 1.0)), 1),
+		]
+	)
 
 
 func _update_facts(country: Dictionary, relation: Dictionary) -> void:
@@ -294,6 +337,23 @@ func _update_facts(country: Dictionary, relation: Dictionary) -> void:
 
 	if _facts_relation:
 		_set_label_text(_facts_relation, str(relation.get(&"relation", "")))
+		# What the relation is made of (version 90): its own part, the scar of a war, the process of the buttons, the diplomatic points
+		if not relation.is_empty():
+			var lines: PackedStringArray = ["Отношения: %d" % int(relation[&"relation"])]
+			var scar: int = int(relation.get(&"war_scar", 0))
+			if scar < 0:
+				lines.append("Без войны: %d, след войны: %d (заживает за %d лет после мира)" % [
+					int(relation[&"relation_base"]), scar, int(relation.get(&"war_relation_years", 20))])
+			lines.append("Обычно от %d до 100; выше — только в союзе (до %d)" % [int(relation.get(&"relation_min", -100)), int(relation.get(&"relation_limit", 100))])
+			var process: int = int(relation.get(&"relation_process", 0))
+			if process != 0:
+				lines.append("Идёт %s: %s%d в месяц" % ["улучшение" if process > 0 else "ухудшение", "+" if process > 0 else "-",
+					int(relation.get(&"relation_improve" if process > 0 else &"relation_worsen", 0))])
+			lines.append("Очки дипломатии: %s из %s, +%s в месяц" % [
+				GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points", 0.0)), 1),
+				GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_max", 10.0)), 0),
+				GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_gain", 1.0)), 1)])
+			_facts_relation.set_tooltip_string("\n".join(lines))
 
 	if _facts_status:
 		_set_label_text(_facts_status, _describe_relation(relation))
@@ -330,6 +390,11 @@ func _describe_relation(relation: Dictionary) -> String:
 		parts.append("мы платим субсидии")
 	if parts.is_empty():
 		parts.append("Мир")
+	var process: int = int(relation.get(&"relation_process", 0))
+	if process != 0:
+		parts.append("улучшаем отношения" if process > 0 else "ухудшаем отношения")
+	if int(relation.get(&"war_scar", 0)) < 0:
+		parts.append("след войны %d" % int(relation[&"war_scar"]))
 	# The casus belli and the justification of a war (docs/WAR_ASSUMPTIONS.md, "Обоснование войны")
 	if relation.get(&"has_casus_belli", false):
 		parts.append("повод для войны: ещё %d дн." % int(relation[&"casus_belli_days"]))

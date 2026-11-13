@@ -670,7 +670,8 @@ Array PlayerSingleton::get_diplomacy_country_list() const {
 		entry[population_key] = static_cast<int64_t>(country.get_total_population());
 
 		if (player_country != nullptr) {
-			entry[relation_key] = static_cast<int32_t>(relations.get_country_relation(player_country, &country));
+			// the relation everybody sees: with the scar of a war (version 90, docs/DIPLOMACY.md)
+			entry[relation_key] = static_cast<int32_t>(relations.get_effective_relation(player_country, &country));
 			entry[opinion_key] = menu_singleton->tr(convert_to<String>(
 			    CountryRelationManager::get_opinion_identifier(relations.get_country_opinion(player_country, &country))
 			));
@@ -707,7 +708,24 @@ Dictionary PlayerSingleton::get_diplomatic_relation(int32_t country_index) const
 
 	const CountryRelationManager::OpinionType opinion = relations.get_country_opinion(player, other);
 
-	result["relation"] = static_cast<int32_t>(relations.get_country_relation(player, other));
+	// The relations (version 90, docs/DIPLOMACY.md): what everybody sees, its own part, the scar of a war, the process of the buttons of the
+	// player (+1 improve, -1 worsen), the limit of the improvement, the diplomatic points of the player
+	result["relation"] = static_cast<int32_t>(relations.get_effective_relation(player, other));
+	result["relation_base"] = static_cast<int32_t>(relations.get_country_relation(player, other));
+	result["war_scar"] = relations.get_war_scar(player, other).floor<int32_t>();
+	result["relation_process"] = static_cast<int32_t>(relations.get_relation_process(player, other));
+	result["relation_limit"] = relations.get_relation_limit(player, other);
+	{
+		OpenVicDiplomacyDefines const& diplomacy_defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines().diplomacy;
+		result["diplomatic_points"] = static_cast<float>(player->get_diplomatic_points());
+		result["diplomatic_points_max"] = static_cast<float>(diplomacy_defines.diplomatic_points_max);
+		result["diplomatic_points_gain"] = static_cast<float>(CountryRelationManager::get_diplomatic_points_gain(*player));
+		result["relation_process_cost"] = static_cast<float>(diplomacy_defines.relation_process_cost);
+		result["relation_improve"] = diplomacy_defines.relation_improve_per_month;
+		result["relation_worsen"] = diplomacy_defines.relation_worsen_per_month;
+		result["relation_min"] = diplomacy_defines.relation_min;
+		result["war_relation_years"] = diplomacy_defines.war_relation_recovery_years;
+	}
 	result["opinion"] = static_cast<int32_t>(opinion);
 	result["opinion_identifier"] = convert_to<String>(CountryRelationManager::get_opinion_identifier(opinion));
 	result["influence"] = static_cast<int32_t>(static_cast<uint16_t>(relations.get_influence_with(player, other)));

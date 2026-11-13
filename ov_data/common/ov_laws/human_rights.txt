@@ -40,8 +40,8 @@ law_group = {
 	name = law_group_womens_rights
 	variant = { id = legal_guardianship lean = -0.7 name = law_legal_guardianship default = yes }
 	variant = { id = women_own_property lean = 0 name = law_women_own_property effects = { savings_threshold = 0.1 } }
-	variant = { id = women_in_the_workplace lean = 0.5 name = law_women_in_the_workplace effects = { savings_threshold = 0.1 workforce = 0.25 } modifier = { population_growth_pct = -0.05 } }
-	variant = { id = womens_suffrage lean = 0.9 name = law_womens_suffrage effects = { savings_threshold = 0.1 workforce = 0.25 } modifier = { population_growth_pct = -0.05 } }
+	variant = { id = women_in_the_workplace lean = 0.5 name = law_women_in_the_workplace effects = { savings_threshold = 0.1 workforce = 0.25 population_growth = -0.05 } }
+	variant = { id = womens_suffrage lean = 0.9 name = law_womens_suffrage effects = { savings_threshold = 0.1 workforce = 0.25 population_growth = -0.05 } }
 }
 
 # The social spending is what these laws pay: unemployment subsidies and pensions (the modifiers unemployment_benefit and pension_level)

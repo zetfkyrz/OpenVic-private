@@ -91,7 +91,7 @@ law_group = {
 	name = law_group_health_system
 	replaces = { health_care }
 	variant = { id = no_health_system lean = -0.6 name = law_no_health_system default = yes start_from = { no_health_care } inherit = { no_health_care } }
-	variant = { id = charitable_health_system lean = -0.2 name = law_charitable_health_system start_from = { trinket_health_care low_health_care } inherit = { low_health_care } modifier = { population_growth_pct = 0.05 } }
-	variant = { id = private_health_insurance lean = 0.3 name = law_private_health_insurance start_from = { acceptable_health_care } inherit = { acceptable_health_care } modifier = { population_growth_pct = 0.1 } }
-	variant = { id = public_health_insurance lean = 0.9 name = law_public_health_insurance start_from = { good_health_care } inherit = { good_health_care } modifier = { population_growth_pct = 0.2 } }
+	variant = { id = charitable_health_system lean = -0.2 name = law_charitable_health_system start_from = { trinket_health_care low_health_care } inherit = { low_health_care } effects = { population_growth = 0.05 } }
+	variant = { id = private_health_insurance lean = 0.3 name = law_private_health_insurance start_from = { acceptable_health_care } inherit = { acceptable_health_care } effects = { population_growth = 0.1 } }
+	variant = { id = public_health_insurance lean = 0.9 name = law_public_health_insurance start_from = { good_health_care } inherit = { good_health_care } effects = { population_growth = 0.2 } }
 }

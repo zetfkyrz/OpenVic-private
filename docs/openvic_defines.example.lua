@@ -617,4 +617,21 @@ defines = {
 		SUPPLY_MAP_ORANGE_FROM = 0.75, -- fraction 0 to 100
 		SUPPLY_MAP_RED_FROM = 0.5, -- fraction 0 to 100
 	},
+	ov_diplomacy = {
+		RELATION_MIN = -100, -- whole number -200 to 0
+		RELATION_MAX = 100, -- whole number 0 to 200
+		RELATION_ALLIED_MAX = 200, -- whole number 0 to 200
+		RELATION_IMPROVE_PER_MONTH = 20, -- whole number 0 to 400
+		RELATION_WORSEN_PER_MONTH = 30, -- whole number 0 to 400
+		RELATION_PROCESS_COST = 1, -- number 0 to 100
+		WAR_RELATION_PENALTY = 200, -- whole number 0 to 400
+		WAR_RELATION_RECOVERY_YEARS = 20, -- whole number 1 to 200
+		DIPLOMATIC_POINTS_MAX = 10, -- number 0 to 1000
+		GREAT_POWER_RANK = 8, -- whole number 0 to 1000
+		SECONDARY_POWER_RANK = 16, -- whole number 0 to 1000
+		DIPLOMATIC_POINTS_GREAT_POWER = 2, -- number 0 to 100
+		DIPLOMATIC_POINTS_SECONDARY = 1.5, -- number 0 to 100
+		DIPLOMATIC_POINTS_OTHER = 1, -- number 0 to 100
+		DIPLOMATIC_POINTS_UNCIVILISED = 0.5, -- number 0 to 100
+	},
 }

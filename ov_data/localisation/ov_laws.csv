@@ -364,3 +364,5 @@ LAWS_MOBILISATION_SHORT;Mobilisation;;;;;;;;;;;Мобилизация;;x
 LAWS_MOBILISATION_SHORT_RU;Мобилизация;;;;;;;;;;;;;x
 MAPMODE_LITERACY;Literacy;;;;;;;;;;;Грамотность;;x
 MAPMODE_LITERACY_RU;Грамотность;;;;;;;;;;;;;x
+LAW_EFFECT_population_growth;Population growth;;;;;;;;;;;Рост населения;;x
+LAW_EFFECT_population_growth_RU;Рост населения;;;;;;;;;;;;;x
