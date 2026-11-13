@@ -112,6 +112,7 @@ func _ready() -> void:
 	GameSingleton.gamestate_updated.connect(_update_info)
 
 	Events.NationManagementScreens.update_active_nation_management_screen.connect(_on_update_active_nation_management_screen)
+	Events.NationManagementScreens.diplomacy_country_requested.connect(_on_country_requested)
 
 	add_gui_element(_gui_file, "country_diplomacy")
 
@@ -310,6 +311,14 @@ func _generate_action_buttons() -> void:
 		_action_buttons[identifier] = button
 
 
+## A flag of the country was clicked somewhere (FlagLinks): it is selected (the player's own country is not in the list)
+func _on_country_requested(identifier: String) -> void:
+	for country: Dictionary in _countries:
+		if String(country.get(&"identifier", "")) == identifier:
+			_select_country(int(country[&"index"]))
+			return
+
+
 func _select_country(country_index: int) -> void:
 	_selected_country_index = country_index
 	_update_selected_country()
@@ -397,6 +406,16 @@ func _update_action_text(identifier: String, button: GUIIconButton, relation: Di
 func _update_facts(country: Dictionary, relation: Dictionary) -> void:
 	if _facts_name:
 		_set_label_text(_facts_name, country.get(&"name", ""))
+
+	# The flag of the selected country (it was empty)
+	if _facts_window:
+		var facts_flag: Node = _facts_window.get_node_or_null(^"./country_flag")
+		if facts_flag is GUIMaskedFlag:
+			(facts_flag as GUIMaskedFlag).set_flag_country_name(String(country.get(&"identifier", "")))
+			facts_flag.visible = not country.is_empty()
+		elif facts_flag is GUIMaskedFlagButton:
+			(facts_flag as GUIMaskedFlagButton).set_flag_country_name(String(country.get(&"identifier", "")))
+			facts_flag.visible = not country.is_empty()
 
 	if _facts_relation:
 		_set_label_text(_facts_relation, str(relation.get(&"relation", "")))

@@ -4,6 +4,8 @@ extends RefCounted
 signal update_active_nation_management_screen(screen: NationManagement.Screen)
 ## The plate "Technology" of the top bar opens the tree of OpenVic (ArmyTechWindow), not the screen of Victoria 2
 signal army_tech_window_toggle_requested
+## A flag was clicked (FlagLinks): the diplomacy window opens with this country selected
+signal diplomacy_country_requested(identifier: String)
 
 var _current_screen: NationManagement.Screen = NationManagement.Screen.NONE
 
@@ -25,6 +27,12 @@ func close_nation_management_screen(screen: NationManagement.Screen) -> void:
 		open_nation_management_screen(NationManagement.Screen.NONE)
 
 # Either switch to the screen or close it if it is already open. Used for topbar's buttons.
+
+
+## Opens the diplomacy window with the country of the identifier selected (a click on its flag anywhere)
+func open_diplomacy_with(identifier: String) -> void:
+	open_nation_management_screen(NationManagement.Screen.DIPLOMACY)
+	diplomacy_country_requested.emit(identifier)
 
 
 func toggle_nation_management_screen(screen: NationManagement.Screen) -> void:
