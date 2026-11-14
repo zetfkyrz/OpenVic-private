@@ -4,8 +4,9 @@ extends "res://src/UI/Session/Vic2Window.gd"
 ## the influence of the great powers on the player and all the spheres of the world. Opened by the plate "Сферы" of the top bar.
 ## A double click on a country opens the diplomacy with it, as a click on a flag does everywhere. Version 93: the effects of the kinds, the
 ## leader changes the kind (once in SPHERE_KIND_CHANGE_MONTHS), the tribute of the imperial sphere, the single market of the customs union.
+## Version 94: the principles in the slots (their level grows with the years), chosen by the leader.
 
-const _SIZE: Vector2 = Vector2(820, 660)
+const _SIZE: Vector2 = Vector2(940, 700)
 
 const KIND_NAMES: PackedStringArray = ["Таможенный союз", "Имперская сфера", "Военный союз", "Идеологический союз", "Альянс"]
 const KIND_DESCRIPTIONS: PackedStringArray = [
@@ -32,6 +33,21 @@ const _REASONS: Dictionary = {
 	"the sphere already is of this kind": "сфера уже этого вида",
 	"the kind was changed not long ago": "вид меняли недавно",
 	"members are at war with each other": "члены сферы воюют друг с другом",
+	"the sphere has no such slot (more countries open more slots)": "ячейка закрыта: больше стран в сфере — больше ячеек",
+	"the slot is empty": "ячейка пуста",
+	"no such principle": "нет такого принципа",
+	"the principle already is in this slot": "этот принцип уже в ячейке",
+	"the principle already is in another slot": "этот принцип уже в другой ячейке",
+}
+
+# The principles (version 94): the names by the identifier of the data (a principle of a mod shows its identifier)
+const PRINCIPLE_NAMES: Dictionary = {
+	"military_industry": "Военная промышленность",
+	"specialists_exchange": "Обмен специалистами",
+	"teachers_exchange": "Обмен учителями",
+	"trading_posts": "Торговые конторы",
+	"banking_union": "Банковский союз",
+	"mutual_police": "Взаимная полиция",
 }
 
 var _info: Dictionary = {}
@@ -54,6 +70,12 @@ var _kind_button: Button
 var _kind_reason: Label
 var _colour_button: ColorPickerButton
 var _leave_button: Button
+var _principles_caption: Label
+var _principle_status: Array[Label] = []
+var _principle_option: Array[OptionButton] = []
+var _principle_button: Array[Button] = []
+var _principle_reason: Array[Label] = []
+var _principle_rows: Array[HBoxContainer] = []
 var _influence_caption: Label
 var _influence_tree: Tree
 var _invite_button: Button
@@ -143,6 +165,37 @@ func _ready() -> void:
 	_kind_reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_kind_reason.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_kind_row.add_child(_kind_reason)
+	# the principles (version 94)
+	_principles_caption = Label.new()
+	_principles_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	root.add_child(_principles_caption)
+	for slot: int in 3:
+		var row := HBoxContainer.new()
+		root.add_child(row)
+		_principle_rows.append(row)
+		var status := Label.new()
+		status.custom_minimum_size = Vector2(380, 0)
+		status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(status)
+		_principle_status.append(status)
+		var option := OptionButton.new()
+		option.custom_minimum_size = Vector2(210, 0)
+		option.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		option.item_selected.connect(func(_index: int) -> void: _update_principle_row(slot))
+		row.add_child(option)
+		_principle_option.append(option)
+		var button := Button.new()
+		button.text = "Поставить"
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		button.pressed.connect(_on_principle_pressed.bind(slot))
+		row.add_child(button)
+		_principle_button.append(button)
+		var reason := Label.new()
+		reason.custom_minimum_size = Vector2(200, 0)
+		reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(reason)
+		_principle_reason.append(reason)
 	_leave_button = Button.new()
 	_leave_button.text = "Выйти из сферы"
 	_leave_button.pressed.connect(func() -> void: PlayerSingleton.leave_sphere())
@@ -283,6 +336,7 @@ func _refresh_inner() -> void:
 					break
 		_update_kind_change()
 	_leave_button.visible = in_sphere and not is_leader
+	_refresh_principles(own, in_sphere, is_leader)
 
 	# the influence: of the player on the countries (a great power), else of the great powers on the player
 	_influence_tree.clear()
@@ -352,6 +406,101 @@ func _update_kind_change() -> void:
 		_kind_reason.text = "Вид меняли недавно, снова можно с %s." % (_info[&"own"] as Dictionary).get(&"kind_change_date", "")
 	else:
 		_kind_reason.text = _reason(reason)
+
+
+static func principle_name(principle: Dictionary) -> String:
+	return PRINCIPLE_NAMES.get(String(principle[&"identifier"]), String(principle[&"identifier"]))
+
+
+## What a principle gives at this bonus (0.05: 5 %)
+static func principle_effect_text(principle: Dictionary, bonus: float) -> String:
+	var percent: String = ("%.1f" % (bonus * 100.0)).trim_suffix(".0") + " %"
+	match String(principle[&"effect"]):
+		"output":
+			if String(principle[&"identifier"]) == "military_industry":
+				return "+%s выпуска военных заводов и РГО нефти, серы, каучука" % percent
+			return "+%s выпуска товаров принципа" % percent
+		"research":
+			return "+%s к скорости исследований" % percent
+		"literacy":
+			return "+%s к росту грамотности" % percent
+		"freight":
+			return "−%s фрахта между странами сферы" % percent
+		"loan_interest":
+			return "−%s к процентам займов между странами сферы" % percent
+		"militancy":
+			return "−%s к росту воинственности" % percent
+	return percent
+
+
+func _refresh_principles(own: Dictionary, in_sphere: bool, is_leader: bool) -> void:
+	_principles_caption.visible = in_sphere
+	for row: HBoxContainer in _principle_rows:
+		row.visible = in_sphere
+	if not in_sphere:
+		return
+	var principles: Array = _info.get(&"principles", [])
+	var slots: int = int(own.get(&"slots", 1))
+	_principles_caption.text = "Принципы сферы — действуют на лидера и всех членов. Ячеек: %d из 3 (2 — от 3 стран, 3 — от 5). Уровень растёт сам: ×1.5 через 5 лет в ячейке, ×2 через 15; новый принцип начинает с уровня 1:" % slots
+	var slot_entries: Array = own.get(&"principle_slots", [])
+	for slot: int in 3:
+		var entry: Dictionary = slot_entries[slot] if slot < slot_entries.size() else {}
+		var principle_index: int = int(entry.get(&"principle", -1))
+		var text: String
+		if slot >= slots:
+			text = "Ячейка %d: закрыта" % (slot + 1)
+		elif principle_index < 0 or principle_index >= principles.size():
+			text = "Ячейка %d: пусто" % (slot + 1)
+		else:
+			var principle: Dictionary = principles[principle_index]
+			var level: int = int(entry[&"level"])
+			text = "Ячейка %d: %s — %s (уровень %d)" % [slot + 1, principle_name(principle), principle_effect_text(principle, float(entry[&"bonus"])), level]
+			if String(entry[&"next_level"]) != "":
+				text += ", уровень %d с %s" % [level + 1, entry[&"next_level"]]
+		_principle_status[slot].text = text
+		_principle_option[slot].visible = is_leader and slot < slots
+		_principle_button[slot].visible = is_leader and slot < slots
+		_principle_reason[slot].visible = is_leader and slot < slots
+		if is_leader and slot < slots:
+			var option: OptionButton = _principle_option[slot]
+			var selected_id: int = option.get_selected_id() if option.item_count > 0 else -2
+			option.clear()
+			option.add_item("— убрать —", -1)
+			for principle: Dictionary in principles:
+				option.add_item(principle_name(principle), int(principle[&"index"]))
+			# the first free principle is offered, else what was selected
+			var to_select: int = option.get_item_index(selected_id) if selected_id != -2 else -1
+			if to_select < 0:
+				to_select = 0
+				var reasons: Array = (_info.get(&"principle_reasons", []) as Array)[slot]
+				for principle: Dictionary in principles:
+					if String(reasons[int(principle[&"index"])]) == "":
+						to_select = option.get_item_index(int(principle[&"index"]))
+						break
+			option.select(to_select)
+			_update_principle_row(slot)
+
+
+func _update_principle_row(slot: int) -> void:
+	var all_reasons: Array = _info.get(&"principle_reasons", [])
+	if slot >= all_reasons.size():
+		return
+	var reasons: Array = all_reasons[slot]
+	var principles: Array = _info.get(&"principles", [])
+	var id: int = _principle_option[slot].get_selected_id()
+	# the last reason is the one of emptying the slot
+	var reason: String = String(reasons[reasons.size() - 1]) if id < 0 else String(reasons[id]) if id < reasons.size() else ""
+	_principle_button[slot].disabled = reason != ""
+	if reason != "":
+		_principle_reason[slot].text = _reason(reason)
+	elif id >= 0 and id < principles.size():
+		_principle_reason[slot].text = principle_effect_text(principles[id], float(principles[id][&"value"]))
+	else:
+		_principle_reason[slot].text = "ячейка станет пустой"
+
+
+func _on_principle_pressed(slot: int) -> void:
+	PlayerSingleton.set_sphere_principle(slot, _principle_option[slot].get_selected_id())
 
 
 func _find_influence(index: int) -> Dictionary:

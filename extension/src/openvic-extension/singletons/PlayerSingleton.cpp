@@ -140,6 +140,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::leave_sphere);
 	OV_BIND_METHOD(PlayerSingleton::set_sphere_colour, { "colour" });
 	OV_BIND_METHOD(PlayerSingleton::set_sphere_kind, { "kind" });
+	OV_BIND_METHOD(PlayerSingleton::set_sphere_principle, { "slot", "principle" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_tariff_info);
@@ -3515,6 +3516,21 @@ Dictionary PlayerSingleton::get_sphere_info() const {
 		// version 93: the tribute of the imperial sphere of yesterday, the date the kind may change again
 		entry["tribute"] = static_cast<double>(sphere.tribute_yesterday);
 		entry["kind_change_date"] = convert_to<String>(spheres.get_kind_change_date(*instance_manager, sphere).to_string());
+		// version 94: the principles in the slots { principle (-1: empty), level, bonus, since, next_level ("" at the last level) }
+		entry["slots"] = static_cast<int32_t>(spheres.get_principle_slots(*instance_manager, sphere));
+		Array slots;
+		for (Sphere::principle_slot_t const& slot : sphere.principles) {
+			Dictionary slot_entry;
+			const bool empty = slot.principle == Sphere::NO_PRINCIPLE;
+			slot_entry["principle"] = empty ? -1 : static_cast<int32_t>(slot.principle);
+			slot_entry["level"] = spheres.get_principle_level(*instance_manager, slot);
+			slot_entry["bonus"] = static_cast<double>(spheres.get_principle_bonus(*instance_manager, slot));
+			slot_entry["since"] = empty ? String {} : convert_to<String>(slot.since.to_string());
+			const Date next = spheres.get_principle_next_level_date(*instance_manager, slot);
+			slot_entry["next_level"] = empty || next == Date {} ? String {} : convert_to<String>(next.to_string());
+			slots.push_back(slot_entry);
+		}
+		entry["principle_slots"] = slots;
 		Array members;
 		for (CountryInstance const* member : sphere.members) {
 			members.push_back(country_entry(*member, sphere.leader));
@@ -3539,6 +3555,29 @@ Dictionary PlayerSingleton::get_sphere_info() const {
 		kind_reasons.push_back(convert_to<String>(spheres.change_kind_block_reason(*instance_manager, *player_country, static_cast<sphere_kind_t>(kind))));
 	}
 	result["kind_reasons"] = kind_reasons;
+	// the principles (version 94): their list, and for the leader by slot: the reason a principle cannot go there ("" if it can; the last one: to empty it)
+	SpherePrincipleDefinitions const& principle_definitions = instance_manager->definition_manager.get_sphere_principle_definitions();
+	Array principles;
+	for (std::size_t index = 0; index < principle_definitions.get_principles().size(); ++index) {
+		SpherePrincipleDefinitions::principle_t const& principle = principle_definitions.get_principles()[index];
+		Dictionary principle_entry;
+		principle_entry["index"] = static_cast<int32_t>(index);
+		principle_entry["identifier"] = convert_to<String>(principle.identifier);
+		principle_entry["effect"] = convert_to<String>(principle_effect_identifier(principle.effect));
+		principle_entry["value"] = static_cast<double>(principle.value);
+		principles.push_back(principle_entry);
+	}
+	result["principles"] = principles;
+	Array principle_reasons;
+	for (std::size_t slot = 0; slot < Sphere::MAX_PRINCIPLE_SLOTS; ++slot) {
+		Array slot_reasons;
+		for (std::size_t index = 0; index <= principle_definitions.get_principles().size(); ++index) {
+			const std::uint32_t principle = index < principle_definitions.get_principles().size() ? static_cast<std::uint32_t>(index) : Sphere::NO_PRINCIPLE;
+			slot_reasons.push_back(convert_to<String>(spheres.set_principle_block_reason(*instance_manager, *player_country, slot, principle)));
+		}
+		principle_reasons.push_back(slot_reasons);
+	}
+	result["principle_reasons"] = principle_reasons;
 	// the country is in the single market of its customs union (the land neighbours of the leader, the trade inside goes first)
 	TradeNetwork const& trade = instance_manager->get_trade_network();
 	CountryInstance const* const own_leader = player_country->get_sphere_leader();
@@ -3631,6 +3670,16 @@ bool PlayerSingleton::set_sphere_kind(int32_t kind) const {
 	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
 	return instance_manager->queue_game_action<set_sphere_kind_argument_t>(player_country->index, static_cast<std::uint32_t>(kind));
+}
+
+bool PlayerSingleton::set_sphere_principle(int32_t slot, int32_t principle) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	ERR_FAIL_COND_V(slot < 0, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<set_sphere_principle_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(slot), principle < 0 ? Sphere::NO_PRINCIPLE : static_cast<std::uint32_t>(principle)
+	);
 }
 
 bool PlayerSingleton::set_admin_focus(int32_t province_number, bool set) const {

@@ -668,5 +668,12 @@ defines = {
 		SPHERE_MILITARY_REFUSAL_PRESTIGE = 0.05, -- fraction 0 to 1
 		SPHERE_IDEOLOGICAL_LAW_CHANCE = 0.1, -- fraction 0 to 1
 		SPHERE_KIND_CHANGE_MONTHS = 12, -- whole number 0 to 1200
+		SPHERE_PRINCIPLE_SLOT2_COUNTRIES = 3, -- whole number 1 to 1000
+		SPHERE_PRINCIPLE_SLOT3_COUNTRIES = 5, -- whole number 1 to 1000
+		SPHERE_PRINCIPLE_LEVEL2_YEARS = 5, -- whole number 0 to 1000
+		SPHERE_PRINCIPLE_LEVEL3_YEARS = 15, -- whole number 0 to 1000
+		SPHERE_PRINCIPLE_LEVEL1_PCT = 100, -- whole number 0 to 10000
+		SPHERE_PRINCIPLE_LEVEL2_PCT = 150, -- whole number 0 to 10000
+		SPHERE_PRINCIPLE_LEVEL3_PCT = 200, -- whole number 0 to 10000
 	},
 }

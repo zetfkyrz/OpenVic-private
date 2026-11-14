@@ -1,0 +1,44 @@
+# The principles of the spheres of influence (OpenVic, simulation version 94, docs/PLAN_SPHERES.md).
+# The leader of a sphere puts principles into its slots (1 slot, 2 from 3 countries, 3 from 5, ov_diplomacy.SPHERE_PRINCIPLE_SLOT*);
+# every principle works for the leader and all the members. Its level grows with its years in the slot (2 after 5 years, 3 after 15) and
+# multiplies the value: x1, x1.5, x2 (SPHERE_PRINCIPLE_LEVEL*_PCT).
+#
+# effect: what the principle does (the code knows these):
+#   output         the output of the goods listed in goods / good_categories (the factories and the RGOs), + value
+#   research       the speed of the research, + value
+#   literacy       the growth of the literacy, + value
+#   freight        the freight on the trade routes between the countries of the sphere, - value
+#   loan_interest  the interest of a loan between two countries of the sphere, - value (fixed when the loan is taken)
+#   militancy      the growth of the militancy, - value
+# value: the bonus at the level 1 (0.05 = 5 %)
+# A later file (a mod) with the same identifier replaces the principle.
+
+# The decisions of the owner (2026-11-14)
+military_industry = {
+	effect = output
+	value = 0.05
+	good_categories = { military_goods }
+	goods = { oil sulphur rubber }
+}
+specialists_exchange = {
+	effect = research
+	value = 0.05
+}
+
+# Chosen by the owner from the proposals of the plan (2026-11-14)
+teachers_exchange = {
+	effect = literacy
+	value = 0.05
+}
+trading_posts = {
+	effect = freight
+	value = 0.05
+}
+banking_union = {
+	effect = loan_interest
+	value = 0.05
+}
+mutual_police = {
+	effect = militancy
+	value = 0.05
+}
