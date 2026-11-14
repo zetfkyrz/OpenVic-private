@@ -6,6 +6,8 @@ extends "res://src/UI/Session/Vic2Window.gd"
 ## leader changes the kind (once in SPHERE_KIND_CHANGE_MONTHS), the tribute of the imperial sphere, the single market of the customs union.
 ## Version 94: the principles in the slots (their level grows with the years), chosen by the leader.
 
+const SphereIcons := preload("res://src/UI/Session/SphereIcons.gd")
+
 const _SIZE: Vector2 = Vector2(940, 700)
 
 const KIND_NAMES: PackedStringArray = ["Таможенный союз", "Имперская сфера", "Военный союз", "Идеологический союз", "Альянс"]
@@ -57,6 +59,8 @@ var _banner: PanelContainer
 var _banner_style: StyleBoxFlat
 var _banner_title: Label
 var _banner_text: Label
+var _banner_icon: TextureRect
+var _icon_button: Button
 var _found_row: HBoxContainer
 var _found_kind: OptionButton
 var _found_button: Button
@@ -106,8 +110,19 @@ func _ready() -> void:
 	_banner_style.content_margin_bottom = 6.0
 	_banner.add_theme_stylebox_override(&"panel", _banner_style)
 	root.add_child(_banner)
+	# the icon of the sphere (version 95) left of the name and the text
+	var banner_row := HBoxContainer.new()
+	banner_row.add_theme_constant_override(&"separation", 12)
+	_banner.add_child(banner_row)
+	_banner_icon = TextureRect.new()
+	_banner_icon.custom_minimum_size = Vector2(96, 96)
+	_banner_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_banner_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_banner_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	banner_row.add_child(_banner_icon)
 	var banner_box := VBoxContainer.new()
-	_banner.add_child(banner_box)
+	banner_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	banner_row.add_child(banner_box)
 	_banner_title = Label.new()
 	_banner_title.add_theme_font_size_override(&"font_size", 20)
 	banner_box.add_child(_banner_title)
@@ -149,6 +164,10 @@ func _ready() -> void:
 	_colour_button.edit_alpha = false
 	_colour_button.popup_closed.connect(func() -> void: PlayerSingleton.set_sphere_colour(_colour_button.color))
 	_leader_row.add_child(_colour_button)
+	_icon_button = Button.new()
+	_icon_button.text = "Иконка…"
+	_icon_button.pressed.connect(_on_icon_pressed)
+	_leader_row.add_child(_icon_button)
 	# the leader changes the kind (version 93)
 	_kind_row = HBoxContainer.new()
 	root.add_child(_kind_row)
@@ -287,6 +306,8 @@ func _refresh_inner() -> void:
 		_banner_title.add_theme_color_override(&"font_color", text_colour)
 		_banner_text.add_theme_color_override(&"font_color", text_colour)
 		_banner_title.text = sphere_name(own)
+		_banner_icon.texture = SphereIcons.get_texture(own)
+		_banner_icon.visible = true
 		var lines: PackedStringArray = [KIND_DESCRIPTIONS[int(own[&"kind"])] + ".", "Основана %s." % own[&"founded"]]
 		if String(own[&"protected_until"]) != "":
 			lines.append("Историческая сфера: держится до %s, даже если лидер не великая держава." % own[&"protected_until"])
@@ -303,6 +324,7 @@ func _refresh_inner() -> void:
 		_banner_title.add_theme_color_override(&"font_color", Color.WHITE)
 		_banner_text.add_theme_color_override(&"font_color", Color.WHITE)
 		_banner_title.text = "Ваша страна не в сфере"
+		_banner_icon.visible = false
 		_banner_text.text = "Сферу основывает великая держава; страны вступают по её влиянию — торговле и инвестициям, умноженным на отношения и соседство." \
 			if not _info[&"great_power"] else "Вы — великая держава и можете основать свою сферу."
 
@@ -366,6 +388,8 @@ func _refresh_inner() -> void:
 		var item: TreeItem = _spheres_tree.create_item(spheres_root)
 		item.set_text(0, sphere[&"leader_name"])
 		item.set_metadata(0, sphere[&"leader_tag"])
+		item.set_icon(0, SphereIcons.get_texture(sphere))
+		item.set_icon_max_width(0, 26)
 		item.set_custom_bg_color(0, (sphere[&"colour"] as Color).lerp(Color.WHITE, 0.55))
 		item.set_text(1, KIND_NAMES[int(sphere[&"kind"])])
 		item.set_text(2, str((sphere[&"members"] as Array).size()))
@@ -501,6 +525,12 @@ func _update_principle_row(slot: int) -> void:
 
 func _on_principle_pressed(slot: int) -> void:
 	PlayerSingleton.set_sphere_principle(slot, _principle_option[slot].get_selected_id())
+
+
+func _on_icon_pressed() -> void:
+	var dialog: Node = get_tree().get_first_node_in_group(&"sphere_icon_dialog")
+	if dialog != null and not _info.is_empty():
+		dialog.call(&"open_for", _info[&"own"])
 
 
 func _find_influence(index: int) -> Dictionary:

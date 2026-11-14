@@ -141,6 +141,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_sphere_colour, { "colour" });
 	OV_BIND_METHOD(PlayerSingleton::set_sphere_kind, { "kind" });
 	OV_BIND_METHOD(PlayerSingleton::set_sphere_principle, { "slot", "principle" });
+	OV_BIND_METHOD(PlayerSingleton::set_sphere_icon, { "icon", "icon_extra" });
+	OV_BIND_METHOD(PlayerSingleton::get_world_spheres);
 
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_tariff_info);
@@ -3478,6 +3480,70 @@ bool PlayerSingleton::set_ai_assist(bool assist) const {
 	return instance_manager->queue_game_action<set_ai_assist_argument_t>(player_country->index, assist);
 }
 
+// A sphere for the interface (get_sphere_info, get_world_spheres): its leader, kind, colour, icon, principles and members
+static Dictionary make_sphere_entry(InstanceManager const& instance_manager, MenuSingleton const& menu, Sphere const& sphere) {
+	InstanceManager const* const instance_manager_pointer = &instance_manager;
+	MenuSingleton const* const menu_singleton = &menu;
+	SphereManager const& spheres = instance_manager.get_sphere_manager();
+	CountryRelationManager const& relations = instance_manager.get_country_relation_manager();
+	const Date today = instance_manager.get_today();
+	const auto country_entry = [&](CountryInstance const& country, CountryInstance const* leader) -> Dictionary {
+		Dictionary entry;
+		entry["index"] = static_cast<int32_t>(type_safe::get(country.index));
+		entry["tag"] = convert_to<String>(country.get_identifier());
+		entry["name"] = Utilities::get_country_name(*menu_singleton, country);
+		if (leader != nullptr) {
+			entry["influence"] = static_cast<double>(spheres.get_influence(leader, &country).value);
+			entry["relation"] = static_cast<int32_t>(relations.get_effective_relation(leader, &country));
+		}
+		entry["protected"] = spheres.is_protected(&country, today);
+		return entry;
+	};
+	const auto sphere_entry = [&](Sphere const& sphere) -> Dictionary {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(sphere.id);
+		entry["kind"] = static_cast<int32_t>(sphere.kind);
+		entry["colour"] = convert_to<Color>(sphere.colour);
+		entry["leader_index"] = static_cast<int32_t>(type_safe::get(sphere.leader->index));
+		entry["leader_tag"] = convert_to<String>(sphere.leader->get_identifier());
+		entry["leader_name"] = Utilities::get_country_name(*menu_singleton, *sphere.leader);
+		entry["founded"] = convert_to<String>(sphere.founded.to_string());
+		// version 95: the icon (SphereIcons.gd reads the two numbers) and the place of the capital of the leader on the map (for the icon there)
+		entry["icon"] = static_cast<int64_t>(sphere.icon);
+		entry["icon_extra"] = static_cast<int64_t>(sphere.icon_extra);
+		ProvinceInstance const* const leader_capital = sphere.leader->get_capital();
+		entry["leader_capital"] = leader_capital != nullptr ? GameSingleton::get_singleton()->get_billboard_pos(leader_capital->province_definition) : Vector2 {};
+		entry["has_capital"] = leader_capital != nullptr;
+		entry["protected_until"] = today < sphere.protected_until ? convert_to<String>(sphere.protected_until.to_string()) : String {};
+		// version 93: the tribute of the imperial sphere of yesterday, the date the kind may change again
+		entry["tribute"] = static_cast<double>(sphere.tribute_yesterday);
+		entry["kind_change_date"] = convert_to<String>(spheres.get_kind_change_date(*instance_manager_pointer, sphere).to_string());
+		// version 94: the principles in the slots { principle (-1: empty), level, bonus, since, next_level ("" at the last level) }
+		entry["slots"] = static_cast<int32_t>(spheres.get_principle_slots(*instance_manager_pointer, sphere));
+		Array slots;
+		for (Sphere::principle_slot_t const& slot : sphere.principles) {
+			Dictionary slot_entry;
+			const bool empty = slot.principle == Sphere::NO_PRINCIPLE;
+			slot_entry["principle"] = empty ? -1 : static_cast<int32_t>(slot.principle);
+			slot_entry["level"] = spheres.get_principle_level(*instance_manager_pointer, slot);
+			slot_entry["bonus"] = static_cast<double>(spheres.get_principle_bonus(*instance_manager_pointer, slot));
+			slot_entry["since"] = empty ? String {} : convert_to<String>(slot.since.to_string());
+			const Date next = spheres.get_principle_next_level_date(*instance_manager_pointer, slot);
+			slot_entry["next_level"] = empty || next == Date {} ? String {} : convert_to<String>(next.to_string());
+			slots.push_back(slot_entry);
+		}
+		entry["principle_slots"] = slots;
+		Array members;
+		for (CountryInstance const* member : sphere.members) {
+			members.push_back(country_entry(*member, sphere.leader));
+		}
+		entry["members"] = members;
+		return entry;
+	};
+
+	return sphere_entry(sphere);
+}
+
 Dictionary PlayerSingleton::get_sphere_info() const {
 	Dictionary result;
 	GameSingleton::get_singleton()->wait_for_simulation();
@@ -3504,39 +3570,7 @@ Dictionary PlayerSingleton::get_sphere_info() const {
 		return entry;
 	};
 	const auto sphere_entry = [&](Sphere const& sphere) -> Dictionary {
-		Dictionary entry;
-		entry["id"] = static_cast<int32_t>(sphere.id);
-		entry["kind"] = static_cast<int32_t>(sphere.kind);
-		entry["colour"] = convert_to<Color>(sphere.colour);
-		entry["leader_index"] = static_cast<int32_t>(type_safe::get(sphere.leader->index));
-		entry["leader_tag"] = convert_to<String>(sphere.leader->get_identifier());
-		entry["leader_name"] = Utilities::get_country_name(*menu_singleton, *sphere.leader);
-		entry["founded"] = convert_to<String>(sphere.founded.to_string());
-		entry["protected_until"] = today < sphere.protected_until ? convert_to<String>(sphere.protected_until.to_string()) : String {};
-		// version 93: the tribute of the imperial sphere of yesterday, the date the kind may change again
-		entry["tribute"] = static_cast<double>(sphere.tribute_yesterday);
-		entry["kind_change_date"] = convert_to<String>(spheres.get_kind_change_date(*instance_manager, sphere).to_string());
-		// version 94: the principles in the slots { principle (-1: empty), level, bonus, since, next_level ("" at the last level) }
-		entry["slots"] = static_cast<int32_t>(spheres.get_principle_slots(*instance_manager, sphere));
-		Array slots;
-		for (Sphere::principle_slot_t const& slot : sphere.principles) {
-			Dictionary slot_entry;
-			const bool empty = slot.principle == Sphere::NO_PRINCIPLE;
-			slot_entry["principle"] = empty ? -1 : static_cast<int32_t>(slot.principle);
-			slot_entry["level"] = spheres.get_principle_level(*instance_manager, slot);
-			slot_entry["bonus"] = static_cast<double>(spheres.get_principle_bonus(*instance_manager, slot));
-			slot_entry["since"] = empty ? String {} : convert_to<String>(slot.since.to_string());
-			const Date next = spheres.get_principle_next_level_date(*instance_manager, slot);
-			slot_entry["next_level"] = empty || next == Date {} ? String {} : convert_to<String>(next.to_string());
-			slots.push_back(slot_entry);
-		}
-		entry["principle_slots"] = slots;
-		Array members;
-		for (CountryInstance const* member : sphere.members) {
-			members.push_back(country_entry(*member, sphere.leader));
-		}
-		entry["members"] = members;
-		return entry;
+		return make_sphere_entry(*instance_manager, *menu_singleton, sphere);
 	};
 
 	Sphere const* const own = spheres.find_of(player_country);
@@ -3629,6 +3663,19 @@ Dictionary PlayerSingleton::get_sphere_info() const {
 	return result;
 }
 
+Array PlayerSingleton::get_world_spheres() const {
+	Array result;
+	GameSingleton::get_singleton()->wait_for_simulation();
+	InstanceManager const* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* const menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	for (Sphere const& sphere : instance_manager->get_sphere_manager().get_spheres()) {
+		result.push_back(make_sphere_entry(*instance_manager, *menu_singleton, sphere));
+	}
+	return result;
+}
+
 bool PlayerSingleton::found_sphere(int32_t kind) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	ERR_FAIL_COND_V(kind < 0, false);
@@ -3679,6 +3726,15 @@ bool PlayerSingleton::set_sphere_principle(int32_t slot, int32_t principle) cons
 	ERR_FAIL_NULL_V(instance_manager, false);
 	return instance_manager->queue_game_action<set_sphere_principle_argument_t>(
 		player_country->index, static_cast<std::uint32_t>(slot), principle < 0 ? Sphere::NO_PRINCIPLE : static_cast<std::uint32_t>(principle)
+	);
+}
+
+bool PlayerSingleton::set_sphere_icon(int64_t icon, int64_t icon_extra) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<set_sphere_icon_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(icon & 0xFFFFFFFF), static_cast<std::uint32_t>(icon_extra & 0xFFFFFFFF)
 	);
 }
 

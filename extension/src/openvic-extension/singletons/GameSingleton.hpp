@@ -276,6 +276,8 @@ namespace OpenVic {
 
 		int32_t get_mapmode_count() const;
 		godot::String get_mapmode_identifier(int32_t index) const;
+		// The folder ov_data of OpenVic itself ("" if it was not found), for the interface (the emblems of the spheres, ov_data/gfx/spheres)
+		godot::String get_builtin_data_path() const;
 		godot::String get_mapmode_localisation_key(int32_t index) const;
 		int32_t get_current_mapmode_index() const;
 		godot::Error set_mapmode(int32_t index);

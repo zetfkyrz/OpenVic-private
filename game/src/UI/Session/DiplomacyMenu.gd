@@ -1,5 +1,7 @@
 extends GUINode
 
+const SphereIcons := preload("res://src/UI/Session/SphereIcons.gd")
+
 const _screen: NationManagement.Screen = NationManagement.Screen.DIPLOMACY
 const _gui_file: String = "country_diplomacy"
 
@@ -75,7 +77,10 @@ var _empty_facts_labels: Array[GUILabel]
 var _action_identifiers: PackedStringArray
 var _action_buttons: Dictionary[String, GUIIconButton]
 
+const _SphereWindowScript := preload("res://src/UI/Session/SphereWindow.gd")
 var _countries: Array = []
+# The sphere of every country by its tag (the leaders and the members, version 95): its icon is shown next to the flag in the list
+var _sphere_of: Dictionary = {}
 ## The sorting of the list of the countries by the buttons over it: the key of the country data, the best first (the first click) or the
 ## other way (the second click). The priority and the leader of the sphere do not sort yet (the sphere: docs/PLAN_DIPLOMACY_VIC2.md)
 const _SORT_BUTTONS: Dictionary[String, StringName] = {
@@ -202,6 +207,12 @@ func _update_country_list() -> void:
 	if not _country_listbox:
 		return
 
+	_sphere_of.clear()
+	for sphere: Dictionary in PlayerSingleton.get_world_spheres():
+		_sphere_of[String(sphere[&"leader_tag"])] = sphere
+		for member: Dictionary in sphere[&"members"]:
+			_sphere_of[String(member[&"tag"])] = sphere
+
 	# Entries are only regenerated when the amount of countries changes, e.g. in a new game session
 	if _country_listbox.get_child_count() != _countries.size():
 		_country_listbox.clear_children(_countries.size())
@@ -282,6 +293,32 @@ func _update_list_entry(entry: Panel, country: Dictionary) -> void:
 		var label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, column)
 		if label:
 			_set_label_text(label, str(country.get(_LIST_COLUMNS[column], "")))
+	_update_sphere_icon(entry, String(country.get(&"identifier", "")))
+
+
+## The icon of the sphere of the country right of its flag (none when it is in no sphere)
+func _update_sphere_icon(entry: Panel, tag: String) -> void:
+	var icon: TextureRect = entry.get_node_or_null(^"./sphere_icon")
+	if icon == null:
+		icon = TextureRect.new()
+		icon.name = "sphere_icon"
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size = Vector2(16, 16)
+		var flag: Control = entry.get_node_or_null(^"./country_flag") as Control
+		icon.position = flag.position + Vector2(flag.size.x + 1, (flag.size.y - 16.0) / 2.0) if flag != null else Vector2(2, 2)
+		entry.add_child(icon)
+	var sphere: Dictionary = _sphere_of.get(tag, {})
+	icon.visible = not sphere.is_empty()
+	# the name moves right by the icon when there is one
+	var name_label: Control = entry.get_node_or_null(^"./country_name") as Control
+	if name_label != null:
+		if not name_label.has_meta(&"base_x"):
+			name_label.set_meta(&"base_x", name_label.position.x)
+		name_label.position.x = float(name_label.get_meta(&"base_x")) + (17.0 if icon.visible else 0.0)
+	if not sphere.is_empty():
+		icon.texture = SphereIcons.get_texture(sphere)
+		icon.tooltip_text = "Сфера: %s" % _SphereWindowScript.sphere_name(sphere)
 
 
 func _generate_action_buttons() -> void:

@@ -278,6 +278,10 @@ namespace OpenVic {
 		bool set_sphere_kind(int32_t kind) const;
 		// The leader puts a principle (-1: none) into a slot of its sphere (version 94; get_sphere_info: principles, principle_reasons)
 		bool set_sphere_principle(int32_t slot, int32_t principle) const;
+		// The leader sets the icon of its sphere: two numbers made by SphereIcons.gd (version 95)
+		bool set_sphere_icon(int64_t icon, int64_t icon_extra) const;
+		// Only the spheres of the world (the entries of get_sphere_info().spheres, without the influence): the map and the diplomacy
+		godot::Array get_world_spheres() const;
 		bool start_army_research(int32_t technology_index) const;
 		bool cancel_army_research(int32_t technology_index) const;
 		// { ranks, depth, company_slots (what the country may use), row_weight_shift, max_ranks, max_depth, max_company_slots (the size of cells) }

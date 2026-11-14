@@ -110,6 +110,7 @@ void GameSingleton::_bind_methods() {
 
 	OV_BIND_METHOD(GameSingleton::get_mapmode_count);
 	OV_BIND_METHOD(GameSingleton::get_mapmode_identifier, { "index" });
+	OV_BIND_METHOD(GameSingleton::get_builtin_data_path);
 	OV_BIND_METHOD(GameSingleton::get_mapmode_localisation_key, { "index" });
 	OV_BIND_METHOD(GameSingleton::get_current_mapmode_index);
 	OV_BIND_METHOD(GameSingleton::set_mapmode, { "index" });
@@ -1495,6 +1496,10 @@ static String find_builtin_data_path() {
 		}
 	}
 	return {};
+}
+
+String GameSingleton::get_builtin_data_path() const {
+	return find_builtin_data_path();
 }
 
 godot::Error GameSingleton::set_compatibility_mode_roots(String const& path) {
