@@ -72,6 +72,11 @@ const _MobilisationText = preload("res://src/UI/Session/MobilisationText.gd")
 var _mobilisation_info: Dictionary = {}
 var _mobilisation_dialog: ConfirmationDialog
 var _military_leadership_points_label: GUILabel
+#
+# Spheres (version 92, docs/PLAN_SPHERES.md): a plate right of the military one
+const _SphereWindowScript = preload("res://src/UI/Session/SphereWindow.gd")
+var _sphere_button: Button
+var _sphere_colour: ColorRect
 
 
 func _ready() -> void:
@@ -142,6 +147,34 @@ func _ready() -> void:
 			_ai_assist_button.add_theme_stylebox_override(state, plate)
 		_ai_assist_button.toggled.connect(func(on: bool) -> void: PlayerSingleton.set_ai_assist(on))
 		topbar_panel.add_child(_ai_assist_button)
+	if topbar_panel:
+		_sphere_button = Button.new()
+		_sphere_button.text = "Сферы"
+		_sphere_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_sphere_button.clip_text = true
+		_sphere_button.add_theme_font_size_override(&"font_size", 12)
+		_sphere_button.position = Vector2(1042.0, 22.0)
+		_sphere_button.size = Vector2(170.0, 48.0)
+		var sphere_plate := StyleBoxFlat.new()
+		sphere_plate.bg_color = Color(0.13, 0.1, 0.08, 0.85)
+		sphere_plate.border_color = Color(0.55, 0.45, 0.28)
+		sphere_plate.set_border_width_all(1)
+		sphere_plate.set_corner_radius_all(4)
+		sphere_plate.content_margin_left = 22.0
+		sphere_plate.content_margin_right = 4.0
+		var sphere_hover: StyleBoxFlat = sphere_plate.duplicate()
+		sphere_hover.bg_color = Color(0.22, 0.17, 0.12, 0.9)
+		for state: StringName in [&"normal", &"pressed", &"focus"]:
+			_sphere_button.add_theme_stylebox_override(state, sphere_plate)
+		_sphere_button.add_theme_stylebox_override(&"hover", sphere_hover)
+		_sphere_button.add_theme_color_override(&"font_color", Color(0.95, 0.9, 0.78))
+		_sphere_colour = ColorRect.new()
+		_sphere_colour.position = Vector2(6.0, 8.0)
+		_sphere_colour.size = Vector2(12.0, 32.0)
+		_sphere_colour.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_sphere_button.add_child(_sphere_colour)
+		_sphere_button.pressed.connect(_on_sphere_button_pressed)
+		topbar_panel.add_child(_sphere_button)
 
 	# Nation management screens
 	const screen_nodepaths: Dictionary = {
@@ -313,6 +346,8 @@ func _update_info() -> void:
 		_date_label.text = MenuSingleton.get_longform_date()
 	if _ai_assist_button:
 		_ai_assist_button.set_pressed_no_signal(PlayerSingleton.get_ai_assist())
+	if _sphere_button:
+		_update_sphere_plate()
 
 	## Production
 	for idx: int in _production_top_goods_icons.size():
@@ -612,3 +647,29 @@ func _group_thousands(value: int) -> String:
 		grouped = " " + text.substr(text.length() - 3) + grouped
 		text = text.substr(0, text.length() - 3)
 	return ("-" if value < 0 else "") + text + grouped
+
+
+func _on_sphere_button_pressed() -> void:
+	var window: Node = get_tree().get_first_node_in_group(&"sphere_window")
+	if window:
+		window.call(&"toggle")
+
+
+## The plate shows the sphere of the player (its colour, the kind and the leader, the members) or that it has none
+func _update_sphere_plate() -> void:
+	var info: Dictionary = PlayerSingleton.get_sphere_info()
+	var own: Dictionary = info.get(&"own", {})
+	if own.is_empty():
+		_sphere_colour.color = Color(0.4, 0.36, 0.3)
+		_sphere_button.text = "Сферы\nнет сферы"
+		_sphere_button.tooltip_text = "Сферы влияния: ваша страна не в сфере.%s\nВсего сфер в мире: %d. Нажмите, чтобы открыть окно сфер." % [
+			" Как великая держава вы можете основать свою." if info.get(&"great_power", false) else "", (info.get(&"spheres", []) as Array).size()]
+		return
+	_sphere_colour.color = own[&"colour"]
+	var kind: String = _SphereWindowScript.KIND_SHORT_NAMES[int(own[&"kind"])]
+	var members: int = (own[&"members"] as Array).size()
+	if info.get(&"is_leader", false):
+		_sphere_button.text = "Сферы\n%s · %d" % [kind, members]
+	else:
+		_sphere_button.text = "Сферы\n%s" % own[&"leader_name"]
+	_sphere_button.tooltip_text = "%s\nЧленов: %d. Нажмите, чтобы открыть окно сфер." % [_SphereWindowScript.sphere_name(own), members]

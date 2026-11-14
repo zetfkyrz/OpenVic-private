@@ -265,6 +265,15 @@ namespace OpenVic {
 		// The help of the AI for the player (version 91): the goods of the stockpile and the borders without troops in a war
 		bool get_ai_assist() const;
 		bool set_ai_assist(bool assist) const;
+		// The spheres of influence (version 92, docs/PLAN_SPHERES.md): { own (the sphere of the player, {} if none), is_leader, great_power,
+		// found_reasons [5 kinds: "" when the player may found it], spheres [every sphere], influence [the influence of the player on the
+		// countries, the most first], influence_on_me [the influence of the great powers on the player] }. A sphere: { id, kind, colour,
+		// leader_index, leader_tag, leader_name, founded, protected_until, members [{ index, tag, name, influence, relation, protected }] }
+		godot::Dictionary get_sphere_info() const;
+		bool found_sphere(int32_t kind) const;
+		bool invite_to_sphere(int32_t country_index) const;
+		bool leave_sphere() const;
+		bool set_sphere_colour(godot::Color colour) const;
 		bool start_army_research(int32_t technology_index) const;
 		bool cancel_army_research(int32_t technology_index) const;
 		// { ranks, depth, company_slots (what the country may use), row_weight_shift, max_ranks, max_depth, max_company_slots (the size of cells) }

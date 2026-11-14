@@ -1,0 +1,40 @@
+# The spheres at the start of the game, as in the history (OpenVic, docs/PLAN_SPHERES.md).
+# LEADER = { kind = customs_union | imperial | military | ideological  members = { TAG ... }  from = 1836.1.1  until = 1861.1.1 }
+# The sphere is set up when the game starts on a date in [from, until). A member that does not exist at that date is skipped.
+# For SPHERE_START_PROTECTION_YEARS (common/openvic_defines.lua, group ov_diplomacy) the AI members stay and the sphere lasts
+# even when its leader is no great power. A later file (a mod) with the same leader replaces the entry.
+
+# The Zollverein (1834): Bavaria, Wurttemberg, Saxony, both Hesses, the Thuringian states, Anhalt; Baden (1835), Nassau and Frankfurt (1836)
+PRU = {
+	kind = customs_union
+	members = { BAV WUR SAX HES HEK BAD NAS FRM WEI COB MEI ANH }
+	until = 1866.1.1
+}
+
+# The Habsburg secundogenitures and clients in Italy (to the war of 1859)
+AUS = {
+	kind = imperial
+	members = { MOD PAR TUS LUC }
+	until = 1859.1.1
+}
+
+# The autonomous lands of the Porte: the principality of Serbia, the beylik of Tunis (Tripoli when it exists)
+TUR = {
+	kind = imperial
+	members = { SER TUN TRI }
+	until = 1856.1.1
+}
+
+# The Danubian principalities under the Russian protectorate (Adrianople 1829) and the free city of Krakow
+RUS = {
+	kind = imperial
+	members = { WAL MOL KRA }
+	until = 1856.1.1
+}
+
+# Portugal (the old alliance), the protectorate of the Ionian Islands and Hanover (the personal union to 1837)
+ENG = {
+	kind = imperial
+	members = { POR ION HAN }
+	until = 1861.1.1
+}

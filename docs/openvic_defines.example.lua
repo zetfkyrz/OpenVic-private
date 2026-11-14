@@ -647,5 +647,19 @@ defines = {
 		AI_CONQUEST_MAX_POWER = 0.6, -- fraction 0 to 100
 		AI_CONQUEST_WORSEN_TO = -50, -- whole number -200 to 200
 		AI_CONTROL_TARGETS = 2, -- whole number 0 to 100
+		SPHERE_RELATION_HOSTILE_PCT = -100, -- whole number -100 to 1000
+		SPHERE_RELATION_NEGATIVE_PCT = -50, -- whole number -100 to 1000
+		SPHERE_RELATION_POSITIVE_PCT = 25, -- whole number -100 to 1000
+		SPHERE_RELATION_HIGH_PCT = 50, -- whole number -100 to 1000
+		SPHERE_NEIGHBOUR_PCT = 25, -- whole number -100 to 1000
+		SPHERE_INFLUENCE_SMOOTHING = 0.3333, -- fraction 0 to 1
+		SPHERE_JOIN_INFLUENCE = 100, -- whole number 0 to 100000
+		SPHERE_LEAVE_INFLUENCE = 50, -- whole number 0 to 100000
+		SPHERE_SWITCH_MARGIN = 50, -- whole number 0 to 100000
+		SPHERE_LEADER_RELATION = 25, -- whole number 0 to 200
+		SPHERE_RELATION_FLOOR = -175, -- whole number -200 to 200
+		SPHERE_GRACE_MONTHS = 12, -- whole number 0 to 1200
+		SPHERE_AI_INVITES_PER_MONTH = 1, -- whole number 0 to 100
+		SPHERE_START_PROTECTION_YEARS = 20, -- whole number 0 to 1000
 	},
 }

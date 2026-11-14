@@ -31,6 +31,17 @@ func _poll() -> void:
 			_show(text)
 
 
+func _sphere_kind(identifier: String) -> String:
+	var kinds: Dictionary = {
+		"customs_union": "таможенный союз",
+		"imperial": "имперская сфера",
+		"military": "военный союз",
+		"ideological": "идеологический союз",
+		"alliance": "альянс",
+	}
+	return kinds.get(identifier, identifier)
+
+
 func _make_text(entry: Dictionary) -> String:
 	var kind: String = entry[&"kind"]
 	var we_first: bool = entry[&"we_are_first"]
@@ -65,6 +76,19 @@ func _make_text(entry: Dictionary) -> String:
 			return "%s ставит цель: %s" % [entry[&"country"], goal_text]
 		"alliance_formed":
 			return "Союз: %s и %s" % [entry[&"country"], entry[&"other"]]
+		# The spheres of influence (version 92, docs/PLAN_SPHERES.md)
+		"sphere_founded":
+			return "%s основывает сферу: %s" % [entry[&"country"], _sphere_kind(entry[&"subject"])]
+		"sphere_dissolved":
+			return "Сфера %s распалась" % entry[&"country"]
+		"sphere_joined":
+			if we_first:
+				return "Мы вступили в сферу %s" % entry[&"other"]
+			return "%s вступает в нашу сферу" % entry[&"country"]
+		"sphere_left":
+			if we_first:
+				return "Мы вышли из сферы %s" % entry[&"other"]
+			return "%s выходит из нашей сферы" % entry[&"country"]
 		"ai_assist_goods":
 			return "Помощь ИИ: товара не хватает, закупка включена: %s" % entry[&"subject"]
 		"border_undefended":

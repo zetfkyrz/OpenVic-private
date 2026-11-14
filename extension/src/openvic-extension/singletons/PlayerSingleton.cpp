@@ -30,6 +30,7 @@
 #include <openvic-simulation/politics/PoliticsDynamics.hpp>
 #include <openvic-simulation/country/CountryParty.hpp>
 #include <openvic-simulation/country/Colonisation.hpp>
+#include <openvic-simulation/country/Sphere.hpp>
 #include <openvic-simulation/research/ArmyResearch.hpp>
 #include <openvic-simulation/research/ResearchManager.hpp>
 #include <openvic-simulation/research/Technology.hpp>
@@ -132,6 +133,11 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::set_admin_focus, { "province_number", "set" });
 	OV_BIND_METHOD(PlayerSingleton::get_ai_assist);
 	OV_BIND_METHOD(PlayerSingleton::set_ai_assist, { "assist" });
+	OV_BIND_METHOD(PlayerSingleton::get_sphere_info);
+	OV_BIND_METHOD(PlayerSingleton::found_sphere, { "kind" });
+	OV_BIND_METHOD(PlayerSingleton::invite_to_sphere, { "country_index" });
+	OV_BIND_METHOD(PlayerSingleton::leave_sphere);
+	OV_BIND_METHOD(PlayerSingleton::set_sphere_colour, { "colour" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_tariff_info);
@@ -3469,6 +3475,140 @@ bool PlayerSingleton::set_ai_assist(bool assist) const {
 	return instance_manager->queue_game_action<set_ai_assist_argument_t>(player_country->index, assist);
 }
 
+Dictionary PlayerSingleton::get_sphere_info() const {
+	Dictionary result;
+	GameSingleton::get_singleton()->wait_for_simulation();
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager const* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* const menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	SphereManager const& spheres = instance_manager->get_sphere_manager();
+	CountryRelationManager const& relations = instance_manager->get_country_relation_manager();
+	OpenVicDiplomacyDefines const& defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines().diplomacy;
+	const Date today = instance_manager->get_today();
+
+	const auto country_entry = [&](CountryInstance const& country, CountryInstance const* leader) -> Dictionary {
+		Dictionary entry;
+		entry["index"] = static_cast<int32_t>(type_safe::get(country.index));
+		entry["tag"] = convert_to<String>(country.get_identifier());
+		entry["name"] = Utilities::get_country_name(*menu_singleton, country);
+		if (leader != nullptr) {
+			entry["influence"] = static_cast<double>(spheres.get_influence(leader, &country).value);
+			entry["relation"] = static_cast<int32_t>(relations.get_effective_relation(leader, &country));
+		}
+		entry["protected"] = spheres.is_protected(&country, today);
+		return entry;
+	};
+	const auto sphere_entry = [&](Sphere const& sphere) -> Dictionary {
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(sphere.id);
+		entry["kind"] = static_cast<int32_t>(sphere.kind);
+		entry["colour"] = convert_to<Color>(sphere.colour);
+		entry["leader_index"] = static_cast<int32_t>(type_safe::get(sphere.leader->index));
+		entry["leader_tag"] = convert_to<String>(sphere.leader->get_identifier());
+		entry["leader_name"] = Utilities::get_country_name(*menu_singleton, *sphere.leader);
+		entry["founded"] = convert_to<String>(sphere.founded.to_string());
+		entry["protected_until"] = today < sphere.protected_until ? convert_to<String>(sphere.protected_until.to_string()) : String {};
+		Array members;
+		for (CountryInstance const* member : sphere.members) {
+			members.push_back(country_entry(*member, sphere.leader));
+		}
+		entry["members"] = members;
+		return entry;
+	};
+
+	Sphere const* const own = spheres.find_of(player_country);
+	result["own"] = own != nullptr ? sphere_entry(*own) : Dictionary {};
+	result["is_leader"] = own != nullptr && own->leader == player_country;
+	const std::size_t rank = player_country->get_total_rank();
+	result["great_power"] = rank > 0 && rank <= static_cast<std::size_t>(std::max(0, defines.great_power_rank));
+	Array reasons;
+	for (std::size_t kind = 0; kind < static_cast<std::size_t>(sphere_kind_t::COUNT); ++kind) {
+		reasons.push_back(convert_to<String>(spheres.found_block_reason(*instance_manager, *player_country, static_cast<sphere_kind_t>(kind))));
+	}
+	result["found_reasons"] = reasons;
+	Array all;
+	for (Sphere const& sphere : spheres.get_spheres()) {
+		all.push_back(sphere_entry(sphere));
+	}
+	result["spheres"] = all;
+
+	// the influence of the player on the countries, and of the great powers on the player
+	std::vector<std::pair<fixed_point_t, Dictionary>> influence;
+	Array influence_on_me;
+	CountryInstanceManager const& countries = instance_manager->get_country_instance_manager();
+	for (CountryInstance const& country : countries.get_country_instances()) {
+		if (&country == player_country || !country.exists() || country.get_owned_provinces().empty()) {
+			continue;
+		}
+		const SphereManager::influence_t mine = spheres.get_influence(player_country, &country);
+		if (mine.value > fixed_point_t::_0 || mine.trade > fixed_point_t::_0 || mine.investment > fixed_point_t::_0) {
+			Dictionary entry = country_entry(country, player_country);
+			entry["trade"] = static_cast<double>(mine.trade);
+			entry["investment"] = static_cast<double>(mine.investment);
+			entry["multiplier"] = static_cast<double>(mine.multiplier);
+			Sphere const* const theirs = spheres.find_of(&country);
+			entry["sphere_leader_tag"] = theirs != nullptr ? convert_to<String>(theirs->leader->get_identifier()) : String {};
+			entry["invite_reason"] = convert_to<String>(spheres.invite_block_reason(*instance_manager, *player_country, country));
+			entry["accepts"] = !country.is_ai() || spheres.accepts(*instance_manager, *player_country, country);
+			influence.emplace_back(mine.value, entry);
+		}
+		const SphereManager::influence_t on_me = spheres.get_influence(&country, player_country);
+		if (on_me.value > fixed_point_t::_0) {
+			Dictionary entry = country_entry(country, nullptr);
+			entry["influence"] = static_cast<double>(on_me.value);
+			entry["trade"] = static_cast<double>(on_me.trade);
+			entry["investment"] = static_cast<double>(on_me.investment);
+			entry["multiplier"] = static_cast<double>(on_me.multiplier);
+			influence_on_me.push_back(entry);
+		}
+	}
+	std::stable_sort(influence.begin(), influence.end(), [](auto const& a, auto const& b) { return a.first > b.first; });
+	Array influence_array;
+	for (std::size_t i = 0; i < influence.size() && i < 40; ++i) {
+		influence_array.push_back(influence[i].second);
+	}
+	result["influence"] = influence_array;
+	result["influence_on_me"] = influence_on_me;
+	return result;
+}
+
+bool PlayerSingleton::found_sphere(int32_t kind) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	ERR_FAIL_COND_V(kind < 0, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<found_sphere_argument_t>(player_country->index, static_cast<std::uint32_t>(kind));
+}
+
+bool PlayerSingleton::invite_to_sphere(int32_t country_index) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	ERR_FAIL_COND_V(country_index < 0, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(static_cast<std::size_t>(country_index) >= instance_manager->get_country_instance_manager().get_country_instances().size(), false);
+	return instance_manager->queue_game_action<invite_to_sphere_argument_t>(player_country->index, country_index_t(static_cast<uint32_t>(country_index)));
+}
+
+bool PlayerSingleton::leave_sphere() const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<leave_sphere_argument_t>(player_country->index);
+}
+
+bool PlayerSingleton::set_sphere_colour(Color colour) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	Sphere const* const sphere = instance_manager->get_sphere_manager().find_led_by(player_country);
+	ERR_FAIL_NULL_V(sphere, false);
+	const std::uint32_t rgb = (static_cast<std::uint32_t>(colour.get_r8()) << 16) | (static_cast<std::uint32_t>(colour.get_g8()) << 8)
+		| static_cast<std::uint32_t>(colour.get_b8());
+	return instance_manager->queue_game_action<set_sphere_look_argument_t>(player_country->index, rgb, sphere->icon);
+}
+
 bool PlayerSingleton::set_admin_focus(int32_t province_number, bool set) const {
 	ERR_FAIL_NULL_V(player_country, false);
 	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
@@ -4766,9 +4906,9 @@ Array PlayerSingleton::get_notifications(int64_t after_id) const {
 			continue;
 		}
 		// Only what concerns the player: his own events and the wars and peace he is a part of; and the news of the world (version 91: the
-		// goals of the great powers and their alliances)
+		// goals of the great powers and their alliances; version 92: the spheres founded and ended)
 		const bool mine = entry.country == player_country || entry.other_country == player_country
-			|| entry.kind == "ai_goal" || entry.kind == "alliance_formed";
+			|| entry.kind == "ai_goal" || entry.kind == "alliance_formed" || entry.kind == "sphere_founded" || entry.kind == "sphere_dissolved";
 		if (!mine) {
 			continue;
 		}
