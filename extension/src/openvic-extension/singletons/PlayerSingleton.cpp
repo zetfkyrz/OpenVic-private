@@ -31,6 +31,7 @@
 #include <openvic-simulation/country/CountryParty.hpp>
 #include <openvic-simulation/country/Colonisation.hpp>
 #include <openvic-simulation/country/Sphere.hpp>
+#include <openvic-simulation/economy/trading/TradeNetwork.hpp>
 #include <openvic-simulation/research/ArmyResearch.hpp>
 #include <openvic-simulation/research/ResearchManager.hpp>
 #include <openvic-simulation/research/Technology.hpp>
@@ -138,6 +139,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::invite_to_sphere, { "country_index" });
 	OV_BIND_METHOD(PlayerSingleton::leave_sphere);
 	OV_BIND_METHOD(PlayerSingleton::set_sphere_colour, { "colour" });
+	OV_BIND_METHOD(PlayerSingleton::set_sphere_kind, { "kind" });
 
 	OV_BIND_METHOD(PlayerSingleton::get_map_units);
 	OV_BIND_METHOD(PlayerSingleton::get_tariff_info);
@@ -3510,6 +3512,9 @@ Dictionary PlayerSingleton::get_sphere_info() const {
 		entry["leader_name"] = Utilities::get_country_name(*menu_singleton, *sphere.leader);
 		entry["founded"] = convert_to<String>(sphere.founded.to_string());
 		entry["protected_until"] = today < sphere.protected_until ? convert_to<String>(sphere.protected_until.to_string()) : String {};
+		// version 93: the tribute of the imperial sphere of yesterday, the date the kind may change again
+		entry["tribute"] = static_cast<double>(sphere.tribute_yesterday);
+		entry["kind_change_date"] = convert_to<String>(spheres.get_kind_change_date(*instance_manager, sphere).to_string());
 		Array members;
 		for (CountryInstance const* member : sphere.members) {
 			members.push_back(country_entry(*member, sphere.leader));
@@ -3528,6 +3533,17 @@ Dictionary PlayerSingleton::get_sphere_info() const {
 		reasons.push_back(convert_to<String>(spheres.found_block_reason(*instance_manager, *player_country, static_cast<sphere_kind_t>(kind))));
 	}
 	result["found_reasons"] = reasons;
+	// the leader changes the kind: "" when it may change it to this one (version 93)
+	Array kind_reasons;
+	for (std::size_t kind = 0; kind < static_cast<std::size_t>(sphere_kind_t::COUNT); ++kind) {
+		kind_reasons.push_back(convert_to<String>(spheres.change_kind_block_reason(*instance_manager, *player_country, static_cast<sphere_kind_t>(kind))));
+	}
+	result["kind_reasons"] = kind_reasons;
+	// the country is in the single market of its customs union (the land neighbours of the leader, the trade inside goes first)
+	TradeNetwork const& trade = instance_manager->get_trade_network();
+	CountryInstance const* const own_leader = player_country->get_sphere_leader();
+	result["single_market"] = own_leader != nullptr && player_country->get_sphere_kind() == sphere_kind_t::CUSTOMS_UNION
+		&& (own_leader == player_country || trade.same_single_market(type_safe::get(player_country->index), type_safe::get(own_leader->index)));
 	Array all;
 	for (Sphere const& sphere : spheres.get_spheres()) {
 		all.push_back(sphere_entry(sphere));
@@ -3607,6 +3623,14 @@ bool PlayerSingleton::set_sphere_colour(Color colour) const {
 	const std::uint32_t rgb = (static_cast<std::uint32_t>(colour.get_r8()) << 16) | (static_cast<std::uint32_t>(colour.get_g8()) << 8)
 		| static_cast<std::uint32_t>(colour.get_b8());
 	return instance_manager->queue_game_action<set_sphere_look_argument_t>(player_country->index, rgb, sphere->icon);
+}
+
+bool PlayerSingleton::set_sphere_kind(int32_t kind) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	ERR_FAIL_COND_V(kind < 0, false);
+	InstanceManager* const instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<set_sphere_kind_argument_t>(player_country->index, static_cast<std::uint32_t>(kind));
 }
 
 bool PlayerSingleton::set_admin_focus(int32_t province_number, bool set) const {
@@ -4908,7 +4932,8 @@ Array PlayerSingleton::get_notifications(int64_t after_id) const {
 		// Only what concerns the player: his own events and the wars and peace he is a part of; and the news of the world (version 91: the
 		// goals of the great powers and their alliances; version 92: the spheres founded and ended)
 		const bool mine = entry.country == player_country || entry.other_country == player_country
-			|| entry.kind == "ai_goal" || entry.kind == "alliance_formed" || entry.kind == "sphere_founded" || entry.kind == "sphere_dissolved";
+			|| entry.kind == "ai_goal" || entry.kind == "alliance_formed" || entry.kind == "sphere_founded" || entry.kind == "sphere_dissolved"
+			|| entry.kind == "sphere_kind_changed";
 		if (!mine) {
 			continue;
 		}

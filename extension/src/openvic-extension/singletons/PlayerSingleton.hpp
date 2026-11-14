@@ -274,6 +274,8 @@ namespace OpenVic {
 		bool invite_to_sphere(int32_t country_index) const;
 		bool leave_sphere() const;
 		bool set_sphere_colour(godot::Color colour) const;
+		// The leader changes the kind of its sphere (version 93; get_sphere_info: kind_reasons, kind_change_date)
+		bool set_sphere_kind(int32_t kind) const;
 		bool start_army_research(int32_t technology_index) const;
 		bool cancel_army_research(int32_t technology_index) const;
 		// { ranks, depth, company_slots (what the country may use), row_weight_shift, max_ranks, max_depth, max_company_slots (the size of cells) }

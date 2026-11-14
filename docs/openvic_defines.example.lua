@@ -661,5 +661,12 @@ defines = {
 		SPHERE_GRACE_MONTHS = 12, -- whole number 0 to 1200
 		SPHERE_AI_INVITES_PER_MONTH = 1, -- whole number 0 to 100
 		SPHERE_START_PROTECTION_YEARS = 20, -- whole number 0 to 1000
+		SPHERE_CUSTOMS_MIGRATION_PCT = 50, -- whole number 0 to 1000
+		SPHERE_MEMBER_RELATION = 25, -- whole number 0 to 200
+		SPHERE_IMPERIAL_TRIBUTE = 0.05, -- fraction 0 to 1
+		SPHERE_IMPERIAL_HELP_RELATION = 50, -- whole number -200 to 200
+		SPHERE_MILITARY_REFUSAL_PRESTIGE = 0.05, -- fraction 0 to 1
+		SPHERE_IDEOLOGICAL_LAW_CHANCE = 0.1, -- fraction 0 to 1
+		SPHERE_KIND_CHANGE_MONTHS = 12, -- whole number 0 to 1200
 	},
 }

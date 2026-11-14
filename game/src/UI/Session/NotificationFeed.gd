@@ -89,6 +89,13 @@ func _make_text(entry: Dictionary) -> String:
 			if we_first:
 				return "Мы вышли из сферы %s" % entry[&"other"]
 			return "%s выходит из нашей сферы" % entry[&"country"]
+		# version 93: the change of the kind, a member that refused the war of its military union
+		"sphere_kind_changed":
+			return "%s меняет вид своей сферы: %s" % [entry[&"country"], _sphere_kind(entry[&"subject"])]
+		"sphere_war_refused":
+			if we_first:
+				return "Мы отказались вступить в войну военного союза %s: −5 %% престижа" % entry[&"other"]
+			return "%s отказывается вступить в нашу войну (военный союз): −5 %% престижа" % entry[&"country"]
 		"ai_assist_goods":
 			return "Помощь ИИ: товара не хватает, закупка включена: %s" % entry[&"subject"]
 		"border_undefended":

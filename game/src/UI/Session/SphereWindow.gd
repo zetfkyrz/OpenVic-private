@@ -2,15 +2,16 @@ extends "res://src/UI/Session/Vic2Window.gd"
 ## The spheres of influence (version 92, docs/PLAN_SPHERES.md): the sphere of the player (a banner in its colour, the kind, the members),
 ## founding a sphere (a great power), the influence of the player on the countries and the invitation, leaving, the colour of the sphere,
 ## the influence of the great powers on the player and all the spheres of the world. Opened by the plate "Сферы" of the top bar.
-## A double click on a country opens the diplomacy with it, as a click on a flag does everywhere.
+## A double click on a country opens the diplomacy with it, as a click on a flag does everywhere. Version 93: the effects of the kinds, the
+## leader changes the kind (once in SPHERE_KIND_CHANGE_MONTHS), the tribute of the imperial sphere, the single market of the customs union.
 
 const _SIZE: Vector2 = Vector2(820, 660)
 
 const KIND_NAMES: PackedStringArray = ["Таможенный союз", "Имперская сфера", "Военный союз", "Идеологический союз", "Альянс"]
 const KIND_DESCRIPTIONS: PackedStringArray = [
-	"нет пошлин между членами, торговля и закупка внутри союза первыми, миграция между членами +50 %",
-	"члены помогают лидеру, +25 к отношениям между членами, лидеру 5 % дохода членов, бесплатная дипломатия",
-	"войны между членами запрещены, лидер зовёт членов в свои войны, земля членов — как своя для армий",
+	"нет пошлин между членами; страны единого рынка (связанные с лидером сухопутной границей) торгуют между собой в первую очередь; эмигранты едут к членам на 50 % охотнее",
+	"члены-ИИ вступают в войны лидера (при отношениях с ним от 50), +25 к отношениям между членами, лидеру каждый день 5 % дохода казны членов, процессы отношений между членами бесплатны",
+	"войны между членами запрещены; лидер втягивает членов в свои войны, отказ — −5 % престижа; земля членов для армий — как своя (снабжение, пополнение, бонус родной земли)",
 	"шанс принятия законов +10 %, +25 к отношениям между членами",
 	"без ограничений на число великих держав, бесплатная дипломатия, +5 % к исследованиям (нужна технология «Многосторонние союзы»)",
 ]
@@ -28,6 +29,9 @@ const _REASONS: Dictionary = {
 	"only one great power in a sphere (the Alliance allows more)": "в сфере только одна великая держава (в Альянсе можно больше)",
 	"the country already is a member": "уже член вашей сферы",
 	"at war": "вы в войне с этой страной",
+	"the sphere already is of this kind": "сфера уже этого вида",
+	"the kind was changed not long ago": "вид меняли недавно",
+	"members are at war with each other": "члены сферы воюют друг с другом",
 }
 
 var _info: Dictionary = {}
@@ -44,6 +48,10 @@ var _found_reason: Label
 var _members_caption: Label
 var _members_tree: Tree
 var _leader_row: HBoxContainer
+var _kind_row: HBoxContainer
+var _kind_option: OptionButton
+var _kind_button: Button
+var _kind_reason: Label
 var _colour_button: ColorPickerButton
 var _leave_button: Button
 var _influence_caption: Label
@@ -119,6 +127,22 @@ func _ready() -> void:
 	_colour_button.edit_alpha = false
 	_colour_button.popup_closed.connect(func() -> void: PlayerSingleton.set_sphere_colour(_colour_button.color))
 	_leader_row.add_child(_colour_button)
+	# the leader changes the kind (version 93)
+	_kind_row = HBoxContainer.new()
+	root.add_child(_kind_row)
+	_kind_option = OptionButton.new()
+	for kind: int in _KIND_FOR_FOUNDING:
+		_kind_option.add_item(KIND_NAMES[kind], kind)
+	_kind_option.item_selected.connect(func(_index: int) -> void: _update_kind_change())
+	_kind_row.add_child(_kind_option)
+	_kind_button = Button.new()
+	_kind_button.text = "Сменить вид"
+	_kind_button.pressed.connect(func() -> void: PlayerSingleton.set_sphere_kind(_kind_option.get_selected_id()))
+	_kind_row.add_child(_kind_button)
+	_kind_reason = Label.new()
+	_kind_reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_kind_reason.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_kind_row.add_child(_kind_reason)
 	_leave_button = Button.new()
 	_leave_button.text = "Выйти из сферы"
 	_leave_button.pressed.connect(func() -> void: PlayerSingleton.leave_sphere())
@@ -213,7 +237,13 @@ func _refresh_inner() -> void:
 		var lines: PackedStringArray = [KIND_DESCRIPTIONS[int(own[&"kind"])] + ".", "Основана %s." % own[&"founded"]]
 		if String(own[&"protected_until"]) != "":
 			lines.append("Историческая сфера: держится до %s, даже если лидер не великая держава." % own[&"protected_until"])
-		lines.append("Действия видов сферы и принципы появятся в следующих этапах; сейчас сфера даёт лидеру +25 к отношениям с каждым членом (не ниже −175).")
+		lines.append("Любая сфера: лидеру +25 к отношениям с каждым членом (не ниже −175), ИИ почти не воюет внутри сферы.")
+		var kind: int = int(own[&"kind"])
+		if kind == 0:
+			lines.append("Ваша страна в едином рынке союза." if _info.get(&"single_market", false)
+				else "Ваша страна вне единого рынка (нет сухопутной связи с лидером): торговля без пошлин, но без первой очереди.")
+		elif kind == 1 and is_leader:
+			lines.append("Дань членов вчера: %.2f £." % float(own.get(&"tribute", 0.0)))
 		_banner_text.text = "\n".join(lines)
 	else:
 		_banner_style.bg_color = Color(0.3, 0.26, 0.2)
@@ -242,8 +272,16 @@ func _refresh_inner() -> void:
 			item.set_text(2, "%.0f" % float(member[&"influence"]))
 			item.set_text(3, "да" if member[&"protected"] else "")
 	_leader_row.visible = is_leader
+	_kind_row.visible = is_leader
 	if is_leader:
 		_colour_button.color = own[&"colour"]
+		# the list offers another kind than the current one
+		if _kind_option.get_selected_id() == int(own[&"kind"]):
+			for index: int in _kind_option.item_count:
+				if _kind_option.get_item_id(index) != int(own[&"kind"]):
+					_kind_option.select(index)
+					break
+		_update_kind_change()
 	_leave_button.visible = in_sphere and not is_leader
 
 	# the influence: of the player on the countries (a great power), else of the great powers on the player
@@ -299,6 +337,21 @@ func _update_found() -> void:
 	var reason: String = reasons[kind] if kind >= 0 and kind < reasons.size() else ""
 	_found_button.disabled = reason != ""
 	_found_reason.text = KIND_DESCRIPTIONS[kind] if reason == "" else _reason(reason)
+
+
+func _update_kind_change() -> void:
+	if _info.is_empty() or not _info.get(&"is_leader", false):
+		return
+	var kind: int = _kind_option.get_selected_id()
+	var reasons: Array = _info.get(&"kind_reasons", [])
+	var reason: String = reasons[kind] if kind >= 0 and kind < reasons.size() else ""
+	_kind_button.disabled = reason != ""
+	if reason == "":
+		_kind_reason.text = KIND_DESCRIPTIONS[kind]
+	elif reason == "the kind was changed not long ago":
+		_kind_reason.text = "Вид меняли недавно, снова можно с %s." % (_info[&"own"] as Dictionary).get(&"kind_change_date", "")
+	else:
+		_kind_reason.text = _reason(reason)
 
 
 func _find_influence(index: int) -> Dictionary:
