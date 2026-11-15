@@ -18,6 +18,14 @@ var _concede_check: CheckBox
 var _states_tree: Tree
 var _reparations_check: CheckBox
 var _humiliate_check: CheckBox
+# version 100 (stage D5): the terms of Vic2 that were missing, the goals added in the war
+var _disarm_check: CheckBox
+var _forts_check: CheckBox
+var _naval_check: CheckBox
+var _cores_check: CheckBox
+var _goals_label: Label
+var _goal_reparations_button: Button
+var _goal_humiliate_button: Button
 var _cost_label: Label
 var _forecast_label: Label
 var _send_button: Button
@@ -53,7 +61,7 @@ func _ready() -> void:
 	_states_tree.column_titles_visible = true
 	_states_tree.hide_root = true
 	_states_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_states_tree.custom_minimum_size = Vector2(0, 170)
+	_states_tree.custom_minimum_size = Vector2(0, 90)
 	var titles: PackedStringArray = ["Область", "Владелец", "Очки", "Цель войны"]
 	for column: int in titles.size():
 		_states_tree.set_column_title(column, titles[column])
@@ -71,6 +79,40 @@ func _ready() -> void:
 	_humiliate_check = CheckBox.new()
 	_humiliate_check.toggled.connect(_on_humiliate_toggled)
 	extras.add_child(_humiliate_check)
+	var extras2 := HBoxContainer.new()
+	extras2.add_theme_constant_override(&"separation", 14)
+	root.add_child(extras2)
+	_disarm_check = CheckBox.new()
+	_disarm_check.toggled.connect(_on_extra_toggled.bind(5))
+	extras2.add_child(_disarm_check)
+	_forts_check = CheckBox.new()
+	_forts_check.toggled.connect(_on_extra_toggled.bind(6))
+	extras2.add_child(_forts_check)
+	# (two rows: one row was wider than the window)
+	var extras3 := HBoxContainer.new()
+	extras3.add_theme_constant_override(&"separation", 14)
+	root.add_child(extras3)
+	_naval_check = CheckBox.new()
+	_naval_check.toggled.connect(_on_extra_toggled.bind(7))
+	extras3.add_child(_naval_check)
+	_cores_check = CheckBox.new()
+	_cores_check.toggled.connect(_on_extra_toggled.bind(8))
+	extras3.add_child(_cores_check)
+	_goals_label = Label.new()
+	_goals_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	root.add_child(_goals_label)
+	var goals_row := HBoxContainer.new()
+	goals_row.add_theme_constant_override(&"separation", 10)
+	root.add_child(goals_row)
+	_goal_reparations_button = Button.new()
+	_goal_reparations_button.text = "Цель: репарации"
+	_goal_reparations_button.pressed.connect(_on_add_goal.bind(3, 0))
+	goals_row.add_child(_goal_reparations_button)
+	_goal_humiliate_button = Button.new()
+	_goal_humiliate_button.text = "Цель: унижение"
+	_goal_humiliate_button.pressed.connect(_on_add_goal.bind(2, 0))
+	goals_row.add_child(_goal_humiliate_button)
+	_states_tree.cell_selected.connect(_on_state_cell_selected)
 
 	_cost_label = Label.new()
 	_cost_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -115,7 +157,7 @@ func _ready() -> void:
 	_offers_tree.column_titles_visible = true
 	_offers_tree.hide_root = true
 	_offers_tree.select_mode = Tree.SELECT_ROW
-	_offers_tree.custom_minimum_size = Vector2(0, 90)
+	_offers_tree.custom_minimum_size = Vector2(0, 70)
 	_offers_tree.set_column_title(0, "От кого / условия")
 	_offers_tree.set_column_title(1, "Осталось дней")
 	_offers_tree.set_column_expand(0, true)
@@ -205,7 +247,21 @@ func _refresh_inner() -> void:
 	]
 
 	_concede_check.button_pressed = _info[&"concede"]
-	_reparations_check.text = "Репарации: четверть казны (%d очков)" % _info[&"reparations_cost"]
+	_reparations_check.text = "Репарации: %d %% дохода %d лет (%d очков)" % [_info.get(&"reparations_pct", 25), _info.get(&"reparations_years", 5), _info[&"reparations_cost"]]
+	_disarm_check.text = "Разоружение на %d лет (%d)" % [_info.get(&"disarm_years", 5), _info.get(&"disarm_cost", 0)]
+	_forts_check.text = "Снести крепости (%d)" % _info.get(&"destroy_forts_cost", 0)
+	_naval_check.text = "Снести морские базы (%d)" % _info.get(&"destroy_naval_bases_cost", 0)
+	_cores_check.text = "Снять их притязания (%d)" % _info.get(&"remove_cores_cost", 0)
+	_disarm_check.button_pressed = _info.get(&"disarm", false)
+	_forts_check.button_pressed = _info.get(&"destroy_forts", false)
+	_naval_check.button_pressed = _info.get(&"destroy_naval_bases", false)
+	_cores_check.button_pressed = _info.get(&"remove_cores", false)
+	var added: PackedStringArray = _info.get(&"added_goals", PackedStringArray())
+	_goals_label.text = ("Добавленные цели: " + ", ".join(added)) if not added.is_empty() else "Добавленных целей нет. Цель стоит 1 очко дипломатии%s; цель вдвое дешевле в мире." % ("" if _info.get(&"has_casus_belli", false) else " и +1 дурной славы (нет повода)")
+	_goal_reparations_button.disabled = String(_info.get(&"goal_reparations_reason", "")) != ""
+	_goal_reparations_button.tooltip_text = String(_info.get(&"goal_reparations_reason", ""))
+	_goal_humiliate_button.disabled = String(_info.get(&"goal_humiliate_reason", "")) != ""
+	_goal_humiliate_button.tooltip_text = String(_info.get(&"goal_humiliate_reason", ""))
 	_humiliate_check.text = "Унижение: престиж (%d очков)" % _info[&"humiliate_cost"]
 	_reparations_check.button_pressed = _info[&"reparations"]
 	_humiliate_check.button_pressed = _info[&"humiliate"]
@@ -247,7 +303,10 @@ func _update_states() -> void:
 		item.set_checked(0, state[&"selected"])
 		item.set_text(1, state[&"owner_name"])
 		item.set_text(2, "%.1f" % state[&"cost"])
-		item.set_text(3, "да" if state[&"is_goal"] else "")
+		# (a click on the column makes the state a goal of the war, version 100)
+		var goal_reason: String = state.get(&"goal_reason", "—")
+		item.set_text(3, "да" if state[&"is_goal"] else ("сделать целью" if goal_reason == "" else ""))
+		item.set_tooltip_text(3, goal_reason)
 		item.set_metadata(0, state[&"province_number"])
 
 
@@ -265,6 +324,14 @@ func _update_offers() -> void:
 			terms.append("репарации")
 		if offer[&"humiliate"]:
 			terms.append("унижение")
+		if offer.get(&"disarm", false):
+			terms.append("разоружение")
+		if offer.get(&"destroy_forts", false):
+			terms.append("снос крепостей")
+		if offer.get(&"destroy_naval_bases", false):
+			terms.append("снос морских баз")
+		if offer.get(&"remove_cores", false):
+			terms.append("снятие притязаний")
 		var what: String
 		if offer[&"concede"]:
 			what = "уступает: " + (", ".join(terms) if not terms.is_empty() else "белый мир")
@@ -291,6 +358,22 @@ func _on_concede_toggled(pressed: bool) -> void:
 func _on_reparations_toggled(pressed: bool) -> void:
 	if not _updating:
 		PlayerSingleton.set_peace_demand(_war_id, 1, 0, pressed)
+
+
+func _on_extra_toggled(pressed: bool, kind: int) -> void:
+	if not _updating:
+		PlayerSingleton.set_peace_demand(_war_id, kind, 0, pressed)
+
+
+func _on_add_goal(goal_type: int, province_number: int) -> void:
+	PlayerSingleton.add_war_goal(_war_id, goal_type, province_number)
+
+
+func _on_state_cell_selected() -> void:
+	var item: TreeItem = _states_tree.get_selected()
+	if item == null or _states_tree.get_selected_column() != 3 or item.get_text(3) != "сделать целью":
+		return
+	_on_add_goal(1, int(item.get_metadata(0)))
 
 
 func _on_humiliate_toggled(pressed: bool) -> void:

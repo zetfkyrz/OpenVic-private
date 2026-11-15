@@ -114,6 +114,13 @@ func _make_text(entry: Dictionary) -> String:
 			if we_first:
 				return "%s отказывает: %s" % [entry[&"other"], _diplomatic_action(entry[&"subject"])]
 			return ""
+		# version 100 (stage D5): the preparation of a war found out, a goal added to a war
+		"casus_belli_detected":
+			return "%s готовит войну против нас: обоснование раскрыто, отношения хуже" % entry[&"other"]
+		"our_casus_belli_detected":
+			return "Наше обоснование войны против %s раскрыто: отношения хуже" % entry[&"other"]
+		"war_goal_added":
+			return "%s добавляет цель в войну против нас" % entry[&"other"]
 		"war_subsidies_ended":
 			if we_first:
 				return "Субсидии %s прекращены: война окончена" % entry[&"other"]

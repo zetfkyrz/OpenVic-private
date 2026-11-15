@@ -160,6 +160,8 @@ namespace OpenVic {
 		bool send_diplomatic_action(int32_t receiver_country_index, int32_t action_index) const;
 		// The proposals that wait for the answer of the player (version 96): { id, action, sender_index, sender_tag, sender_name, days_left }
 		godot::Array get_diplomatic_proposals() const;
+		// Queues a goal added to a war of the player (version 100): type 1 a state (any province of it), 2 humiliation, 3 reparations
+		bool add_war_goal(int32_t war_id, int32_t goal_type, int32_t province_number) const;
 		// Queues the war subsidies of a size (50, 75, 100, 125 or 150 % of the subsidy of Vic2) to the country (version 99)
 		bool send_war_subsidies(int32_t receiver_country_index, int32_t level) const;
 		// Queues the answer of the player to a proposal

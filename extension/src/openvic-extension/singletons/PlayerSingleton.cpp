@@ -300,6 +300,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::send_diplomatic_action, { "receiver_country_index", "action_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_proposals);
 	OV_BIND_METHOD(PlayerSingleton::send_war_subsidies, { "receiver_country_index", "level" });
+	OV_BIND_METHOD(PlayerSingleton::add_war_goal, { "war_id", "goal_type", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::answer_diplomatic_proposal, { "proposal_id", "accept" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_costs);
 
@@ -830,6 +831,21 @@ Array PlayerSingleton::get_diplomatic_proposals() const {
 		result.push_back(entry);
 	}
 	return result;
+}
+
+bool PlayerSingleton::add_war_goal(const int32_t war_id, const int32_t goal_type, const int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	province_index_t province_index { 0 };
+	if (goal_type == 1) {
+		ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+		ERR_FAIL_NULL_V(province, false);
+		province_index = province->index;
+	}
+	return instance_manager->queue_game_action<add_war_goal_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(war_id), static_cast<std::uint32_t>(goal_type), province_index
+	);
 }
 
 bool PlayerSingleton::send_war_subsidies(const int32_t receiver_country_index, const int32_t level) const {
@@ -4708,6 +4724,10 @@ namespace {
 		entry["states"] = states;
 		entry["reparations"] = offer.terms.reparations;
 		entry["humiliate"] = offer.terms.humiliate;
+		entry["disarm"] = offer.terms.disarm;
+		entry["destroy_forts"] = offer.terms.destroy_forts;
+		entry["destroy_naval_bases"] = offer.terms.destroy_naval_bases;
+		entry["remove_cores"] = offer.terms.remove_cores;
 		entry["cost"] = static_cast<float>(war_manager.get_terms_cost(war, *offer.from, offer.terms));
 		entry["days_left"] = war_manager.get_peace_defines().offer_valid_days - static_cast<int32_t>((today - offer.date).to_int());
 		return entry;
@@ -4762,6 +4782,45 @@ Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
 	result["humiliate"] = draft.humiliate;
 	result["reparations_cost"] = war_manager.get_peace_defines().reparations_cost;
 	result["humiliate_cost"] = war_manager.get_peace_defines().humiliate_cost;
+	// version 100 (stage D5): the terms of Vic2 that were missing, the goals added in the war
+	result["disarm"] = draft.disarm;
+	result["destroy_forts"] = draft.destroy_forts;
+	result["destroy_naval_bases"] = draft.destroy_naval_bases;
+	result["remove_cores"] = draft.remove_cores;
+	result["disarm_cost"] = war_manager.get_peace_defines().disarm_cost;
+	result["destroy_forts_cost"] = war_manager.get_peace_defines().destroy_forts_cost;
+	result["destroy_naval_bases_cost"] = war_manager.get_peace_defines().destroy_naval_bases_cost;
+	result["remove_cores_cost"] = war_manager.get_peace_defines().remove_cores_cost;
+	result["disarm_years"] = war_manager.get_peace_defines().disarm_years;
+	result["reparations_years"] = war_manager.get_peace_defines().reparations_years;
+	result["reparations_pct"] = static_cast<int32_t>((instance_manager->definition_manager.get_define_manager().get_diplomacy_defines().get_reparations_tax_hit() * 100).round<std::int32_t>());
+	{
+		PackedStringArray goals;
+		for (WarGoalEntry const& entry : war->extra_goals) {
+			String text = entry.attackers == we_attack ? String::utf8("наша: ") : String::utf8("врага: ");
+			switch (entry.goal.type) {
+			case WarGoal::type_t::CONQUER_STATE:
+				text += entry.goal.state_province != nullptr ? state_name(*menu_singleton, *entry.goal.state_province) : String::utf8("область");
+				break;
+			case WarGoal::type_t::HUMILIATE:
+				text += String::utf8("унижение");
+				break;
+			case WarGoal::type_t::REPARATIONS:
+				text += String::utf8("репарации");
+				break;
+			default:
+				break;
+			}
+			goals.push_back(text);
+		}
+		result["added_goals"] = goals;
+		WarGoal reparations_goal { WarGoal::type_t::REPARATIONS, nullptr };
+		WarGoal humiliate_goal { WarGoal::type_t::HUMILIATE, nullptr };
+		result["goal_reparations_reason"] = String::utf8(war_manager.get_add_war_goal_block_reason(*instance_manager, *war, *player_country, reparations_goal).c_str());
+		result["goal_humiliate_reason"] = String::utf8(war_manager.get_add_war_goal_block_reason(*instance_manager, *war, *player_country, humiliate_goal).c_str());
+		result["has_casus_belli"] = !war->get_side(!we_attack).empty()
+			&& player_country->has_casus_belli_against(*war->get_side(!we_attack).front(), today);
+	}
 
 	const bool winners_are_attackers = draft.concede ? !we_attack : we_attack;
 	Array states;
@@ -4777,9 +4836,10 @@ Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
 				|| (chosen->get_state() != nullptr && chosen->get_state() == candidate->get_state());
 		}
 		entry["selected"] = selected;
-		entry["is_goal"] = war->goal.type == WarGoal::type_t::CONQUER_STATE && war->goal.state_province != nullptr
-			&& (war->goal.state_province == candidate
-				|| (war->goal.state_province->get_state() != nullptr && war->goal.state_province->get_state() == candidate->get_state()));
+		entry["is_goal"] = WarManager::is_war_goal(*war, winners_are_attackers, WarGoal::type_t::CONQUER_STATE, candidate);
+		entry["goal_reason"] = draft.concede ? String::utf8("—") : String::utf8(war_manager.get_add_war_goal_block_reason(
+			*instance_manager, *war, *player_country, WarGoal { WarGoal::type_t::CONQUER_STATE, candidate }
+		).c_str());
 		states.push_back(entry);
 	}
 	result["states"] = states;
