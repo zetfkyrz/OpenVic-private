@@ -1975,6 +1975,10 @@ namespace {
 	}
 }
 
+// A key of the dictionaries of the map units made once (a key written as text made a new string for every key of every army every
+// day: most of the time of get_map_units)
+#define OV_MAP_UNIT_KEY(name) ([]() -> StringName const& { static const StringName key { name }; return key; }())
+
 Array PlayerSingleton::get_map_units() const {
 	Array result;
 
@@ -2102,23 +2106,23 @@ Array PlayerSingleton::get_map_units() const {
 
 		for (CountryGroup const& group : groups) {
 			Dictionary entry;
-			entry["province_number"] = static_cast<int32_t>(province.province_definition.get_province_number());
-			entry["position"] = group.has_position
+			entry[OV_MAP_UNIT_KEY("province_number")] = static_cast<int32_t>(province.province_definition.get_province_number());
+			entry[OV_MAP_UNIT_KEY("position")] = group.has_position
 			    ? group.position
 			    : game_singleton->normalise_map_position(province.province_definition.get_unit_position());
-			entry["paths"] = group.paths;
-			entry["country_identifier"] = convert_to<String>(group.country->get_identifier());
-			entry["country_index"] = static_cast<int32_t>(type_safe::get(group.country->index));
-			entry["is_player"] = group.country == player_country;
-			entry["army_count"] = group.army_count;
-			entry["regiments"] = group.regiments;
-			entry["mobilised_regiments"] = group.mobilised_regiments;
-			entry["strength"] = group.max_strength > 0 ? static_cast<float>(group.strength / group.max_strength) : 0.0f;
-			entry["organisation"] =
+			entry[OV_MAP_UNIT_KEY("paths")] = group.paths;
+			entry[OV_MAP_UNIT_KEY("country_identifier")] = convert_to<String>(group.country->get_identifier());
+			entry[OV_MAP_UNIT_KEY("country_index")] = static_cast<int32_t>(type_safe::get(group.country->index));
+			entry[OV_MAP_UNIT_KEY("is_player")] = group.country == player_country;
+			entry[OV_MAP_UNIT_KEY("army_count")] = group.army_count;
+			entry[OV_MAP_UNIT_KEY("regiments")] = group.regiments;
+			entry[OV_MAP_UNIT_KEY("mobilised_regiments")] = group.mobilised_regiments;
+			entry[OV_MAP_UNIT_KEY("strength")] = group.max_strength > 0 ? static_cast<float>(group.strength / group.max_strength) : 0.0f;
+			entry[OV_MAP_UNIT_KEY("organisation")] =
 			    group.max_organisation > 0 ? static_cast<float>(group.organisation / group.max_organisation) : 0.0f;
-			entry["in_combat"] = group.in_combat;
-			entry["moving"] = group.moving;
-			entry["attrition"] = group.attrition;
+			entry[OV_MAP_UNIT_KEY("in_combat")] = group.in_combat;
+			entry[OV_MAP_UNIT_KEY("moving")] = group.moving;
+			entry[OV_MAP_UNIT_KEY("attrition")] = group.attrition;
 			// The men (a regiment is POP_SIZE_PER_REGIMENT men at full strength) and the supply of the stack: what arrives of the need, the reserve in
 			// days, the supply level (it multiplies the attack and the defence) and how it changes a day (docs/WAR_ASSUMPTIONS.md, section 6)
 			{
@@ -2126,8 +2130,8 @@ Array PlayerSingleton::get_map_units() const {
 					instance_manager->definition_manager.get_define_manager().get_military_defines().get_pop_size_per_regiment()
 				));
 				const int64_t max_men = static_cast<int64_t>(group.regiments) * men_per_regiment;
-				entry["max_men"] = max_men;
-				entry["men"] = group.max_strength > 0
+				entry[OV_MAP_UNIT_KEY("max_men")] = max_men;
+				entry[OV_MAP_UNIT_KEY("men")] = group.max_strength > 0
 					? static_cast<int64_t>((group.strength / group.max_strength * static_cast<std::int32_t>(max_men / 100)).floor<std::int64_t>() * 100) : int64_t { 0 };
 				const std::int32_t weight = std::max<std::int32_t>(1, group.regiments);
 				const fixed_point_t arrived = group.supply_arrived / weight;
@@ -2146,22 +2150,22 @@ Array PlayerSingleton::get_map_units() const {
 				} else if (level > fixed_point_t::_1 - shortfall) {
 					change = -step;
 				}
-				entry["supply_arrived"] = static_cast<float>(arrived);
-				entry["supply_reserve_days"] = static_cast<float>(reserve);
-				entry["supply_level"] = static_cast<float>(level);
-				entry["supply_change_per_day"] = static_cast<float>(change);
-				entry["supply_step_per_day"] = static_cast<float>(step);
-				entry["supply_reserve_left_days"] = reserve_left;
+				entry[OV_MAP_UNIT_KEY("supply_arrived")] = static_cast<float>(arrived);
+				entry[OV_MAP_UNIT_KEY("supply_reserve_days")] = static_cast<float>(reserve);
+				entry[OV_MAP_UNIT_KEY("supply_level")] = static_cast<float>(level);
+				entry[OV_MAP_UNIT_KEY("supply_change_per_day")] = static_cast<float>(change);
+				entry[OV_MAP_UNIT_KEY("supply_step_per_day")] = static_cast<float>(step);
+				entry[OV_MAP_UNIT_KEY("supply_reserve_left_days")] = reserve_left;
 				// The overload of the province and the attrition it gives (at war or on the land of others), percent a day
 				OpenVicWarDefines const& war_defines = ov_defines.war;
-				entry["supply_load_ratio"] = static_cast<float>(group.load_ratio);
+				entry[OV_MAP_UNIT_KEY("supply_load_ratio")] = static_cast<float>(group.load_ratio);
 				float overload_pct = 0.0f;
 				if (group.load_ratio > fixed_point_t::_1 && (group.country->is_at_war() || !group.friendly)) {
 					overload_pct = static_cast<float>(
 						std::min(war_defines.attrition_overload_max.fixed(), war_defines.attrition_overload.of(group.load_ratio - fixed_point_t::_1)) * 100
 					);
 				}
-				entry["overload_attrition_pct"] = overload_pct;
+				entry[OV_MAP_UNIT_KEY("overload_attrition_pct")] = overload_pct;
 				// The new men: 0 at full strength, 1 they come, 2 not on friendly land, 3 cut off, 4 the supply is too low, 5 not enough free
 				// manpower, 6 not enough goods, 7 neither (the state of yesterday of the country); the men a day
 				int32_t reinforce_state = 0;
@@ -2186,23 +2190,23 @@ Array PlayerSingleton::get_map_units() const {
 						reinforce_state = limit == 3 ? 7 : limit == 2 ? 6 : limit == 1 ? 5 : 1;
 					}
 				}
-				entry["reinforce_state"] = reinforce_state;
-				entry["reinforce_men"] = reinforce_men;
+				entry[OV_MAP_UNIT_KEY("reinforce_state")] = reinforce_state;
+				entry[OV_MAP_UNIT_KEY("reinforce_men")] = reinforce_men;
 				// The canned food of the country that the grain stood in for yesterday (docs/MILITARY_SUPPLY.md)
-				entry["canned_food_from_grain"] = static_cast<float>(group.country->get_canned_food_from_grain_yesterday());
+				entry[OV_MAP_UNIT_KEY("canned_food_from_grain")] = static_cast<float>(group.country->get_canned_food_from_grain_yesterday());
 			}
-			entry["army_ids"] = group.army_ids;
-			entry["at_sea_days"] = group.at_sea_days;
-			entry["at_sea_to_name"] = group.at_sea_to != nullptr
+			entry[OV_MAP_UNIT_KEY("army_ids")] = group.army_ids;
+			entry[OV_MAP_UNIT_KEY("at_sea_days")] = group.at_sea_days;
+			entry[OV_MAP_UNIT_KEY("at_sea_to_name")] = group.at_sea_to != nullptr
 				? province_name_of(*group.at_sea_to) : String {};
-			entry["is_navy"] = false;
-			entry["occupied"] = occupied;
+			entry[OV_MAP_UNIT_KEY("is_navy")] = false;
+			entry[OV_MAP_UNIT_KEY("occupied")] = occupied;
 
 			float siege_progress = -1.0f;
 			if (siege != nullptr && siege->besieger == group.country && siege->days_required > 0) {
 				siege_progress = std::min(1.0f, static_cast<float>(siege->days) / static_cast<float>(siege->days_required));
 			}
-			entry["siege_progress"] = siege_progress;
+			entry[OV_MAP_UNIT_KEY("siege_progress")] = siege_progress;
 
 			result.push_back(std::move(entry));
 		}
@@ -2265,30 +2269,30 @@ Array PlayerSingleton::get_map_units() const {
 
 		for (CountryGroup const& group : groups) {
 			Dictionary entry;
-			entry["province_number"] = static_cast<int32_t>(province.province_definition.get_province_number());
-			entry["position"] = group.has_position ? group.position : get_province_anchor(*game_singleton, province, unit_branch_t::NAVAL);
-			entry["paths"] = group.paths;
-			entry["country_identifier"] = convert_to<String>(group.country->get_identifier());
-			entry["country_index"] = static_cast<int32_t>(type_safe::get(group.country->index));
-			entry["is_player"] = group.country == player_country;
-			entry["army_count"] = group.army_count;
-			entry["regiments"] = group.regiments;
-			entry["carried"] = group.carried;
-			entry["strength"] = group.max_strength > 0 ? static_cast<float>(group.strength / group.max_strength) : 0.0f;
-			entry["organisation"] =
+			entry[OV_MAP_UNIT_KEY("province_number")] = static_cast<int32_t>(province.province_definition.get_province_number());
+			entry[OV_MAP_UNIT_KEY("position")] = group.has_position ? group.position : get_province_anchor(*game_singleton, province, unit_branch_t::NAVAL);
+			entry[OV_MAP_UNIT_KEY("paths")] = group.paths;
+			entry[OV_MAP_UNIT_KEY("country_identifier")] = convert_to<String>(group.country->get_identifier());
+			entry[OV_MAP_UNIT_KEY("country_index")] = static_cast<int32_t>(type_safe::get(group.country->index));
+			entry[OV_MAP_UNIT_KEY("is_player")] = group.country == player_country;
+			entry[OV_MAP_UNIT_KEY("army_count")] = group.army_count;
+			entry[OV_MAP_UNIT_KEY("regiments")] = group.regiments;
+			entry[OV_MAP_UNIT_KEY("carried")] = group.carried;
+			entry[OV_MAP_UNIT_KEY("strength")] = group.max_strength > 0 ? static_cast<float>(group.strength / group.max_strength) : 0.0f;
+			entry[OV_MAP_UNIT_KEY("organisation")] =
 			    group.max_organisation > 0 ? static_cast<float>(group.organisation / group.max_organisation) : 0.0f;
-			entry["in_combat"] = group.in_combat;
-			entry["moving"] = group.moving;
-			entry["attrition"] = false;
-			entry["blockade"] = group.attrition;
-			entry["out_of_range"] = group.out_of_range;
-			entry["capital_ships"] = group.capital_ships;
-			entry["light_ships"] = group.light_ships;
-			entry["transports"] = group.transports;
-			entry["army_ids"] = group.army_ids;
-			entry["is_navy"] = true;
-			entry["occupied"] = false;
-			entry["siege_progress"] = -1.0f;
+			entry[OV_MAP_UNIT_KEY("in_combat")] = group.in_combat;
+			entry[OV_MAP_UNIT_KEY("moving")] = group.moving;
+			entry[OV_MAP_UNIT_KEY("attrition")] = false;
+			entry[OV_MAP_UNIT_KEY("blockade")] = group.attrition;
+			entry[OV_MAP_UNIT_KEY("out_of_range")] = group.out_of_range;
+			entry[OV_MAP_UNIT_KEY("capital_ships")] = group.capital_ships;
+			entry[OV_MAP_UNIT_KEY("light_ships")] = group.light_ships;
+			entry[OV_MAP_UNIT_KEY("transports")] = group.transports;
+			entry[OV_MAP_UNIT_KEY("army_ids")] = group.army_ids;
+			entry[OV_MAP_UNIT_KEY("is_navy")] = true;
+			entry[OV_MAP_UNIT_KEY("occupied")] = false;
+			entry[OV_MAP_UNIT_KEY("siege_progress")] = -1.0f;
 			result.push_back(std::move(entry));
 		}
 	}
