@@ -299,6 +299,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_relation, { "country_index" });
 	OV_BIND_METHOD(PlayerSingleton::send_diplomatic_action, { "receiver_country_index", "action_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_proposals);
+	OV_BIND_METHOD(PlayerSingleton::send_war_subsidies, { "receiver_country_index", "level" });
 	OV_BIND_METHOD(PlayerSingleton::answer_diplomatic_proposal, { "proposal_id", "accept" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_costs);
 
@@ -754,6 +755,12 @@ Dictionary PlayerSingleton::get_diplomatic_relation(int32_t country_index) const
 	result["we_subsidise"] = relations.get_war_subsidies_to(player, other);
 	// (version 97: the subsidies go only to a country at war; an ally is called into a war of ours)
 	result["target_at_war"] = other->is_at_war();
+	// the subsidies (version 99): their size and what 100 % of them is a day now
+	result["subsidy_level"] = relations.get_war_subsidy_level(player, other);
+	result["subsidy_base_per_day"] = static_cast<float>(
+		instance_manager->definition_manager.get_define_manager().get_diplomacy_defines().get_warsubsidies_percent()
+		* other->get_actual_military_spending().load()
+	);
 	result["player_at_war"] = player->is_at_war();
 	result["they_subsidise"] = relations.get_war_subsidies_to(other, player);
 	result["we_have_vision"] = relations.get_has_vision(player, other);
@@ -823,6 +830,17 @@ Array PlayerSingleton::get_diplomatic_proposals() const {
 		result.push_back(entry);
 	}
 	return result;
+}
+
+bool PlayerSingleton::send_war_subsidies(const int32_t receiver_country_index, const int32_t level) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(receiver_country_index < 0, false);
+	ERR_FAIL_COND_V(!CountryRelationManager::is_war_subsidy_level(level), false);
+	return instance_manager->queue_game_action<give_war_subsidies_argument_t>(
+		player_country->index, country_index_t(static_cast<uint32_t>(receiver_country_index)), level
+	);
 }
 
 bool PlayerSingleton::answer_diplomatic_proposal(const int64_t proposal_id, const bool accept) const {

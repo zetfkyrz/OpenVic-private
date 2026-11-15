@@ -373,10 +373,54 @@ func _on_action_pressed(action_index: int) -> void:
 	# Peace is negotiated in the window of the peace (the demands, the answer of the enemy)
 	if identifier == "offer_peace" and _open_peace_window(_selected_country_index):
 		return
+	# The size of the subsidies is chosen first (version 99)
+	if identifier == "war_subsidies":
+		_choose_subsidy_size()
+		return
 	if not PlayerSingleton.send_diplomatic_action(_selected_country_index, action_index):
 		push_warning("Diplomatic action \"%s\" was not accepted" % identifier)
 
 	# The simulation applies the action immediately, refresh the relation and the available actions
+	_update_info()
+
+
+## The sizes of the war subsidies (version 99, docs/DIPLOMACY.md): percent of the subsidy of Vic2 (WARSUBSIDIES_PERCENT of the military
+## spending of the receiver a day)
+const _SUBSIDY_SIZES: Array = [
+	[50, "Очень малые"], [75, "Малые"], [100, "Средние"], [125, "Большие"], [150, "Огромные"],
+]
+var _subsidy_menu: PopupMenu
+
+
+func _subsidy_size_name(level: int) -> String:
+	for size: Array in _SUBSIDY_SIZES:
+		if int(size[0]) == level:
+			return "%s, %d %%" % [size[1], level]
+	return "%d %%" % level
+
+
+func _choose_subsidy_size() -> void:
+	var relation: Dictionary = PlayerSingleton.get_diplomatic_relation(_selected_country_index)
+	var base: float = float(relation.get(&"subsidy_base_per_day", 0.0))
+	if _subsidy_menu == null:
+		_subsidy_menu = PopupMenu.new()
+		_subsidy_menu.id_pressed.connect(_on_subsidy_size_chosen)
+		add_child(_subsidy_menu)
+	_subsidy_menu.clear()
+	_subsidy_menu.add_separator("Размер военных субсидий")
+	for size: Array in _SUBSIDY_SIZES:
+		var level: int = size[0]
+		_subsidy_menu.add_item("%s (%d %%) — сейчас ≈%s в день" % [size[1], level, GUINode.float_to_string_dp(base * level / 100.0, 2)], level)
+	_subsidy_menu.reset_size()
+	_subsidy_menu.position = Vector2i(get_viewport().get_mouse_position())
+	_subsidy_menu.popup()
+
+
+func _on_subsidy_size_chosen(level: int) -> void:
+	if _selected_country_index < 0:
+		return
+	if not PlayerSingleton.send_war_subsidies(_selected_country_index, level):
+		push_warning("War subsidies were not accepted")
 	_update_info()
 
 
@@ -524,7 +568,7 @@ func _describe_relation(relation: Dictionary) -> String:
 	if relation[&"they_have_military_access"]:
 		parts.append("у них проход войск")
 	if relation[&"we_subsidise"]:
-		parts.append("мы платим субсидии")
+		parts.append("мы платим субсидии (%s)" % _subsidy_size_name(int(relation.get(&"subsidy_level", 100))))
 	if parts.is_empty():
 		parts.append("Мир")
 	var process: int = int(relation.get(&"relation_process", 0))
