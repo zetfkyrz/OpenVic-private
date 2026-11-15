@@ -69,8 +69,32 @@ var _laid_out_camera: Transform3D = Transform3D()
 var _laid_out_size: Vector2 = Vector2.ZERO
 var _laid_out_scale: float = -1.0
 var _laid_out_zoomed_out: bool = false
-# Icons this far (canvas units) outside of the window are still placed (a panel starts at its anchor, it reaches into the window)
-const _OFFSCREEN_MARGIN: float = 160.0
+
+# The icons are drawn by the video card (unit_icons.gdshader): the panels of the icons are drawn into the cells of an atlas (a
+# SubViewport that is only drawn again when an icon changed), and one MultiMesh shows a quad of every icon at the position of its
+# army, the shader keeps it at its size on the screen. The processor does nothing for the icons when the camera moves; the mouse
+# finds the icon under it with the rectangles of the icons on the screen (made again when the camera moved, only when asked).
+const _ICON_SHADER: Shader = preload("res://src/UI/Session/unit_icons.gdshader")
+const _CELL_SIZE: Vector2i = Vector2i(176, 48)
+const _CELL_MARGIN: float = 2.0
+const _ATLAS_COLUMNS: int = 11
+var _atlas: SubViewport
+var _atlas_dirty: bool = false
+var _free_cells: Array[int] = []
+var _cell_count: int = 0
+# The part of a panel of a template that is drawn (its controls reach outside of the panel), relative to the panel
+var _template_boxes: Dictionary[String, Rect2] = {}
+var _icon_mesh: MultiMeshInstance3D
+var _icon_material: ShaderMaterial
+var _instances_dirty: bool = true
+# The rectangles of the icons on the screen (canvas units) for the mouse: [key, Rect2, anchor on the screen], in the order of drawing
+var _screen_rects: Array = []
+var _screen_rects_camera: Transform3D = Transform3D()
+var _screen_rects_scale: float = -1.0
+var _screen_rects_dirty: bool = true
+var _hovered_key: String = ""
+var _pressed_key: String = ""
+var _icon_scale: float = 1.0
 var _mouse_pressed: bool = false
 var _drag_active: bool = false
 var _drag_start: Vector2 = Vector2.ZERO
@@ -83,7 +107,39 @@ func setup(map_view: MapView) -> void:
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Only the points over an icon belong to this control (_has_point): the clicks on the icons stop here, the others go to the map
+	mouse_filter = Control.MOUSE_FILTER_PASS
+	mouse_exited.connect(_on_mouse_exited)
+
+	_atlas = SubViewport.new()
+	_atlas.transparent_bg = true
+	_atlas.disable_3d = true
+	_atlas.gui_disable_input = true
+	_atlas.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_atlas.size = Vector2i(_CELL_SIZE.x * _ATLAS_COLUMNS, _CELL_SIZE.y)
+	add_child(_atlas)
+
+	_icon_material = ShaderMaterial.new()
+	_icon_material.shader = _ICON_SHADER
+	_icon_material.set_shader_parameter(&"atlas", _atlas.get_texture())
+	# over the other transparent things of the map (its names, the markers)
+	_icon_material.render_priority = Material.RENDER_PRIORITY_MAX
+	var quad: QuadMesh = QuadMesh.new()
+	quad.material = _icon_material
+	var multimesh: MultiMesh = MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.use_colors = true
+	multimesh.use_custom_data = true
+	multimesh.mesh = quad
+	# the quads are placed by the shader: the box of the culling must cover everything
+	multimesh.custom_aabb = AABB(Vector3(-1e5, -1e5, -1e5), Vector3(2e5, 2e5, 2e5))
+	_icon_mesh = MultiMeshInstance3D.new()
+	_icon_mesh.multimesh = multimesh
+	_icon_mesh.top_level = true
+	_icon_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_icon_mesh.visible = false
+	if _map_view:
+		_map_view.add_child.call_deferred(_icon_mesh)
 
 	_paths_layer = Control.new()
 	_paths_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -201,52 +257,136 @@ func _process_body(_delta: float) -> void:
 
 	# Icons shrink a bit when zooming out
 	var size_setting: float = 1.0 + float(GameSettings.get_setting(GameSettings.VIDEO_UNIT_ICON_SIZE).value()) / 100.0
-	var icon_scale: float = _SIZE_FACTOR * size_setting * clampf(
+	_icon_scale = _SIZE_FACTOR * size_setting * clampf(
 		_map_view._zoom_parchment_threshold * 1.2 / maxf(camera.position.y, 0.001), _MIN_SCALE, _MAX_SCALE
 	)
 
-	# The icons only move when the camera, the window or the icons changed: placing hundreds of panels (thousands of controls) in
-	# every frame cost as much as the rest of the frame while the camera stood still
+	if _atlas_dirty:
+		_atlas_dirty = false
+		_atlas.render_target_update_mode = SubViewport.UPDATE_ONCE
+	if _instances_dirty:
+		_instances_dirty = false
+		_rebuild_instances()
+	if _icon_mesh.visible == zoomed_out:
+		_icon_mesh.visible = not zoomed_out
+	# canvas units of the icon to pixels of the screen
+	var pixel_scale: float = _icon_scale * get_viewport().get_final_transform().get_scale().x
+	if pixel_scale != _laid_out_scale:
+		_laid_out_scale = pixel_scale
+		_icon_material.set_shader_parameter(&"pixel_scale", pixel_scale)
+
+	# The paths of the player's armies are drawn on the canvas: again only when the camera, the window or the icons changed
 	var view_size: Vector2 = size
 	var camera_transform: Transform3D = camera.global_transform
 	if not _layout_dirty and camera_transform == _laid_out_camera and view_size == _laid_out_size \
-			and icon_scale == _laid_out_scale and zoomed_out == _laid_out_zoomed_out:
+			and zoomed_out == _laid_out_zoomed_out:
 		return
 	_layout_dirty = false
 	_laid_out_camera = camera_transform
 	_laid_out_size = view_size
-	_laid_out_scale = icon_scale
 	_laid_out_zoomed_out = zoomed_out
 	_paths_layer.queue_redraw()
 
-	# The icons outside of the window are hidden (they were placed and drawn too); the margin keeps the ones at the edge
-	var visible_rect: Rect2 = Rect2(Vector2.ZERO, view_size).grow(_OFFSCREEN_MARGIN)
 
+# The anchor of an icon on the ground and its quad (canvas units of a full size icon, relative to the anchor)
+func _icon_quad(icon: Dictionary) -> Rect2:
+	var box: Rect2 = icon[&"box"]
+	var shift: Vector2 = Vector2(
+		(icon[&"slot"] - (icon[&"slot_count"] - 1) / 2.0) * _SLOT_SPACING, -_LIFT + float(icon[&"drop"])
+	)
+	return Rect2(shift + box.position - Vector2(_CELL_MARGIN, _CELL_MARGIN) - icon[&"anchor"], box.size + Vector2(_CELL_MARGIN, _CELL_MARGIN) * 2.0)
+
+
+func _cell_origin(cell: int) -> Vector2:
+	return Vector2((cell % _ATLAS_COLUMNS) * _CELL_SIZE.x, (cell / _ATLAS_COLUMNS) * _CELL_SIZE.y)
+
+
+# The quads of all the icons (when the icons, their places or the selection changed: not when the camera moves)
+func _rebuild_instances() -> void:
+	var multimesh: MultiMesh = _icon_mesh.multimesh
+	multimesh.instance_count = _icons.size()
+	var atlas_size: Vector2 = Vector2(_atlas.size)
+	var index: int = 0
 	for icon: Dictionary in _icons.values():
-		var panel: Panel = icon[&"panel"]
+		var quad: Rect2 = _icon_quad(icon)
+		var world: Vector3 = _map_view._map_to_standing_coords(icon[&"position"])
+		icon[&"world"] = world
+		multimesh.set_instance_transform(index, Transform3D(
+			Basis(Vector3(quad.position.x, quad.position.y, quad.size.x), Vector3(quad.size.y, 0.0, 0.0), Vector3(0.0, 0.0, 1.0)), world
+		))
+		var origin: Vector2 = _cell_origin(icon[&"cell"])
+		multimesh.set_instance_custom_data(index, Color(
+			origin.x / atlas_size.x, origin.y / atlas_size.y, quad.size.x / atlas_size.x, quad.size.y / atlas_size.y
+		))
+		multimesh.set_instance_color(index, _SELECTED_MODULATE if _is_icon_selected(icon) else Color.WHITE)
+		index += 1
+	_screen_rects_dirty = true
 
-		if zoomed_out:
-			panel.hide()
-			continue
 
-		# The same position as the unit's model, the icon is then lifted by a few pixels above it
-		var world_position: Vector3 = _map_view._map_to_standing_coords(icon[&"position"])
-		if camera.is_position_behind(world_position):
-			panel.hide()
-			continue
+# The icon under a point of the canvas, "" if none (the last drawn is on top)
+func _icon_at(point: Vector2) -> String:
+	if _map_view == null or _icons.is_empty() or not _icon_mesh.visible:
+		return ""
+	var camera: Camera3D = _map_view._camera
+	if _screen_rects_dirty or camera.global_transform != _screen_rects_camera or _icon_scale != _screen_rects_scale:
+		_screen_rects_dirty = false
+		_screen_rects_camera = camera.global_transform
+		_screen_rects_scale = _icon_scale
+		_screen_rects.clear()
+		for key: String in _icons:
+			var icon: Dictionary = _icons[key]
+			var world: Vector3 = icon.get(&"world", _map_view._map_to_standing_coords(icon[&"position"]))
+			if camera.is_position_behind(world):
+				continue
+			var anchor: Vector2 = camera.unproject_position(world)
+			var quad: Rect2 = _icon_quad(icon)
+			_screen_rects.append([key, Rect2(anchor + quad.position * _icon_scale, quad.size * _icon_scale), anchor])
+	for i: int in range(_screen_rects.size() - 1, -1, -1):
+		if (_screen_rects[i][1] as Rect2).has_point(point):
+			return _screen_rects[i][0]
+	return ""
 
-		# The projected position is already in the coordinates of the (scaled) viewport that the controls use
-		var canvas_position: Vector2 = camera.unproject_position(world_position)
-		if not visible_rect.has_point(canvas_position):
-			panel.hide()
-			continue
-		var anchor: Vector2 = icon[&"anchor"]
-		var slot_shift: float = (icon[&"slot"] - (icon[&"slot_count"] - 1) / 2.0) * _SLOT_SPACING * icon_scale
 
-		panel.pivot_offset = anchor
-		panel.scale = Vector2(icon_scale, icon_scale)
-		panel.position = canvas_position + Vector2(slot_shift, -_LIFT * icon_scale + icon[&"drop"] * icon_scale) - anchor
-		panel.show()
+func _has_point(point: Vector2) -> bool:
+	return _icon_at(point) != ""
+
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_set_hovered(_icon_at((event as InputEventMouseMotion).position), (event as InputEventMouseMotion).position)
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var button: InputEventMouseButton = event
+		var key: String = _icon_at(button.position)
+		if button.pressed:
+			_pressed_key = key
+			if key != "":
+				accept_event()
+		elif _pressed_key != "":
+			accept_event()
+			if key == _pressed_key:
+				_on_icon_pressed(key)
+			_pressed_key = ""
+
+
+func _on_mouse_exited() -> void:
+	_set_hovered("", Vector2.ZERO)
+
+
+# The tooltip of the icon under the mouse (its text is made when the mouse comes over it)
+func _set_hovered(key: String, point: Vector2) -> void:
+	if key == _hovered_key:
+		return
+	_hovered_key = key
+	_show_hovered_tooltip(point)
+
+
+func _show_hovered_tooltip(point: Vector2) -> void:
+	if _hovered_key == "":
+		MenuSingleton.hide_tooltip()
+		return
+	var source: Callable = _icons.get(_hovered_key, {}).get(&"tooltip_source", Callable())
+	if source.is_valid():
+		MenuSingleton.show_tooltip(source.call(), {}, get_global_transform_with_canvas() * point + Vector2(0.0, 32.0))
 
 
 # True while the icons are hidden because the camera is far away
@@ -333,9 +473,14 @@ func _remove_icon(key: String) -> void:
 	var icon: Dictionary = _icons[key]
 	_icons.erase(key)
 	_layout_dirty = true
+	_instances_dirty = true
+	_atlas_dirty = true
+	_free_cells.append(int(icon[&"cell"]))
+	if key == _hovered_key:
+		_set_hovered("", Vector2.ZERO)
 	var panel: Panel = icon[&"panel"]
 	if is_instance_valid(panel):
-		remove_child(panel)
+		_atlas.remove_child(panel)
 		panel.free()
 
 
@@ -348,15 +493,41 @@ func _get_or_create(key: String, template: String, anchor: Vector2) -> Dictionar
 	if not panel:
 		return {}
 
-	panel.mouse_filter = Control.MOUSE_FILTER_PASS
-	# A left click on an icon (also on its flag, bars and numbers) must not select the province below it
-	panel.gui_input.connect(_on_icon_gui_input)
-	add_child(panel)
+	# The panel goes into its cell of the atlas: the part of it that is drawn starts at the cell (plus a margin)
+	_atlas.add_child(panel)
+	if not _template_boxes.has(template):
+		var box: Rect2 = Rect2()
+		var origin: Vector2 = panel.get_global_rect().position
+		for child: Node in panel.find_children("*", "Control", true, false):
+			var rect: Rect2 = (child as Control).get_global_rect()
+			rect.position -= origin
+			box = rect if box.size == Vector2.ZERO else box.merge(rect)
+		if box.size == Vector2.ZERO:
+			box = Rect2(Vector2.ZERO, panel.size)
+		_template_boxes[template] = box
+	var box: Rect2 = _template_boxes[template]
+	var cell: int = _free_cells.pop_back() if not _free_cells.is_empty() else _new_cell()
+	# The panels of the templates are anchored to the centre of their parent: when the atlas grows they would move out of their cells
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.position =_cell_origin(cell) + Vector2(_CELL_MARGIN, _CELL_MARGIN) - box.position
 
 	_layout_dirty = true
-	icon = { &"panel": panel, &"anchor": anchor, &"slot": 0, &"slot_count": 1, &"drop": 0.0, &"army_ids": [] }
+	_instances_dirty = true
+	_atlas_dirty = true
+	icon = { &"panel": panel, &"anchor": anchor, &"slot": 0, &"slot_count": 1, &"drop": 0.0, &"army_ids": [], &"cell": cell, &"box": box }
 	_icons[key] = icon
 	return icon
+
+
+# A new cell at the end of the atlas (it grows by a row when it is full)
+func _new_cell() -> int:
+	var cell: int = _cell_count
+	_cell_count += 1
+	var rows: int = (_cell_count + _ATLAS_COLUMNS - 1) / _ATLAS_COLUMNS
+	if rows * _CELL_SIZE.y > _atlas.size.y:
+		_atlas.size = Vector2i(_CELL_SIZE.x * _ATLAS_COLUMNS, rows * _CELL_SIZE.y)
+		_instances_dirty = true
+	return cell
 
 
 # What the helpers below last put into the controls of a panel (by the path): a control is only changed when its value changed
@@ -367,6 +538,7 @@ func _unchanged(panel: Node, path: NodePath, value: Variant) -> bool:
 	if cache.has(path) and cache[path] == value:
 		return true
 	cache[path] = value
+	_atlas_dirty = true
 	return false
 
 
@@ -530,12 +702,9 @@ func _update_unit_icon(key: String, unit: Dictionary, slot: int, slot_count: int
 		# Fleets have a blue tint
 		colour.modulate = _NAVY_TINT if unit.get(&"is_navy", false) else Color.WHITE
 
-	var background: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./unit_panel_bg")
-	if background:
-		_set_tooltip_source(key, background, _describe.bind(unit))
-		if not panel.has_meta(&"connected"):
-			panel.set_meta(&"connected", true)
-			background.pressed.connect(_on_icon_pressed.bind(key))
+	_set_tooltip_source(key, _describe.bind(unit))
+	_atlas_dirty = true
+	_instances_dirty = true
 
 	# The attrition icon is shown for armies that lose men: outside of friendly lands or without supplies
 	var attr: Node = panel.get_node_or_null(^"./unit_panel_attr")
@@ -566,12 +735,11 @@ func _update_combat_icon(key: String, left: Dictionary, right: Dictionary) -> vo
 	_set_flag(panel, ^"./combat_country_flagL", left[&"country_identifier"])
 	_set_flag(panel, ^"./combat_country_flagR", right[&"country_identifier"])
 
-	var background: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./combat_panel_bg")
-	if background:
-		_set_tooltip_source(key, background, func() -> String:
-			return "%s\n%s\n\n%s" % [
-				left[&"country_identifier"], _describe(left), "%s\n%s" % [right[&"country_identifier"], _describe(right)],
-			])
+	_set_tooltip_source(key, func() -> String:
+		return "%s\n%s\n\n%s" % [
+			left[&"country_identifier"], _describe(left), "%s\n%s" % [right[&"country_identifier"], _describe(right)],
+		])
+	_instances_dirty = true
 
 
 func _update_siege_icon(key: String, unit: Dictionary, slot: int, slot_count: int) -> void:
@@ -589,25 +757,17 @@ func _update_siege_icon(key: String, unit: Dictionary, slot: int, slot_count: in
 	icon[&"paths"] = []
 
 	_set_bar(panel, ^"./siege_progress_bar", unit[&"siege_progress"])
+	_instances_dirty = true
 
 
 # The text of the tooltip of an icon is made when the mouse comes over it (and again while it stays there and the army changes)
-func _set_tooltip_source(key: String, background: Control, source: Callable) -> void:
+func _set_tooltip_source(key: String, source: Callable) -> void:
 	var icon: Dictionary = _icons.get(key, {})
 	if icon.is_empty():
 		return
 	icon[&"tooltip_source"] = source
-	if not background.has_meta(&"tooltip_hook"):
-		background.set_meta(&"tooltip_hook", true)
-		background.mouse_entered.connect(_on_icon_hovered.bind(key, background))
-	if background.is_tooltip_active():
-		background.tooltip_string = source.call()
-
-
-func _on_icon_hovered(key: String, background: Control) -> void:
-	var source: Callable = _icons.get(key, {}).get(&"tooltip_source", Callable())
-	if source.is_valid():
-		background.tooltip_string = source.call()
+	if key == _hovered_key:
+		_show_hovered_tooltip(get_local_mouse_position())
 
 
 func _on_icon_pressed(key: String) -> void:
@@ -658,8 +818,8 @@ func _update_selection_visual(key: String) -> void:
 	if icon.is_empty():
 		return
 	_layout_dirty = true
-	var panel: Panel = icon[&"panel"]
-	panel.modulate = _SELECTED_MODULATE if _is_icon_selected(icon) else Color.WHITE
+	# (the colour of the quad of the icon)
+	_instances_dirty = true
 
 
 # ---- Selection box ----
@@ -720,11 +880,12 @@ func _finish_box_selection() -> void:
 		var icon: Dictionary = _icons[key]
 		if not icon.get(&"is_player", false):
 			continue
-		var panel: Panel = icon[&"panel"]
-		if not panel.visible:
+		if _is_zoomed_out():
 			continue
-		# The icons are scaled around their anchor, which therefore stays at position + anchor
-		var centre: Vector2 = panel.position + icon[&"anchor"]
+		var world: Vector3 = icon.get(&"world", _map_view._map_to_standing_coords(icon[&"position"]))
+		if _map_view._camera.is_position_behind(world):
+			continue
+		var centre: Vector2 = _map_view._camera.unproject_position(world)
 		if rect.has_point(centre):
 			for army_id: int in icon[&"army_ids"]:
 				_selected_armies[army_id] = true
@@ -821,7 +982,3 @@ func _sync_selection_markers() -> void:
 		markers.add_selection_marker(selected_id, _map_view._map_to_ground_coords(icon[&"position"]))
 
 
-func _on_icon_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		# Buttons of the icon handle the click first, this only stops it from reaching the map
-		(get_viewport() as Viewport).set_input_as_handled()
