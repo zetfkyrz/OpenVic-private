@@ -359,7 +359,20 @@ func _get_or_create(key: String, template: String, anchor: Vector2) -> Dictionar
 	return icon
 
 
+# What the helpers below last put into the controls of a panel (by the path): a control is only changed when its value changed
+func _unchanged(panel: Node, path: NodePath, value: Variant) -> bool:
+	var cache: Dictionary = panel.get_meta(&"values", {})
+	if cache.is_empty():
+		panel.set_meta(&"values", cache)
+	if cache.has(path) and cache[path] == value:
+		return true
+	cache[path] = value
+	return false
+
+
 func _set_text(panel: Node, path: NodePath, text: String) -> void:
+	if _unchanged(panel, path, text):
+		return
 	var label: GUILabel = GUINode.get_gui_label_from_node_and_path(panel, path)
 	if label:
 		label.set_auto_translate(false)
@@ -367,6 +380,9 @@ func _set_text(panel: Node, path: NodePath, text: String) -> void:
 
 
 func _set_bar(panel: Node, path: NodePath, value: float) -> void:
+	# (the bar has steps of 0.01)
+	if _unchanged(panel, path, roundi(value * 100.0)):
+		return
 	var bar: GUIProgressBar = GUINode.get_gui_progress_bar_from_node_and_path(panel, path)
 	if bar:
 		bar.max_value = 1.0
@@ -375,6 +391,8 @@ func _set_bar(panel: Node, path: NodePath, value: float) -> void:
 
 
 func _set_flag(panel: Node, path: NodePath, country_identifier: String) -> void:
+	if _unchanged(panel, path, country_identifier):
+		return
 	var flag: GUIMaskedFlagButton = GUINode.get_gui_masked_flag_button_from_node_and_path(panel, path)
 	if flag:
 		flag.set_flag_country_name(country_identifier)
@@ -514,7 +532,7 @@ func _update_unit_icon(key: String, unit: Dictionary, slot: int, slot_count: int
 
 	var background: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./unit_panel_bg")
 	if background:
-		background.tooltip_string = _describe(unit)
+		_set_tooltip_source(key, background, _describe.bind(unit))
 		if not panel.has_meta(&"connected"):
 			panel.set_meta(&"connected", true)
 			background.pressed.connect(_on_icon_pressed.bind(key))
@@ -550,9 +568,10 @@ func _update_combat_icon(key: String, left: Dictionary, right: Dictionary) -> vo
 
 	var background: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(panel, ^"./combat_panel_bg")
 	if background:
-		background.tooltip_string = "%s\n%s\n\n%s" % [
-			left[&"country_identifier"], _describe(left), "%s\n%s" % [right[&"country_identifier"], _describe(right)],
-		]
+		_set_tooltip_source(key, background, func() -> String:
+			return "%s\n%s\n\n%s" % [
+				left[&"country_identifier"], _describe(left), "%s\n%s" % [right[&"country_identifier"], _describe(right)],
+			])
 
 
 func _update_siege_icon(key: String, unit: Dictionary, slot: int, slot_count: int) -> void:
@@ -570,6 +589,25 @@ func _update_siege_icon(key: String, unit: Dictionary, slot: int, slot_count: in
 	icon[&"paths"] = []
 
 	_set_bar(panel, ^"./siege_progress_bar", unit[&"siege_progress"])
+
+
+# The text of the tooltip of an icon is made when the mouse comes over it (and again while it stays there and the army changes)
+func _set_tooltip_source(key: String, background: Control, source: Callable) -> void:
+	var icon: Dictionary = _icons.get(key, {})
+	if icon.is_empty():
+		return
+	icon[&"tooltip_source"] = source
+	if not background.has_meta(&"tooltip_hook"):
+		background.set_meta(&"tooltip_hook", true)
+		background.mouse_entered.connect(_on_icon_hovered.bind(key, background))
+	if background.is_tooltip_active():
+		background.tooltip_string = source.call()
+
+
+func _on_icon_hovered(key: String, background: Control) -> void:
+	var source: Callable = _icons.get(key, {}).get(&"tooltip_source", Callable())
+	if source.is_valid():
+		background.tooltip_string = source.call()
 
 
 func _on_icon_pressed(key: String) -> void:

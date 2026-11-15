@@ -42,6 +42,11 @@ var _in_view: Array[Node3D] = []
 var _cull_dirty: bool = true
 var _cull_camera: Transform3D = Transform3D()
 var _cull_until_msec: int = 0
+# The models in cells of the ground (by their position when the grid was made): the check of what the camera sees only looks at the
+# cells under the view instead of at every model (1300 models, most of them buildings)
+const _GRID_CELL: float = 0.25
+var _grid: Dictionary[Vector2i, Array] = {}
+var _grid_dirty: bool = true
 var _group_time: PackedFloat32Array = PackedFloat32Array()
 
 
@@ -61,11 +66,10 @@ func _process(delta: float) -> void:
 	if models_visible != _animating:
 		_animating = models_visible
 		for node: Node3D in _unit_nodes.values():
-			_set_animated(node, models_visible)
+			_set_animated(node, false)
 		for node: Node3D in _building_nodes:
-			_set_animated(node, models_visible)
-		if not models_visible:
-			_in_view.clear()
+			_set_animated(node, false)
+		_in_view.clear()
 		_cull_dirty = true
 	if models_visible:
 		_cull_frame += 1
@@ -125,24 +129,76 @@ func _advance_animations(delta: float, model_range: float, height: float) -> voi
 		index += groups
 
 
-# Models in the view of the camera are animated, the others are stopped
+# Models in the view of the camera are animated, the others are stopped. Only the models that were in the view and the ones in the
+# cells of the ground under the view are looked at (all of them when the view does not reach the ground everywhere)
 func _cull_animation() -> void:
 	var camera: Camera3D = _map_view._camera
 	if camera == null:
 		return
+	if _grid_dirty:
+		_rebuild_grid()
+	var now_in_view: Dictionary[Node3D, bool] = {}
+	var ground: Variant = _get_view_on_ground(camera)
+	if ground is Rect2:
+		var rect: Rect2 = ground
+		var first: Vector2i = Vector2i(floori(rect.position.x / _GRID_CELL), floori(rect.position.y / _GRID_CELL))
+		var last: Vector2i = Vector2i(floori(rect.end.x / _GRID_CELL), floori(rect.end.y / _GRID_CELL))
+		for x: int in range(first.x, last.x + 1):
+			for z: int in range(first.y, last.y + 1):
+				for node: Node3D in _grid.get(Vector2i(x, z), []):
+					if is_instance_valid(node) and camera.is_position_in_frustum(node.global_position):
+						now_in_view[node] = true
+	else:
+		for node: Node3D in _unit_nodes.values():
+			if is_instance_valid(node) and camera.is_position_in_frustum(node.global_position):
+				now_in_view[node] = true
+		for node: Node3D in _building_nodes:
+			if is_instance_valid(node) and camera.is_position_in_frustum(node.global_position):
+				now_in_view[node] = true
+	for node: Node3D in _in_view:
+		if not now_in_view.has(node):
+			_set_animated(node, false)
 	_in_view.clear()
+	for node: Node3D in now_in_view:
+		_set_animated(node, true)
+		_in_view.append(node)
+
+
+# The part of the ground (x, z) that the camera sees, with a margin of a cell (the units glide a little after an update), or null
+# when a corner of the view does not reach the ground
+func _get_view_on_ground(camera: Camera3D) -> Variant:
+	var size: Vector2 = get_viewport().get_visible_rect().size
+	var points: PackedVector2Array = []
+	for corner: Vector2 in [Vector2.ZERO, Vector2(size.x, 0.0), Vector2(0.0, size.y), size]:
+		var origin: Vector3 = camera.project_ray_origin(corner)
+		var direction: Vector3 = camera.project_ray_normal(corner)
+		if direction.y > -0.05:
+			return null
+		var hit: Vector3 = origin + direction * (-origin.y / direction.y)
+		points.append(Vector2(hit.x, hit.z))
+	var rect: Rect2 = Rect2(points[0], Vector2.ZERO)
+	for point: Vector2 in points:
+		rect = rect.expand(point)
+	return rect.grow(_GRID_CELL)
+
+
+func _rebuild_grid() -> void:
+	_grid_dirty = false
+	_grid.clear()
 	for node: Node3D in _unit_nodes.values():
-		if is_instance_valid(node):
-			var in_view: bool = camera.is_position_in_frustum(node.global_position)
-			_set_animated(node, in_view)
-			if in_view:
-				_in_view.append(node)
+		_add_to_grid(node)
 	for node: Node3D in _building_nodes:
-		if is_instance_valid(node):
-			var in_view: bool = camera.is_position_in_frustum(node.global_position)
-			_set_animated(node, in_view)
-			if in_view:
-				_in_view.append(node)
+		_add_to_grid(node)
+
+
+func _add_to_grid(node: Node3D) -> void:
+	if not is_instance_valid(node):
+		return
+	var position_3d: Vector3 = node.global_position
+	var cell: Vector2i = Vector2i(floori(position_3d.x / _GRID_CELL), floori(position_3d.z / _GRID_CELL))
+	if not _grid.has(cell):
+		_grid[cell] = []
+	_grid[cell].append(node)
 
 
 func generate_units() -> void:
@@ -158,6 +214,8 @@ func generate_units() -> void:
 
 
 func _on_ground_changed() -> void:
+	_grid_dirty = true
+	_cull_dirty = true
 	_sync_units()
 	for building: Node3D in _building_nodes:
 		var map_position: Vector2 = building.get_meta(&"map_position")
@@ -194,6 +252,7 @@ func _sync_units_body() -> void:
 
 		node = _generate_unit(unit)
 		if node:
+			_set_animated(node, false)
 			node.set_meta(&"moving", unit.get(&"moving", false))
 			_unit_nodes[id] = node
 			_unit_signatures[id] = signature
@@ -202,6 +261,7 @@ func _sync_units_body() -> void:
 		if not present.has(id):
 			_remove_unit_node(id)
 	_cull_dirty = true
+	_grid_dirty = true
 	_cull_until_msec = Time.get_ticks_msec() + int(_MOVE_TWEEN_TIME * 1000.0) + 100
 
 
@@ -231,6 +291,7 @@ func _update_unit_node(node: Node3D, unit: Dictionary) -> void:
 func _remove_unit_node(id: int) -> void:
 	var node: Node3D = _unit_nodes.get(id)
 	if is_instance_valid(node):
+		_in_view.erase(node)
 		remove_child(node)
 		node.free()
 	_unit_nodes.erase(id)
@@ -344,11 +405,11 @@ func _generate_building(building_dict: Dictionary) -> void:
 	model.set_meta(&"map_position", building_dict[position_key])
 	_building_nodes.append(model)
 	_cull_dirty = true
+	_grid_dirty = true
 
 	add_child(model)
 	_take_over_animation(model)
-	if not _animating:
-		_set_animated(model, false)
+	_set_animated(model, false)
 
 
 func _generate_model(model_dict: Dictionary, culture: String = "", is_unit: bool = false) -> Node3D:
