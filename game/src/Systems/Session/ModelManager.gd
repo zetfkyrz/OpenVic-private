@@ -37,6 +37,11 @@ var _cull_frame: int = 0
 var _frame_counter: int = 0
 # Models that the camera sees (they are animated), and the time that every group of them has waited for its next step
 var _in_view: Array[Node3D] = []
+# The check of what the camera sees (1300 models: the units and the buildings) is only made again when the camera moved or the models
+# changed: the units glide to their new place for _MOVE_TWEEN_TIME after an update, so they are checked until then
+var _cull_dirty: bool = true
+var _cull_camera: Transform3D = Transform3D()
+var _cull_until_msec: int = 0
 var _group_time: PackedFloat32Array = PackedFloat32Array()
 
 
@@ -61,10 +66,15 @@ func _process(delta: float) -> void:
 			_set_animated(node, models_visible)
 		if not models_visible:
 			_in_view.clear()
+		_cull_dirty = true
 	if models_visible:
 		_cull_frame += 1
 		if _cull_frame % _CULL_INTERVAL == 0:
-			_cull_animation()
+			var camera_transform: Transform3D = _map_view._camera.global_transform if _map_view._camera else Transform3D()
+			if _cull_dirty or camera_transform != _cull_camera or Time.get_ticks_msec() < _cull_until_msec:
+				_cull_dirty = false
+				_cull_camera = camera_transform
+				_cull_animation()
 		_advance_animations(delta, model_range if model_range > 0.0 else 1.0, height)
 
 
@@ -191,6 +201,8 @@ func _sync_units_body() -> void:
 	for id: int in _unit_nodes.keys():
 		if not present.has(id):
 			_remove_unit_node(id)
+	_cull_dirty = true
+	_cull_until_msec = Time.get_ticks_msec() + int(_MOVE_TWEEN_TIME * 1000.0) + 100
 
 
 # Moves an existing model to the position of its unit and plays the matching animation
@@ -331,6 +343,7 @@ func _generate_building(building_dict: Dictionary) -> void:
 	model.set_position(_map_view._map_to_standing_coords(building_dict[position_key]) + Vector3(0, 0.1 * MODEL_SCALE, 0))
 	model.set_meta(&"map_position", building_dict[position_key])
 	_building_nodes.append(model)
+	_cull_dirty = true
 
 	add_child(model)
 	_take_over_animation(model)

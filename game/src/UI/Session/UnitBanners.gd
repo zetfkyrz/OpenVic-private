@@ -63,6 +63,14 @@ const _PATH_COLOUR_SELECTED: Color = Color(1.0, 0.9, 0.2, 0.95)
 const _PATH_WIDTH: float = 2.5
 const _PATH_DASH: float = 7.0
 const _ARROW_SIZE: float = 9.0
+# What the icons were last placed for (_process_body): they are placed again only when something of it changed
+var _layout_dirty: bool = true
+var _laid_out_camera: Transform3D = Transform3D()
+var _laid_out_size: Vector2 = Vector2.ZERO
+var _laid_out_scale: float = -1.0
+var _laid_out_zoomed_out: bool = false
+# Icons this far (canvas units) outside of the window are still placed (a panel starts at its anchor, it reaches into the window)
+const _OFFSCREEN_MARGIN: float = 160.0
 var _mouse_pressed: bool = false
 var _drag_active: bool = false
 var _drag_start: Vector2 = Vector2.ZERO
@@ -140,6 +148,7 @@ func _is_icon_selected(icon: Dictionary) -> bool:
 
 
 func _update_all_selection_visuals() -> void:
+	_layout_dirty = true
 	for key: String in _icons:
 		_update_selection_visual(key)
 	_sync_selection_markers()
@@ -187,8 +196,6 @@ func _process_body(_delta: float) -> void:
 	if not _map_view or _icons.is_empty():
 		return
 
-	_paths_layer.queue_redraw()
-
 	var camera: Camera3D = _map_view._camera
 	var zoomed_out: bool = camera.position.y > _get_hide_height()
 
@@ -197,6 +204,23 @@ func _process_body(_delta: float) -> void:
 	var icon_scale: float = _SIZE_FACTOR * size_setting * clampf(
 		_map_view._zoom_parchment_threshold * 1.2 / maxf(camera.position.y, 0.001), _MIN_SCALE, _MAX_SCALE
 	)
+
+	# The icons only move when the camera, the window or the icons changed: placing hundreds of panels (thousands of controls) in
+	# every frame cost as much as the rest of the frame while the camera stood still
+	var view_size: Vector2 = size
+	var camera_transform: Transform3D = camera.global_transform
+	if not _layout_dirty and camera_transform == _laid_out_camera and view_size == _laid_out_size \
+			and icon_scale == _laid_out_scale and zoomed_out == _laid_out_zoomed_out:
+		return
+	_layout_dirty = false
+	_laid_out_camera = camera_transform
+	_laid_out_size = view_size
+	_laid_out_scale = icon_scale
+	_laid_out_zoomed_out = zoomed_out
+	_paths_layer.queue_redraw()
+
+	# The icons outside of the window are hidden (they were placed and drawn too); the margin keeps the ones at the edge
+	var visible_rect: Rect2 = Rect2(Vector2.ZERO, view_size).grow(_OFFSCREEN_MARGIN)
 
 	for icon: Dictionary in _icons.values():
 		var panel: Panel = icon[&"panel"]
@@ -213,6 +237,9 @@ func _process_body(_delta: float) -> void:
 
 		# The projected position is already in the coordinates of the (scaled) viewport that the controls use
 		var canvas_position: Vector2 = camera.unproject_position(world_position)
+		if not visible_rect.has_point(canvas_position):
+			panel.hide()
+			continue
 		var anchor: Vector2 = icon[&"anchor"]
 		var slot_shift: float = (icon[&"slot"] - (icon[&"slot_count"] - 1) / 2.0) * _SLOT_SPACING * icon_scale
 
@@ -305,6 +332,7 @@ func _refresh() -> void:
 func _remove_icon(key: String) -> void:
 	var icon: Dictionary = _icons[key]
 	_icons.erase(key)
+	_layout_dirty = true
 	var panel: Panel = icon[&"panel"]
 	if is_instance_valid(panel):
 		remove_child(panel)
@@ -325,6 +353,7 @@ func _get_or_create(key: String, template: String, anchor: Vector2) -> Dictionar
 	panel.gui_input.connect(_on_icon_gui_input)
 	add_child(panel)
 
+	_layout_dirty = true
 	icon = { &"panel": panel, &"anchor": anchor, &"slot": 0, &"slot_count": 1, &"drop": 0.0, &"army_ids": [] }
 	_icons[key] = icon
 	return icon
@@ -590,6 +619,7 @@ func _update_selection_visual(key: String) -> void:
 	var icon: Dictionary = _icons.get(key, {})
 	if icon.is_empty():
 		return
+	_layout_dirty = true
 	var panel: Panel = icon[&"panel"]
 	panel.modulate = _SELECTED_MODULATE if _is_icon_selected(icon) else Color.WHITE
 
