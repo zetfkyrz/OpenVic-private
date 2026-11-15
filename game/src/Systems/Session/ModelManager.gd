@@ -149,12 +149,10 @@ func _cull_animation() -> void:
 					if is_instance_valid(node) and camera.is_position_in_frustum(node.global_position):
 						now_in_view[node] = true
 	else:
-		for node: Node3D in _unit_nodes.values():
-			if is_instance_valid(node) and camera.is_position_in_frustum(node.global_position):
-				now_in_view[node] = true
-		for node: Node3D in _building_nodes:
-			if is_instance_valid(node) and camera.is_position_in_frustum(node.global_position):
-				now_in_view[node] = true
+		for nodes: Array in _grid.values():
+			for node: Node3D in nodes:
+				if is_instance_valid(node) and camera.is_position_in_frustum(node.global_position):
+					now_in_view[node] = true
 	for node: Node3D in _in_view:
 		if not now_in_view.has(node):
 			_set_animated(node, false)
@@ -191,8 +189,9 @@ func _rebuild_grid() -> void:
 		_add_to_grid(node)
 
 
+# Only the models that the processor animates (with animation players) are in the grid: the ones played by the video card need nothing
 func _add_to_grid(node: Node3D) -> void:
-	if not is_instance_valid(node):
+	if not is_instance_valid(node) or (node.get_meta(&"animation_players", []) as Array).is_empty():
 		return
 	var position_3d: Vector3 = node.global_position
 	var cell: Vector2i = Vector2i(floori(position_3d.x / _GRID_CELL), floori(position_3d.z / _GRID_CELL))
@@ -408,6 +407,9 @@ func _generate_building(building_dict: Dictionary) -> void:
 	_grid_dirty = true
 
 	add_child(model)
+	# The animation of the building (a flag, a wheel) is played by the video card too: a thousand buildings were animated by the processor
+	if VatConvert.enabled and model is UnitModel:
+		VatConvert.try_convert(model, _vat_key(building_dict[model_key]))
 	_take_over_animation(model)
 	_set_animated(model, false)
 
