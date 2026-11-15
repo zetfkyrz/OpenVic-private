@@ -752,6 +752,9 @@ Dictionary PlayerSingleton::get_diplomatic_relation(int32_t country_index) const
 	result["we_have_military_access"] = relations.get_has_military_access_to(player, other);
 	result["they_have_military_access"] = relations.get_has_military_access_to(other, player);
 	result["we_subsidise"] = relations.get_war_subsidies_to(player, other);
+	// (version 97: the subsidies go only to a country at war; an ally is called into a war of ours)
+	result["target_at_war"] = other->is_at_war();
+	result["player_at_war"] = player->is_at_war();
 	result["they_subsidise"] = relations.get_war_subsidies_to(other, player);
 	result["we_have_vision"] = relations.get_has_vision(player, other);
 	result["they_have_vision"] = relations.get_has_vision(other, player);

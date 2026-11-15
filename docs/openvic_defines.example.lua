@@ -678,5 +678,7 @@ defines = {
 		DIPLOMATIC_PROPOSAL_DAYS = 30, -- whole number 1 to 3650
 		DIPLOMATIC_PROPOSAL_COOLDOWN_MONTHS = 12, -- whole number 0 to 1200
 		AI_MILITARY_ACCESS_MIN_RELATION = 0, -- whole number -200 to 200
+		AI_SUBSIDY_START_CASH_DAYS = 180, -- whole number 0 to 100000
+		AI_SUBSIDY_STOP_CASH_DAYS = 60, -- whole number 0 to 100000
 	},
 }

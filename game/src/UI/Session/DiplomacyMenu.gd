@@ -14,7 +14,7 @@ const _ACTION_SIZE: Vector2 = Vector2(160, 24)
 # Actions that cannot be used yet (they depend on systems which do not exist, e.g. wars with allies)
 # The influence and the sphere wait for their own system (docs/PLAN_DIPLOMACY_VIC2.md, "Сфера влияния"): their buttons are hidden for now
 const _UNAVAILABLE_ACTIONS: PackedStringArray = [
-	"call_ally", "command_units", "justify_war", "expel_advisors", "discredit", "ban_embassy", "increase_opinion", "decrease_opinion",
+	"command_units", "justify_war", "expel_advisors", "discredit", "ban_embassy", "increase_opinion", "decrease_opinion",
 	"add_to_sphere", "remove_from_foreign_sphere", "remove_from_own_sphere",
 ]
 ## The names of the diplomatic actions (the identifiers of the simulation are English)
@@ -33,6 +33,8 @@ const _ACTION_NAMES: Dictionary[String, String] = {
 	"command_units": "Командовать войсками",
 	"justify_war": "Обосновать войну",
 	"give_vision": "Дать обзор",
+	"cancel_military_access": "Отказаться от прохода войск",
+	"revoke_military_access": "Отозвать право прохода",
 	"remove_vision": "Отозвать обзор",
 }
 
@@ -559,19 +561,24 @@ func _is_action_available(identifier: String, relation: Dictionary) -> bool:
 				and not relation.get(&"justifying", false) and not relation.get(&"justifying_other", false)
 		"call_ally":
 			# Into our war (docs/WAR_ASSUMPTIONS.md, "Союзники и отдельный мир"); the simulation checks the rest
-			return allied and not at_war
+			return allied and not at_war and relation.get(&"player_at_war", false)
 		"declare_war":
 			return not at_war and not allied
 		"offer_peace":
 			return at_war
 		"war_subsidies":
-			return not relation[&"we_subsidise"] and not at_war
+			# (only to a country at war, version 97: the money goes every day while it fights)
+			return not relation[&"we_subsidise"] and not at_war and relation.get(&"target_at_war", false)
 		"end_war_subsidies":
 			return relation[&"we_subsidise"]
 		"request_military_access":
 			return not relation[&"we_have_military_access"]
 		"give_military_access":
 			return not relation[&"they_have_military_access"]
+		"cancel_military_access":
+			return relation[&"we_have_military_access"]
+		"revoke_military_access":
+			return relation[&"they_have_military_access"]
 		"give_vision":
 			return not relation[&"we_have_vision"]
 		"remove_vision":

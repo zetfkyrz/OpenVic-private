@@ -49,6 +49,8 @@ func _diplomatic_action(identifier: String) -> String:
 		"give_military_access": "право прохода войск (предложенное)",
 		"war_subsidies": "военные субсидии",
 		"call_ally": "призыв в войну",
+		"cancel_military_access": "отказ от прохода войск",
+		"revoke_military_access": "отзыв права прохода",
 	}
 	return actions.get(identifier, identifier)
 
@@ -111,6 +113,10 @@ func _make_text(entry: Dictionary) -> String:
 		"diplomatic_declined":
 			if we_first:
 				return "%s отказывает: %s" % [entry[&"other"], _diplomatic_action(entry[&"subject"])]
+			return ""
+		"war_subsidies_ended":
+			if we_first:
+				return "Субсидии %s прекращены: война окончена" % entry[&"other"]
 			return ""
 		"diplomatic_accepted":
 			if we_first:

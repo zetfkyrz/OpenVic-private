@@ -8,6 +8,7 @@ const _ACTION_TEXT: Dictionary = {
 	"request_military_access": "просит права прохода войск через нашу землю",
 	"give_military_access": "предлагает нам право прохода войск",
 	"war_subsidies": "предлагает нам военные субсидии",
+	"call_ally": "зовёт нас в свою войну (отказ — бесчестье: престиж и отношения)",
 }
 
 const _MAX_ROWS: int = 5
