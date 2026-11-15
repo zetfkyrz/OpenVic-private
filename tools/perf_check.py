@@ -70,11 +70,28 @@ def main():
     parser.add_argument("--vic2")
     parser.add_argument("--save-baseline", action="store_true")
     parser.add_argument("--profile", action="store_true")
+    parser.add_argument("--determinism", action="store_true", help="only check that 1, 3, 8 and 16 threads give the same state every day (AI and wars)")
+    parser.add_argument("--days", type=int, default=120, help="days of the --determinism run")
     parser.add_argument("--baseline", help="file with the baseline checksums (the checksums depend on the platform and the compiler: use one file per platform, e.g. docs/perf/baseline_checksums_linux.json)")
     args = parser.parse_args()
     baseline_path = args.baseline or BASELINE
     exe = find_exe(args.exe)
     vic2 = find_vic2(args.vic2)
+
+    if args.determinism:
+        # the same game (AI and wars) with very different numbers of threads: every day must give the same state (a multiplayer game
+        # needs every machine to compute the same, whatever its processor)
+        reference = None
+        for threads in (1, 3, 8, 16):
+            result = run(exe, vic2, ["-C", "-A", "-e", str(args.days)], threads)
+            print("-j %-3d %s (%d days, %.0f s) %s" % (threads, result["sha256"][:16], result["lines"], result["seconds"], result["last"]))
+            if reference is None:
+                reference = result
+            elif result["sha256"] != reference["sha256"]:
+                print("FAIL: %d threads differ from 1 thread: the simulation is not deterministic (a data race?)" % threads)
+                return 1
+        print("OK: the same state every day with 1, 3, 8 and 16 threads")
+        return 0
 
     if args.profile:
         result = subprocess.run([exe, "-b", vic2, "-e", "120", "-F"], capture_output=True, text=True, errors="replace")
