@@ -23,6 +23,8 @@ var _disarm_check: CheckBox
 var _forts_check: CheckBox
 var _naval_check: CheckBox
 var _cores_check: CheckBox
+var _puppet_check: CheckBox
+var _independence_check: CheckBox
 var _goals_label: Label
 var _goal_reparations_button: Button
 var _goal_humiliate_button: Button
@@ -61,7 +63,7 @@ func _ready() -> void:
 	_states_tree.column_titles_visible = true
 	_states_tree.hide_root = true
 	_states_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_states_tree.custom_minimum_size = Vector2(0, 90)
+	_states_tree.custom_minimum_size = Vector2(0, 70)
 	var titles: PackedStringArray = ["Область", "Владелец", "Очки", "Цель войны"]
 	for column: int in titles.size():
 		_states_tree.set_column_title(column, titles[column])
@@ -92,12 +94,20 @@ func _ready() -> void:
 	var extras3 := HBoxContainer.new()
 	extras3.add_theme_constant_override(&"separation", 14)
 	root.add_child(extras3)
+	# (three to a row: the window has a fixed size)
 	_naval_check = CheckBox.new()
 	_naval_check.toggled.connect(_on_extra_toggled.bind(7))
-	extras3.add_child(_naval_check)
+	extras2.add_child(_naval_check)
 	_cores_check = CheckBox.new()
 	_cores_check.toggled.connect(_on_extra_toggled.bind(8))
 	extras3.add_child(_cores_check)
+	# the subjects (version 101)
+	_puppet_check = CheckBox.new()
+	_puppet_check.toggled.connect(_on_extra_toggled.bind(9))
+	extras3.add_child(_puppet_check)
+	_independence_check = CheckBox.new()
+	_independence_check.toggled.connect(_on_extra_toggled.bind(10))
+	extras3.add_child(_independence_check)
 	_goals_label = Label.new()
 	_goals_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root.add_child(_goals_label)
@@ -157,7 +167,7 @@ func _ready() -> void:
 	_offers_tree.column_titles_visible = true
 	_offers_tree.hide_root = true
 	_offers_tree.select_mode = Tree.SELECT_ROW
-	_offers_tree.custom_minimum_size = Vector2(0, 70)
+	_offers_tree.custom_minimum_size = Vector2(0, 56)
 	_offers_tree.set_column_title(0, "От кого / условия")
 	_offers_tree.set_column_title(1, "Осталось дней")
 	_offers_tree.set_column_expand(0, true)
@@ -240,6 +250,8 @@ func _refresh_inner() -> void:
 		goal = " Цель войны: унижение."
 	elif _info[&"goal_type"] == 3:
 		goal = " Цель войны: репарации."
+	elif _info[&"goal_type"] == 4:
+		goal = " Цель войны: независимость."
 	_header_label.text = "Война №%d, дней: %d. Мы: %s. Очки войны: у нас %.0f, у врага %.0f.%s\nАтакующие: %s. Защитники: %s." % [
 		_war_id, _info[&"days"], "атакуем" if _info[&"we_attack"] else "обороняемся",
 		_info[&"our_score"], _info[&"their_score"], goal,
@@ -248,14 +260,29 @@ func _refresh_inner() -> void:
 
 	_concede_check.button_pressed = _info[&"concede"]
 	_reparations_check.text = "Репарации: %d %% дохода %d лет (%d очков)" % [_info.get(&"reparations_pct", 25), _info.get(&"reparations_years", 5), _info[&"reparations_cost"]]
-	_disarm_check.text = "Разоружение на %d лет (%d)" % [_info.get(&"disarm_years", 5), _info.get(&"disarm_cost", 0)]
-	_forts_check.text = "Снести крепости (%d)" % _info.get(&"destroy_forts_cost", 0)
-	_naval_check.text = "Снести морские базы (%d)" % _info.get(&"destroy_naval_bases_cost", 0)
-	_cores_check.text = "Снять их притязания (%d)" % _info.get(&"remove_cores_cost", 0)
+	# (short names: three to a row; what they do is in the tooltips)
+	_disarm_check.text = "Разоружение (%d)" % _info.get(&"disarm_cost", 0)
+	_disarm_check.tooltip_text = "Проигравший %d лет не может набирать полки" % _info.get(&"disarm_years", 5)
+	_forts_check.text = "Снос крепостей (%d)" % _info.get(&"destroy_forts_cost", 0)
+	_forts_check.tooltip_text = "Крепости проигравших сносятся"
+	_naval_check.text = "Снос баз (%d)" % _info.get(&"destroy_naval_bases_cost", 0)
+	_naval_check.tooltip_text = "Морские базы проигравших сносятся"
+	_cores_check.text = "Снять притязания (%d)" % _info.get(&"remove_cores_cost", 0)
+	_cores_check.tooltip_text = "Проигравшие теряют притязания (ядра) на землю победителей"
 	_disarm_check.button_pressed = _info.get(&"disarm", false)
 	_forts_check.button_pressed = _info.get(&"destroy_forts", false)
 	_naval_check.button_pressed = _info.get(&"destroy_naval_bases", false)
 	_cores_check.button_pressed = _info.get(&"remove_cores", false)
+	_puppet_check.text = "Марионетка (%d)" % _info.get(&"puppet_cost", 0)
+	_independence_check.text = "Независимость (%d)" % _info.get(&"independence_cost", 0)
+	_puppet_check.button_pressed = _info.get(&"make_puppet", false)
+	_independence_check.button_pressed = _info.get(&"independence", false)
+	var puppet_reason: String = _info.get(&"puppet_reason", "")
+	var independence_reason: String = _info.get(&"independence_reason", "")
+	_puppet_check.disabled = puppet_reason != "" and not _puppet_check.button_pressed
+	_puppet_check.tooltip_text = puppet_reason if puppet_reason != "" else "Побеждённый станет нашей марионеткой: без своей внешней политики, платит 5 % дохода"
+	_independence_check.disabled = independence_reason != "" and not _independence_check.button_pressed
+	_independence_check.tooltip_text = independence_reason if independence_reason != "" else "Мы перестанем быть субъектом побеждённого"
 	var added: PackedStringArray = _info.get(&"added_goals", PackedStringArray())
 	_goals_label.text = ("Добавленные цели: " + ", ".join(added)) if not added.is_empty() else "Добавленных целей нет. Цель стоит 1 очко дипломатии%s; цель вдвое дешевле в мире." % ("" if _info.get(&"has_casus_belli", false) else " и +1 дурной славы (нет повода)")
 	_goal_reparations_button.disabled = String(_info.get(&"goal_reparations_reason", "")) != ""
@@ -332,6 +359,10 @@ func _update_offers() -> void:
 			terms.append("снос морских баз")
 		if offer.get(&"remove_cores", false):
 			terms.append("снятие притязаний")
+		if offer.get(&"make_puppet", false):
+			terms.append("марионетка")
+		if offer.get(&"independence", false):
+			terms.append("независимость")
 		var what: String
 		if offer[&"concede"]:
 			what = "уступает: " + (", ".join(terms) if not terms.is_empty() else "белый мир")

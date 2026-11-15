@@ -13,6 +13,7 @@
 #include <openvic-simulation/country/CountryInstance.hpp>
 #include <openvic-simulation/diplomacy/CountryRelation.hpp>
 #include <openvic-simulation/diplomacy/DiplomaticAction.hpp>
+#include <openvic-simulation/diplomacy/Subjects.hpp>
 #include <openvic-simulation/economy/BuildingType.hpp>
 #include <openvic-simulation/economy/credit/Credit.hpp>
 #include <openvic-simulation/economy/production/FactoryInstance.hpp>
@@ -784,6 +785,35 @@ Dictionary PlayerSingleton::get_diplomatic_relation(int32_t country_index) const
 	result["no_cb_exhaustion"] = static_cast<float>(war_defines.no_cb_war_exhaustion);
 	result["justify_days"] = war_defines.justify_war_days;
 	result["justify_infamy"] = static_cast<float>(war_defines.justify_war_infamy);
+
+	// The subjects (version 101, stage D6): the kind of the other country (ours or of another overlord), whether we are its subject, the
+	// payments, the years under the overlord, what the actions of the overlord can do now
+	{
+		OpenVicDiplomacyDefines const& diplomacy_defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines().diplomacy;
+		MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+		result["target_subject_type"] = convert_to<String>(Subjects::get_type_key(other->subject_type));
+		result["target_overlord_is_us"] = other->overlord == player;
+		result["target_overlord_name"] = other->overlord != nullptr && menu_singleton != nullptr
+			? Utilities::get_country_name(*menu_singleton, *other->overlord) : String {};
+		result["we_are_subject_of_target"] = player->overlord == other;
+		result["our_subject_type"] = convert_to<String>(Subjects::get_type_key(player->subject_type));
+		result["we_are_puppet"] = player->is_puppet();
+		CountryInstance const* const subject = other->overlord == player ? other : player->overlord == other ? player : nullptr;
+		if (subject != nullptr) {
+			result["subject_tribute_pct"] = subject->subject_tribute_pct;
+			result["subject_tribute_yesterday"] = static_cast<float>(subject->subject_tribute_yesterday);
+			result["subject_years"] = static_cast<int32_t>((today - subject->subject_since).to_int() / 365);
+			result["subject_relation_bonus"] = Subjects::get_relation_bonus(diplomacy_defines, subject->subject_type);
+			result["subject_tribute_min"] = Subjects::get_min_tribute_pct(diplomacy_defines, subject->subject_type);
+			result["subject_tribute_max"] = Subjects::get_max_tribute_pct(diplomacy_defines, subject->subject_type);
+			result["subject_tribute_changeable"] = Subjects::tribute_is_changeable(subject->subject_type);
+			result["subject_next_type"] = convert_to<String>(Subjects::get_type_key(Subjects::get_more_autonomy(subject->subject_type)));
+		}
+		result["annex_reason"] = other->overlord == player
+			? String::utf8(Subjects::get_annex_block_reason(*instance_manager, *player, *other).c_str()) : String {};
+		result["subject_war_available"] = other->overlord == player && Subjects::tribute_is_changeable(other->subject_type) && player->is_at_war()
+			&& !other->is_at_war();
+	}
 
 	return result;
 }
@@ -4728,6 +4758,8 @@ namespace {
 		entry["destroy_forts"] = offer.terms.destroy_forts;
 		entry["destroy_naval_bases"] = offer.terms.destroy_naval_bases;
 		entry["remove_cores"] = offer.terms.remove_cores;
+		entry["make_puppet"] = offer.terms.make_puppet;
+		entry["independence"] = offer.terms.independence;
 		entry["cost"] = static_cast<float>(war_manager.get_terms_cost(war, *offer.from, offer.terms));
 		entry["days_left"] = war_manager.get_peace_defines().offer_valid_days - static_cast<int32_t>((today - offer.date).to_int());
 		return entry;
@@ -4793,6 +4825,20 @@ Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
 	result["remove_cores_cost"] = war_manager.get_peace_defines().remove_cores_cost;
 	result["disarm_years"] = war_manager.get_peace_defines().disarm_years;
 	result["reparations_years"] = war_manager.get_peace_defines().reparations_years;
+	// version 101 (stage D6): the puppet and the independence, and why they cannot be in the terms
+	result["make_puppet"] = draft.make_puppet;
+	result["independence"] = draft.independence;
+	result["puppet_cost"] = war_manager.get_peace_defines().puppet_cost;
+	result["independence_cost"] = war_manager.get_peace_defines().independence_cost;
+	{
+		PeaceTerms probe = draft;
+		probe.independence = false;
+		probe.make_puppet = true;
+		result["puppet_reason"] = String::utf8(memory::string { war_manager.get_subject_terms_block_reason(*war, *player_country, probe) }.c_str());
+		probe.make_puppet = false;
+		probe.independence = true;
+		result["independence_reason"] = String::utf8(memory::string { war_manager.get_subject_terms_block_reason(*war, *player_country, probe) }.c_str());
+	}
 	result["reparations_pct"] = static_cast<int32_t>((instance_manager->definition_manager.get_define_manager().get_diplomacy_defines().get_reparations_tax_hit() * 100).round<std::int32_t>());
 	{
 		PackedStringArray goals;
@@ -4807,6 +4853,9 @@ Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
 				break;
 			case WarGoal::type_t::REPARATIONS:
 				text += String::utf8("репарации");
+				break;
+			case WarGoal::type_t::INDEPENDENCE:
+				text += String::utf8("независимость");
 				break;
 			default:
 				break;

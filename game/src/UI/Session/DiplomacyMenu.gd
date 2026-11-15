@@ -36,6 +36,21 @@ const _ACTION_NAMES: Dictionary[String, String] = {
 	"cancel_military_access": "Отказаться от прохода войск",
 	"revoke_military_access": "Отозвать право прохода",
 	"remove_vision": "Отозвать обзор",
+	# the actions of an overlord (version 101, docs/DIPLOMACY.md, "Субъекты")
+	"annex_subject": "Аннексировать",
+	"release_subject": "Освободить субъекта",
+	"raise_subject_tribute": "Повысить выплаты",
+	"lower_subject_tribute": "Снизить выплаты",
+	"grant_autonomy": "Дать самостоятельность",
+	"subject_join_war": "Принудить к войне",
+}
+## The kinds of the subjects (version 101)
+const _SUBJECT_NAMES: Dictionary[String, String] = {
+	"puppet": "марионетка",
+	"protectorate": "протекторат",
+	"colonial": "колониальный субъект",
+	"crown_land": "коронная земля",
+	"dominion": "доминион",
 }
 
 # Labels of the country list entries (diplomacy_country_info), filled from the country data
@@ -470,12 +485,21 @@ func _update_selected_country() -> void:
 
 ## The buttons of the relations start and stop a monthly process (version 90, docs/DIPLOMACY.md): the text says which, the tooltip what it costs
 func _update_action_text(identifier: String, button: GUIIconButton, relation: Dictionary) -> void:
+	# the annexation of a subject needs years and a good relation (version 101): the reason when it cannot be done
+	if identifier == "annex_subject" and String(relation.get(&"annex_reason", "")) != "":
+		button.disabled = true
+		button.set_tooltip_string("Аннексия пока невозможна: %s.\nСубъект соглашается сам, когда пробыл под нами достаточно лет и отношения хорошие." % relation[&"annex_reason"])
+		return
 	if identifier != "increase_relations" and identifier != "decrease_relations":
 		# The price in diplomatic points (version 96, docs/DIPLOMACY.md): without the points the action cannot be sent
 		if _action_costs.is_empty():
 			_action_costs = PlayerSingleton.get_diplomatic_action_costs()
 		var cost: float = float(_action_costs.get(identifier, 0.0))
+		var hint: String = _subject_action_hint(identifier, relation)
 		if cost <= 0.0:
+			if hint != "":
+				button.disabled = false
+				button.set_tooltip_string(hint)
 			return
 		var points: float = float(relation.get(&"diplomatic_points", 0.0))
 		button.disabled = points < cost
@@ -484,7 +508,7 @@ func _update_action_text(identifier: String, button: GUIIconButton, relation: Di
 			GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_max", 10.0)), 0),
 			GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_gain", 1.0)), 1),
 			"\n§RНе хватает очков дипломатии§W" if points < cost else "",
-		])
+		] + (("\n" + hint) if hint != "" else ""))
 		return
 	var improve: bool = identifier == "increase_relations"
 	var process: int = int(relation.get(&"relation_process", 0))
@@ -500,6 +524,30 @@ func _update_action_text(identifier: String, button: GUIIconButton, relation: Di
 			GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_gain", 1.0)), 1),
 		]
 	)
+
+
+## What an action of an overlord does (version 101)
+func _subject_action_hint(identifier: String, relation: Dictionary) -> String:
+	var pct: int = int(relation.get(&"subject_tribute_pct", 0))
+	var colonial: bool = String(relation.get(&"target_subject_type", "")) == "colonial"
+	var what: String = "прироста казны" if colonial else "дохода"
+	var low: int = int(relation.get(&"subject_tribute_min", pct))
+	var high: int = int(relation.get(&"subject_tribute_max", pct))
+	match identifier:
+		"annex_subject":
+			return "Субъект станет частью нашей страны (с его согласия)."
+		"release_subject":
+			return "Субъект станет независимым; отношения улучшатся."
+		"raise_subject_tribute":
+			return "Выплаты: %d %% %s → %d %% (до %d %%); отношения ухудшатся." % [pct, what, mini(pct + 5, high), high]
+		"lower_subject_tribute":
+			return "Выплаты: %d %% %s → %d %% (не ниже %d %%); отношения улучшатся." % [pct, what, maxi(pct - 5, low), low]
+		"grant_autonomy":
+			var next: String = String(relation.get(&"subject_next_type", ""))
+			return ("Станет: %s." % _SUBJECT_NAMES[next]) if _SUBJECT_NAMES.has(next) else "Доминион станет независимым."
+		"subject_join_war":
+			return "Колониальный субъект или коронная земля вступает в нашу войну без согласия; отношения ухудшатся."
+	return ""
 
 
 func _update_facts(country: Dictionary, relation: Dictionary) -> void:
@@ -537,7 +585,10 @@ func _update_facts(country: Dictionary, relation: Dictionary) -> void:
 			_facts_relation.set_tooltip_string("\n".join(lines))
 
 	if _facts_status:
-		_set_label_text(_facts_status, _describe_relation(relation))
+		var status: String = _describe_relation(relation)
+		_set_label_text(_facts_status, status)
+		# (the label is narrow: the whole text in the tooltip)
+		_facts_status.set_tooltip_string(status)
 
 	for label_name: StringName in _facts_labels:
 		var value: Variant = country.get(_FACT_LABELS[label_name], "")
@@ -569,6 +620,17 @@ func _describe_relation(relation: Dictionary) -> String:
 		parts.append("у них проход войск")
 	if relation[&"we_subsidise"]:
 		parts.append("мы платим субсидии (%s)" % _subsidy_size_name(int(relation.get(&"subsidy_level", 100))))
+	# the subjects (version 101)
+	var target_kind: String = String(relation.get(&"target_subject_type", ""))
+	var pct: int = int(relation.get(&"subject_tribute_pct", 0))
+	if relation.get(&"target_overlord_is_us", false):
+		parts.append("наш субъект: %s, выплаты %d %% %s, %d лет" % [_SUBJECT_NAMES.get(target_kind, target_kind), pct,
+			"прироста казны" if target_kind == "colonial" else "дохода", int(relation.get(&"subject_years", 0))])
+	elif relation.get(&"we_are_subject_of_target", false):
+		var our_kind: String = String(relation.get(&"our_subject_type", ""))
+		parts.append("мы — %s этой страны, выплаты %d %%" % [_SUBJECT_NAMES.get(our_kind, our_kind), pct])
+	elif target_kind != "":
+		parts.append("%s страны %s" % [_SUBJECT_NAMES.get(target_kind, target_kind), relation.get(&"target_overlord_name", "")])
 	if parts.is_empty():
 		parts.append("Мир")
 	var process: int = int(relation.get(&"relation_process", 0))
@@ -581,7 +643,7 @@ func _describe_relation(relation: Dictionary) -> String:
 		parts.append("повод для войны: ещё %d дн." % int(relation[&"casus_belli_days"]))
 	elif relation.get(&"justifying", false):
 		parts.append("обоснование: %d дн." % int(relation[&"justify_days_left"]))
-	elif not relation[&"at_war"] and not relation[&"allied"]:
+	elif not relation[&"at_war"] and not relation[&"allied"] and not relation.get(&"target_overlord_is_us", false) 		and not relation.get(&"we_are_subject_of_target", false):
 		# A war without it costs no_cb_infamy of infamy and no_cb_exhaustion of war exhaustion (the label is short)
 		parts.append("повода нет")
 
@@ -594,19 +656,38 @@ func _is_action_available(identifier: String, relation: Dictionary) -> bool:
 	var at_war: bool = relation[&"at_war"]
 	var allied: bool = relation[&"allied"]
 
+	# the subjects (version 101): a puppet has no foreign policy, no war between an overlord and its subject but the war of independence
+	var our_subject: bool = relation.get(&"target_overlord_is_us", false)
+	var our_overlord: bool = relation.get(&"we_are_subject_of_target", false)
+	var we_puppet: bool = relation.get(&"we_are_puppet", false)
+	var our_kind: String = String(relation.get(&"our_subject_type", ""))
 	match identifier:
 		"form_alliance":
-			return not allied and not at_war
+			return not allied and not at_war and not we_puppet and String(relation.get(&"target_subject_type", "")) != "puppet"
 		"end_alliance":
 			return allied
 		"justify_war":
 			# One justification at a time, not against a country we already have a casus belli against
 			return not at_war and not allied and not relation.get(&"has_casus_belli", false) \
-				and not relation.get(&"justifying", false) and not relation.get(&"justifying_other", false)
+				and not relation.get(&"justifying", false) and not relation.get(&"justifying_other", false) \
+				and not our_subject and not our_overlord and not we_puppet
+		"annex_subject", "release_subject", "grant_autonomy":
+			return our_subject and not at_war
+		"raise_subject_tribute":
+			return our_subject and relation.get(&"subject_tribute_changeable", false) \
+				and int(relation.get(&"subject_tribute_pct", 0)) < int(relation.get(&"subject_tribute_max", 0))
+		"lower_subject_tribute":
+			return our_subject and relation.get(&"subject_tribute_changeable", false) \
+				and int(relation.get(&"subject_tribute_pct", 0)) > int(relation.get(&"subject_tribute_min", 0))
+		"subject_join_war":
+			return relation.get(&"subject_war_available", false)
 		"call_ally":
 			# Into our war (docs/WAR_ASSUMPTIONS.md, "Союзники и отдельный мир"); the simulation checks the rest
 			return allied and not at_war and relation.get(&"player_at_war", false)
 		"declare_war":
+			# (the war of independence of a puppet or a dominion; a puppet fights nobody else)
+			if our_subject or (our_overlord and our_kind != "puppet" and our_kind != "dominion") or (we_puppet and not our_overlord):
+				return false
 			return not at_war and not allied
 		"offer_peace":
 			return at_war

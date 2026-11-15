@@ -51,8 +51,21 @@ func _diplomatic_action(identifier: String) -> String:
 		"call_ally": "призыв в войну",
 		"cancel_military_access": "отказ от прохода войск",
 		"revoke_military_access": "отзыв права прохода",
+		"annex_subject": "аннексия (мы станем частью сюзерена)",
 	}
 	return actions.get(identifier, identifier)
+
+
+## The kinds of the subjects (version 101)
+func _subject_kind(identifier: String) -> String:
+	var kinds: Dictionary = {
+		"puppet": "марионетка",
+		"protectorate": "протекторат",
+		"colonial": "колониальный субъект",
+		"crown_land": "коронная земля",
+		"dominion": "доминион",
+	}
+	return kinds.get(identifier, identifier)
 
 
 func _make_text(entry: Dictionary) -> String:
@@ -121,6 +134,27 @@ func _make_text(entry: Dictionary) -> String:
 			return "Наше обоснование войны против %s раскрыто: отношения хуже" % entry[&"other"]
 		"war_goal_added":
 			return "%s добавляет цель в войну против нас" % entry[&"other"]
+		# version 101 (stage D6): the subjects
+		"became_subject":
+			if we_first:
+				return "Мы стали субъектом %s: %s" % [entry[&"other"], _subject_kind(entry[&"subject"])]
+			return "%s теперь наш субъект: %s" % [entry[&"country"], _subject_kind(entry[&"subject"])]
+		"subject_released":
+			if we_first:
+				return "Мы больше не субъект %s" % entry[&"other"]
+			return "%s больше не наш субъект" % entry[&"country"]
+		"subject_annexed":
+			if we_first:
+				return "Мы присоединили %s" % entry[&"other"]
+			return "%s присоединяет нашу страну" % entry[&"country"]
+		"subject_war_joined":
+			if we_first:
+				return "Мы вступаем в войну нашего субъекта %s" % entry[&"other"]
+			return "Наш сюзерен %s вступает в нашу войну" % entry[&"country"]
+		"independence_won":
+			if we_first:
+				return "Мы добились независимости от %s" % entry[&"other"]
+			return "%s добивается независимости от нас" % entry[&"country"]
 		"war_subsidies_ended":
 			if we_first:
 				return "Субсидии %s прекращены: война окончена" % entry[&"other"]
