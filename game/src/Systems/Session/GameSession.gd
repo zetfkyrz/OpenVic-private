@@ -8,6 +8,7 @@ const _CommandPanel: GDScript = preload("res://src/UI/Session/CommandPanel.gd")
 const _PlanTools: GDScript = preload("res://src/Systems/Session/Map/PlanTools.gd")
 const _TheatrePanel: GDScript = preload("res://src/UI/Session/TheatrePanel.gd")
 const _NotificationFeed: GDScript = preload("res://src/UI/Session/NotificationFeed.gd")
+const _DiplomaticProposals: GDScript = preload("res://src/UI/Session/DiplomaticProposals.gd")
 const _FlagLinks: GDScript = preload("res://src/UI/Session/FlagLinks.gd")
 const _RankingWindow: GDScript = preload("res://src/UI/Session/RankingWindow.gd")
 const _SphereWindow: GDScript = preload("res://src/UI/Session/SphereWindow.gd")
@@ -105,6 +106,10 @@ func _ready() -> void:
 	var feed := VBoxContainer.new()
 	feed.set_script(_NotificationFeed)
 	_game_session_menu.get_parent().add_child(feed)
+	# The proposals of other countries that wait for the answer of the player (version 96)
+	var proposals := PanelContainer.new()
+	proposals.set_script(_DiplomaticProposals)
+	_game_session_menu.get_parent().add_child(proposals)
 
 	# Banners over the armies (selection, strength, battles, sieges), under the windows of the interface
 	_unit_banners = Control.new()

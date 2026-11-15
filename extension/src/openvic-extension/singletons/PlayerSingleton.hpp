@@ -158,6 +158,12 @@ namespace OpenVic {
 		godot::Dictionary get_diplomatic_relation(int32_t country_index) const;
 		// Queues the action from the player country to the given country, returns whether it was queued.
 		bool send_diplomatic_action(int32_t receiver_country_index, int32_t action_index) const;
+		// The proposals that wait for the answer of the player (version 96): { id, action, sender_index, sender_tag, sender_name, days_left }
+		godot::Array get_diplomatic_proposals() const;
+		// Queues the answer of the player to a proposal
+		bool answer_diplomatic_proposal(int64_t proposal_id, bool accept) const;
+		// The price of every diplomatic action in diplomatic points, by its identifier (version 96)
+		godot::Dictionary get_diplomatic_action_costs() const;
 
 		// Wars, armies and fronts
 		// { wars: [{ id, we_attack, days, attacker_score, defender_score, attackers: [{ index, name }], defenders: [...] }],

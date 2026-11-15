@@ -76,6 +76,8 @@ var _empty_facts_labels: Array[GUILabel]
 
 var _action_identifiers: PackedStringArray
 var _action_buttons: Dictionary[String, GUIIconButton]
+# The prices of the actions in diplomatic points by their identifier (version 96)
+var _action_costs: Dictionary = {}
 
 const _SphereWindowScript := preload("res://src/UI/Session/SphereWindow.gd")
 var _countries: Array = []
@@ -423,6 +425,20 @@ func _update_selected_country() -> void:
 ## The buttons of the relations start and stop a monthly process (version 90, docs/DIPLOMACY.md): the text says which, the tooltip what it costs
 func _update_action_text(identifier: String, button: GUIIconButton, relation: Dictionary) -> void:
 	if identifier != "increase_relations" and identifier != "decrease_relations":
+		# The price in diplomatic points (version 96, docs/DIPLOMACY.md): without the points the action cannot be sent
+		if _action_costs.is_empty():
+			_action_costs = PlayerSingleton.get_diplomatic_action_costs()
+		var cost: float = float(_action_costs.get(identifier, 0.0))
+		if cost <= 0.0:
+			return
+		var points: float = float(relation.get(&"diplomatic_points", 0.0))
+		button.disabled = points < cost
+		button.set_tooltip_string("Цена: %s очк. дипломатии (тратятся и при отказе).\nОчки: %s из %s, +%s в месяц.%s" % [
+			GUINode.float_to_string_dp(cost, 1), GUINode.float_to_string_dp(points, 1),
+			GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_max", 10.0)), 0),
+			GUINode.float_to_string_dp(float(relation.get(&"diplomatic_points_gain", 1.0)), 1),
+			"\n§RНе хватает очков дипломатии§W" if points < cost else "",
+		])
 		return
 	var improve: bool = identifier == "increase_relations"
 	var process: int = int(relation.get(&"relation_process", 0))

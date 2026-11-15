@@ -42,6 +42,17 @@ func _sphere_kind(identifier: String) -> String:
 	return kinds.get(identifier, identifier)
 
 
+func _diplomatic_action(identifier: String) -> String:
+	var actions: Dictionary = {
+		"form_alliance": "союз",
+		"request_military_access": "право прохода войск",
+		"give_military_access": "право прохода войск (предложенное)",
+		"war_subsidies": "военные субсидии",
+		"call_ally": "призыв в войну",
+	}
+	return actions.get(identifier, identifier)
+
+
 func _make_text(entry: Dictionary) -> String:
 	var kind: String = entry[&"kind"]
 	var we_first: bool = entry[&"we_are_first"]
@@ -92,6 +103,19 @@ func _make_text(entry: Dictionary) -> String:
 		# version 93: the change of the kind, a member that refused the war of its military union
 		"sphere_kind_changed":
 			return "%s меняет вид своей сферы: %s" % [entry[&"country"], _sphere_kind(entry[&"subject"])]
+		# The answers to the diplomatic actions (version 96, docs/DIPLOMACY.md)
+		"diplomatic_proposal":
+			if we_first:
+				return "%s: %s — ответьте в окне предложений" % [entry[&"other"], _diplomatic_action(entry[&"subject"])]
+			return ""
+		"diplomatic_declined":
+			if we_first:
+				return "%s отказывает: %s" % [entry[&"other"], _diplomatic_action(entry[&"subject"])]
+			return ""
+		"diplomatic_accepted":
+			if we_first:
+				return "%s принимает: %s" % [entry[&"other"], _diplomatic_action(entry[&"subject"])]
+			return ""
 		"sphere_war_refused":
 			if we_first:
 				return "Мы отказались вступить в войну военного союза %s: −5 %% престижа" % entry[&"other"]

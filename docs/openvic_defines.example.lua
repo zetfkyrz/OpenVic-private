@@ -675,5 +675,8 @@ defines = {
 		SPHERE_PRINCIPLE_LEVEL1_PCT = 100, -- whole number 0 to 10000
 		SPHERE_PRINCIPLE_LEVEL2_PCT = 150, -- whole number 0 to 10000
 		SPHERE_PRINCIPLE_LEVEL3_PCT = 200, -- whole number 0 to 10000
+		DIPLOMATIC_PROPOSAL_DAYS = 30, -- whole number 1 to 3650
+		DIPLOMATIC_PROPOSAL_COOLDOWN_MONTHS = 12, -- whole number 0 to 1200
+		AI_MILITARY_ACCESS_MIN_RELATION = 0, -- whole number -200 to 200
 	},
 }

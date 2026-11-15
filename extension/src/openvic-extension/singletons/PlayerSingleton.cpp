@@ -298,6 +298,9 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_diplomacy_country_list);
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_relation, { "country_index" });
 	OV_BIND_METHOD(PlayerSingleton::send_diplomatic_action, { "receiver_country_index", "action_index" });
+	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_proposals);
+	OV_BIND_METHOD(PlayerSingleton::answer_diplomatic_proposal, { "proposal_id", "accept" });
+	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_costs);
 
 	ADD_SIGNAL(MethodInfo(_signal_province_selected(), PropertyInfo(Variant::INT, "index")));
 }
@@ -791,6 +794,53 @@ bool PlayerSingleton::send_diplomatic_action(int32_t receiver_country_index, int
 	    country_index_t(static_cast<uint32_t>(receiver_country_index)),
 	    static_cast<uint32_t>(action_index)
 	);
+}
+
+Array PlayerSingleton::get_diplomatic_proposals() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager const* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	DiplomaticActionManager const& actions = instance_manager->definition_manager.get_diplomatic_action_manager();
+	const std::int32_t days = instance_manager->definition_manager.get_define_manager().get_openvic_defines().diplomacy.diplomatic_proposal_days;
+	for (CountryRelationManager::proposal_t const& proposal : instance_manager->get_country_relation_manager().get_proposals()) {
+		if (proposal.receiver != player_country) {
+			continue;
+		}
+		DiplomaticActionTypeStorage const* type = actions.get_diplomatic_action_type_by_index(proposal.action_index);
+		Dictionary entry;
+		entry["id"] = static_cast<int64_t>(proposal.id);
+		entry["action"] = type != nullptr ? convert_to<String>(type->get_identifier()) : String {};
+		entry["sender_index"] = static_cast<int32_t>(type_safe::get(proposal.sender->index));
+		entry["sender_tag"] = convert_to<String>(proposal.sender->get_identifier());
+		entry["sender_name"] = Utilities::get_country_name(*menu_singleton, *proposal.sender);
+		entry["days_left"] = static_cast<int64_t>(std::max<std::int64_t>(0, days - (instance_manager->get_today() - proposal.date).to_int()));
+		result.push_back(entry);
+	}
+	return result;
+}
+
+bool PlayerSingleton::answer_diplomatic_proposal(const int64_t proposal_id, const bool accept) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(proposal_id <= 0, false);
+	return instance_manager->queue_game_action<answer_diplomatic_proposal_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(proposal_id), accept
+	);
+}
+
+Dictionary PlayerSingleton::get_diplomatic_action_costs() const {
+	Dictionary result;
+	GameSingleton const* game_singleton = GameSingleton::get_singleton();
+	ERR_FAIL_NULL_V(game_singleton, result);
+	DiplomaticActionManager const& actions = game_singleton->get_definition_manager().get_diplomatic_action_manager();
+	for (DiplomaticActionTypeStorage const& type : actions.get_diplomatic_action_types()) {
+		result[convert_to<String>(type.get_identifier())] = static_cast<float>(actions.get_terms(type.get_identifier()).cost);
+	}
+	return result;
 }
 
 // Technology
