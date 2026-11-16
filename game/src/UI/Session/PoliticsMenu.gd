@@ -56,8 +56,17 @@ var _research_points_value: GUILabel
 var _unciv_progress: GUIProgressBar
 var _westernize_button: GUIIconButton
 #
-# Release Nations
+# Release Nations (version 102, docs/DIPLOMACY.md "Освобождение наций"): the nations of the cores in our states, the kind is chosen
+# after the button (free or one of the subjects)
 var _release_nation_listbox: GUIListBox
+var _release_empty_label: Label
+var _release_menu: PopupMenu
+var _releasable: Array = []
+var _release_index: int = -1
+const _RELEASE_KINDS: Array = [
+	[0, "Независимой страной"], [1, "Марионеткой"], [2, "Протекторатом"], [3, "Колониальным субъектом"], [4, "Коронной землёй"],
+	[5, "Доминионом"],
+]
 #
 # The tab that is shown (0 reforms: the laws of OpenVic, 1 movements, 2 decisions, 3 release nations) and the windows of the tabs
 var _tab: int = 0
@@ -177,6 +186,16 @@ func _ready() -> void:
 	_release_nations_window = release_nations_window
 	if release_nations_window:
 		_release_nation_listbox = GUINode.get_gui_listbox_from_node(release_nations_window.get_node(^"./nations"))
+		_release_empty_label = Label.new()
+		_release_empty_label.position = Vector2(30, 56)
+		_release_empty_label.size = Vector2(560, 120)
+		_release_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_release_empty_label.add_theme_color_override(&"font_color", Color(0.1, 0.08, 0.05))
+		_release_empty_label.text = "Освободить можно нацию, у которой нет своей страны, если её ядро — столица одной из наших областей (кроме области нашей столицы). Нация получает такие области целиком."
+		release_nations_window.add_child(_release_empty_label)
+		_release_menu = PopupMenu.new()
+		_release_menu.id_pressed.connect(_on_release_kind_chosen)
+		add_child(_release_menu)
 
 	_update_tabs()
 	_update_info()
@@ -185,6 +204,7 @@ func _ready() -> void:
 func _set_tab(tab: int) -> void:
 	_tab = tab
 	_update_tabs()
+	_update_release_nations()
 
 
 func _update_tabs() -> void:
@@ -217,5 +237,84 @@ func _update_info() -> void:
 		show()
 		if _laws_panel:
 			_laws_panel.refresh()
+		_update_release_nations()
 	else:
 		hide()
+
+
+## The tab "release nations" (version 102): an entry of the GUI of Vic2 (vassal_nation) for every nation the player can release
+func _update_release_nations() -> void:
+	if not _active or _tab != 3 or _release_nation_listbox == null:
+		return
+	_releasable = PlayerSingleton.get_releasable_nations()
+	if _release_empty_label:
+		_release_empty_label.visible = _releasable.is_empty()
+	_release_nation_listbox.clear_children(_releasable.size())
+	while _release_nation_listbox.get_child_count() < _releasable.size():
+		var new_entry: Panel = GUINode.generate_gui_element(_gui_file, "vassal_nation")
+		if not new_entry:
+			break
+		_release_nation_listbox.add_child(new_entry)
+	for i: int in mini(_release_nation_listbox.get_child_count(), _releasable.size()):
+		_setup_release_entry(_release_nation_listbox.get_child(i), _releasable[i], i)
+
+
+func _setup_release_entry(entry: Panel, nation: Dictionary, i: int) -> void:
+	var name_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./name")
+	if name_label:
+		name_label.set_auto_translate(false)
+		name_label.set_text(nation[&"name"])
+	var type_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./type")
+	if type_label:
+		type_label.set_auto_translate(false)
+		type_label.set_text("колония" if nation[&"colonial"] else "")
+	var desc_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./desc")
+	if desc_label:
+		desc_label.set_auto_translate(false)
+		var desc: String = "Области: %s (%d пров., %s чел.)" % [", ".join(PackedStringArray(nation[&"state_names"])), int(nation[&"provinces"]),
+			GUINode.int_to_string_suffixed(int(nation[&"population"]))]
+		desc_label.set_text(desc)
+		# (a long list is cut: the whole text in the tooltip)
+		desc_label.set_tooltip_string(desc)
+	var flag: Node = entry.get_node_or_null(^"./country_flag")
+	if flag is GUIMaskedFlag:
+		(flag as GUIMaskedFlag).set_flag_country_name(nation[&"tag"])
+	var button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(entry, ^"./country_release_vassal")
+	if button:
+		button.set_text("Освободить")
+		var reason: String = PackedStringArray(nation[&"reasons"])[0]
+		button.disabled = reason != ""
+		button.set_tooltip_string(reason if reason != "" else "Престиж %+d, дурная слава %+d. Нация получает свою долю казны (по населению); вид — после нажатия." % [
+			int(nation[&"prestige"]), int(nation[&"infamy"])])
+		if entry.has_meta(&"release_connected"):
+			button.pressed.disconnect(entry.get_meta(&"release_connected"))
+		var callable: Callable = _choose_release_kind.bind(i)
+		button.pressed.connect(callable)
+		entry.set_meta(&"release_connected", callable)
+
+
+func _choose_release_kind(i: int) -> void:
+	if i >= _releasable.size():
+		return
+	_release_index = i
+	var reasons: PackedStringArray = _releasable[i][&"reasons"]
+	_release_menu.clear()
+	_release_menu.add_separator("Освободить %s как" % _releasable[i][&"name"])
+	for kind: Array in _RELEASE_KINDS:
+		var id: int = kind[0]
+		_release_menu.add_item(kind[1], id)
+		var item: int = _release_menu.get_item_index(id)
+		if id < reasons.size() and reasons[id] != "":
+			_release_menu.set_item_disabled(item, true)
+			_release_menu.set_item_tooltip(item, reasons[id])
+	_release_menu.reset_size()
+	_release_menu.position = Vector2i(get_viewport().get_mouse_position())
+	_release_menu.popup()
+
+
+func _on_release_kind_chosen(kind: int) -> void:
+	if _release_index < 0 or _release_index >= _releasable.size():
+		return
+	if not PlayerSingleton.release_nation(int(_releasable[_release_index][&"index"]), kind):
+		push_warning("The release of a nation was not accepted")
+	_release_index = -1

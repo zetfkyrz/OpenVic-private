@@ -164,6 +164,10 @@ namespace OpenVic {
 		bool add_war_goal(int32_t war_id, int32_t goal_type, int32_t province_number) const;
 		// Queues the war subsidies of a size (50, 75, 100, 125 or 150 % of the subsidy of Vic2) to the country (version 99)
 		bool send_war_subsidies(int32_t receiver_country_index, int32_t level) const;
+		// The release of nations (version 102, the tab of the politics window): the nations the player can release, with the reason for every
+		// kind (0 free, 1 puppet, 2 protectorate, 3 colonial subject, 4 crown land, 5 dominion; empty: possible), and the release
+		godot::TypedArray<godot::Dictionary> get_releasable_nations() const;
+		bool release_nation(int32_t nation_index, int32_t type) const;
 		// Queues the answer of the player to a proposal
 		bool answer_diplomatic_proposal(int64_t proposal_id, bool accept) const;
 		// The price of every diplomatic action in diplomatic points, by its identifier (version 96)

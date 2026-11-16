@@ -732,6 +732,11 @@ defines = {
 		AI_SUBJECT_INDEPENDENCE_POWER_PCT = 75, -- whole number 0 to 100000
 		AI_OVERLORD_KEEP_RELATION = 50, -- whole number -200 to 200
 		AI_OVERLORD_ANNEX_CHANCE = 25, -- whole number 0 to 100
+		SUBJECT_COLONIAL_RAW_SURPLUS_PCT = 50, -- whole number 0 to 100
+		RELEASE_NATION_RELATION = 100, -- whole number -200 to 200
+		AI_RELEASE_COLONY_CHANCE = 5, -- whole number 0 to 100
+		AI_RELEASE_COLONY_MIN_STATES = 2, -- whole number 1 to 1000
+		AI_RELEASE_COLONY_MAX_STATES_PCT = 20, -- whole number 0 to 100
 		AI_OVERLORD_COERCE_CHANCE = 50, -- whole number 0 to 100
 	},
 }

@@ -301,6 +301,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::send_diplomatic_action, { "receiver_country_index", "action_index" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_proposals);
 	OV_BIND_METHOD(PlayerSingleton::send_war_subsidies, { "receiver_country_index", "level" });
+	OV_BIND_METHOD(PlayerSingleton::get_releasable_nations);
+	OV_BIND_METHOD(PlayerSingleton::release_nation, { "nation_index", "type" });
 	OV_BIND_METHOD(PlayerSingleton::add_war_goal, { "war_id", "goal_type", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::answer_diplomatic_proposal, { "proposal_id", "accept" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_costs);
@@ -875,6 +877,54 @@ bool PlayerSingleton::add_war_goal(const int32_t war_id, const int32_t goal_type
 	}
 	return instance_manager->queue_game_action<add_war_goal_argument_t>(
 		player_country->index, static_cast<std::uint32_t>(war_id), static_cast<std::uint32_t>(goal_type), province_index
+	);
+}
+
+TypedArray<Dictionary> PlayerSingleton::get_releasable_nations() const {
+	TypedArray<Dictionary> result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager const* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	DiplomacyDefines const& vic2 = instance_manager->definition_manager.get_define_manager().get_diplomacy_defines();
+	for (Subjects::releasable_t const& entry : Subjects::get_releasable_nations(*player_country)) {
+		Dictionary nation;
+		nation["index"] = static_cast<int32_t>(type_safe::get(entry.nation->index));
+		nation["tag"] = convert_to<String>(entry.nation->get_identifier());
+		nation["name"] = Utilities::get_country_name(*menu_singleton, *entry.nation);
+		nation["states"] = static_cast<int32_t>(entry.states.size());
+		nation["provinces"] = static_cast<int32_t>(entry.provinces);
+		nation["population"] = static_cast<int64_t>(entry.population);
+		nation["colonial"] = entry.colonial;
+		PackedStringArray state_names;
+		for (State const* state : entry.states) {
+			if (state->get_capital() != nullptr) {
+				state_names.push_back(province_name_of(*state->get_capital()));
+			}
+		}
+		nation["state_names"] = state_names;
+		PackedStringArray reasons;
+		for (std::uint32_t type = 0; type <= static_cast<std::uint32_t>(CountryInstance::subject_type_t::DOMINION); ++type) {
+			reasons.push_back(String::utf8(memory::string {
+				Subjects::get_release_block_reason(*player_country, entry, static_cast<CountryInstance::subject_type_t>(type))
+			}.c_str()));
+		}
+		nation["reasons"] = reasons;
+		nation["prestige"] = static_cast<float>(vic2.get_release_nation_prestige());
+		nation["infamy"] = static_cast<float>(vic2.get_release_nation_infamy());
+		result.push_back(nation);
+	}
+	return result;
+}
+
+bool PlayerSingleton::release_nation(const int32_t nation_index, const int32_t type) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(nation_index < 0 || type < 0, false);
+	return instance_manager->queue_game_action<release_nation_argument_t>(
+		player_country->index, country_index_t(static_cast<uint32_t>(nation_index)), static_cast<std::uint32_t>(type)
 	);
 }
 

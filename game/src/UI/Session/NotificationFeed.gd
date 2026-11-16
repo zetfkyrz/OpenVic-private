@@ -151,6 +151,11 @@ func _make_text(entry: Dictionary) -> String:
 			if we_first:
 				return "Мы вступаем в войну нашего субъекта %s" % entry[&"other"]
 			return "Наш сюзерен %s вступает в нашу войну" % entry[&"country"]
+		"nation_released":
+			var released_as: String = _subject_kind(entry[&"subject"]) if entry[&"subject"] != "" else "независимой страной"
+			if we_first:
+				return "Мы освободили %s (%s)" % [entry[&"other"], released_as]
+			return "%s освобождает нас (%s)" % [entry[&"country"], released_as]
 		"independence_won":
 			if we_first:
 				return "Мы добились независимости от %s" % entry[&"other"]
