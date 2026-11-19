@@ -14,6 +14,7 @@
 #include <openvic-simulation/diplomacy/CountryRelation.hpp>
 #include <openvic-simulation/diplomacy/DiplomaticAction.hpp>
 #include <openvic-simulation/diplomacy/Subjects.hpp>
+#include <openvic-simulation/diplomacy/Unions.hpp>
 #include <openvic-simulation/economy/BuildingType.hpp>
 #include <openvic-simulation/economy/credit/Credit.hpp>
 #include <openvic-simulation/economy/production/FactoryInstance.hpp>
@@ -303,6 +304,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::send_war_subsidies, { "receiver_country_index", "level" });
 	OV_BIND_METHOD(PlayerSingleton::get_releasable_nations);
 	OV_BIND_METHOD(PlayerSingleton::release_nation, { "nation_index", "type" });
+	OV_BIND_METHOD(PlayerSingleton::get_union_decision);
+	OV_BIND_METHOD(PlayerSingleton::form_union);
 	OV_BIND_METHOD(PlayerSingleton::add_war_goal, { "war_id", "goal_type", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::answer_diplomatic_proposal, { "proposal_id", "accept" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_costs);
@@ -815,6 +818,9 @@ Dictionary PlayerSingleton::get_diplomatic_relation(int32_t country_index) const
 			? String::utf8(Subjects::get_annex_block_reason(*instance_manager, *player, *other).c_str()) : String {};
 		result["subject_war_available"] = other->overlord == player && Subjects::tribute_is_changeable(other->subject_type) && player->is_at_war()
 			&& !other->is_at_war();
+		// the unions (version 103): the war of unification against the country ("" possible) and the invitation into our union
+		result["unification_reason"] = String::utf8(memory::string { Unions::get_unification_block_reason(*instance_manager, *player, *other) }.c_str());
+		result["union_join_available"] = Unions::may_join(*instance_manager, *player, *other);
 	}
 
 	return result;
@@ -926,6 +932,42 @@ bool PlayerSingleton::release_nation(const int32_t nation_index, const int32_t t
 	return instance_manager->queue_game_action<release_nation_argument_t>(
 		player_country->index, country_index_t(static_cast<uint32_t>(nation_index)), static_cast<std::uint32_t>(type)
 	);
+}
+
+Dictionary PlayerSingleton::get_union_decision() const {
+	Dictionary result;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	CountryDefinition const* const definition = Unions::get_union_definition(*player_country);
+	if (definition == nullptr || player_country->union_identity != nullptr || Unions::get_union_holder(*instance_manager, *definition) != nullptr) {
+		return result;
+	}
+	result["tag"] = convert_to<String>(definition->get_identifier());
+	result["name"] = menu_singleton->tr(convert_to<String>(definition->get_identifier()));
+	Array requirements;
+	bool all = true;
+	for (Unions::requirement_t const& requirement : Unions::get_form_requirements(*instance_manager, *player_country)) {
+		Dictionary entry;
+		entry["text"] = String::utf8(requirement.text.c_str())
+			+ (requirement.example != nullptr ? String::utf8(", например: ") + Utilities::get_country_name(*menu_singleton, *requirement.example) : String {});
+		entry["met"] = requirement.met;
+		all = all && requirement.met;
+		requirements.push_back(entry);
+	}
+	result["requirements"] = requirements;
+	result["can_form"] = all;
+	result["prestige_gain"] = instance_manager->definition_manager.get_define_manager().get_openvic_defines().diplomacy.union_form_prestige_gain;
+	return result;
+}
+
+bool PlayerSingleton::form_union() const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<form_union_argument_t>(player_country->index);
 }
 
 bool PlayerSingleton::send_war_subsidies(const int32_t receiver_country_index, const int32_t level) const {
@@ -4810,6 +4852,7 @@ namespace {
 		entry["remove_cores"] = offer.terms.remove_cores;
 		entry["make_puppet"] = offer.terms.make_puppet;
 		entry["independence"] = offer.terms.independence;
+		entry["hegemony"] = offer.terms.hegemony;
 		entry["cost"] = static_cast<float>(war_manager.get_terms_cost(war, *offer.from, offer.terms));
 		entry["days_left"] = war_manager.get_peace_defines().offer_valid_days - static_cast<int32_t>((today - offer.date).to_int());
 		return entry;
@@ -4880,6 +4923,14 @@ Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
 	result["independence"] = draft.independence;
 	result["puppet_cost"] = war_manager.get_peace_defines().puppet_cost;
 	result["independence_cost"] = war_manager.get_peace_defines().independence_cost;
+	// version 103 (stage D8): the hegemony
+	result["hegemony"] = draft.hegemony;
+	result["hegemony_cost"] = war_manager.get_peace_defines().hegemony_cost;
+	{
+		PeaceTerms probe = draft;
+		probe.hegemony = true;
+		result["hegemony_reason"] = String::utf8(memory::string { war_manager.get_hegemony_block_reason(*instance_manager, *war, *player_country, probe) }.c_str());
+	}
 	{
 		PeaceTerms probe = draft;
 		probe.independence = false;
@@ -4906,6 +4957,9 @@ Dictionary PlayerSingleton::get_peace_info(int32_t war_id) const {
 				break;
 			case WarGoal::type_t::INDEPENDENCE:
 				text += String::utf8("независимость");
+				break;
+			case WarGoal::type_t::UNIFICATION:
+				text += String::utf8("объединение");
 				break;
 			default:
 				break;
@@ -5272,7 +5326,7 @@ Array PlayerSingleton::get_notifications(int64_t after_id) const {
 		// goals of the great powers and their alliances; version 92: the spheres founded and ended)
 		const bool mine = entry.country == player_country || entry.other_country == player_country
 			|| entry.kind == "ai_goal" || entry.kind == "alliance_formed" || entry.kind == "sphere_founded" || entry.kind == "sphere_dissolved"
-			|| entry.kind == "sphere_kind_changed";
+			|| entry.kind == "sphere_kind_changed" || entry.kind == "union_formed";
 		if (!mine) {
 			continue;
 		}

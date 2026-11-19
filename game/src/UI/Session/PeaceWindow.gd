@@ -25,6 +25,7 @@ var _naval_check: CheckBox
 var _cores_check: CheckBox
 var _puppet_check: CheckBox
 var _independence_check: CheckBox
+var _hegemony_check: CheckBox
 var _goals_label: Label
 var _goal_reparations_button: Button
 var _goal_humiliate_button: Button
@@ -81,6 +82,10 @@ func _ready() -> void:
 	_humiliate_check = CheckBox.new()
 	_humiliate_check.toggled.connect(_on_humiliate_toggled)
 	extras.add_child(_humiliate_check)
+	# the hegemony (version 103)
+	_hegemony_check = CheckBox.new()
+	_hegemony_check.toggled.connect(_on_extra_toggled.bind(11))
+	extras.add_child(_hegemony_check)
 	var extras2 := HBoxContainer.new()
 	extras2.add_theme_constant_override(&"separation", 14)
 	root.add_child(extras2)
@@ -252,6 +257,8 @@ func _refresh_inner() -> void:
 		goal = " Цель войны: репарации."
 	elif _info[&"goal_type"] == 4:
 		goal = " Цель войны: независимость."
+	elif _info[&"goal_type"] == 5:
+		goal = " Цель войны: объединение (области с ядрами союза — вдвое дешевле)."
 	_header_label.text = "Война №%d, дней: %d. Мы: %s. Очки войны: у нас %.0f, у врага %.0f.%s\nАтакующие: %s. Защитники: %s." % [
 		_war_id, _info[&"days"], "атакуем" if _info[&"we_attack"] else "обороняемся",
 		_info[&"our_score"], _info[&"their_score"], goal,
@@ -259,7 +266,14 @@ func _refresh_inner() -> void:
 	]
 
 	_concede_check.button_pressed = _info[&"concede"]
-	_reparations_check.text = "Репарации: %d %% дохода %d лет (%d очков)" % [_info.get(&"reparations_pct", 25), _info.get(&"reparations_years", 5), _info[&"reparations_cost"]]
+	# (short names: the window has a fixed size; what they do is in the tooltips)
+	_reparations_check.text = "Репарации (%d)" % _info[&"reparations_cost"]
+	_reparations_check.tooltip_text = "Проигравший платит %d %% дохода каждый день %d лет" % [_info.get(&"reparations_pct", 25), _info.get(&"reparations_years", 5)]
+	_hegemony_check.text = "Гегемония (%d)" % _info.get(&"hegemony_cost", 0)
+	_hegemony_check.button_pressed = _info.get(&"hegemony", false)
+	var hegemony_reason: String = _info.get(&"hegemony_reason", "")
+	_hegemony_check.disabled = hegemony_reason != "" and not _hegemony_check.button_pressed
+	_hegemony_check.tooltip_text = hegemony_reason if hegemony_reason != "" else "Страны нашей культурной группы выходят из сферы побеждённого; +престиж"
 	# (short names: three to a row; what they do is in the tooltips)
 	_disarm_check.text = "Разоружение (%d)" % _info.get(&"disarm_cost", 0)
 	_disarm_check.tooltip_text = "Проигравший %d лет не может набирать полки" % _info.get(&"disarm_years", 5)
@@ -289,7 +303,8 @@ func _refresh_inner() -> void:
 	_goal_reparations_button.tooltip_text = String(_info.get(&"goal_reparations_reason", ""))
 	_goal_humiliate_button.disabled = String(_info.get(&"goal_humiliate_reason", "")) != ""
 	_goal_humiliate_button.tooltip_text = String(_info.get(&"goal_humiliate_reason", ""))
-	_humiliate_check.text = "Унижение: престиж (%d очков)" % _info[&"humiliate_cost"]
+	_humiliate_check.text = "Унижение (%d)" % _info[&"humiliate_cost"]
+	_humiliate_check.tooltip_text = "Победитель получает престиж, проигравший его теряет"
 	_reparations_check.button_pressed = _info[&"reparations"]
 	_humiliate_check.button_pressed = _info[&"humiliate"]
 
@@ -363,6 +378,8 @@ func _update_offers() -> void:
 			terms.append("марионетка")
 		if offer.get(&"independence", false):
 			terms.append("независимость")
+		if offer.get(&"hegemony", false):
+			terms.append("гегемония")
 		var what: String
 		if offer[&"concede"]:
 			what = "уступает: " + (", ".join(terms) if not terms.is_empty() else "белый мир")

@@ -39,8 +39,9 @@ var _movements_tab: GUIIconButton
 var _decisions_tab: GUIIconButton
 var _release_nations_tab: GUIIconButton
 #
-# Decisions
+# Decisions (version 103: the union of the nations of the culture of the player, docs/DIPLOMACY.md "Объединения наций")
 var _decisions_listbox: GUIListBox
+var _decisions_empty_label: Label
 #
 # Movements
 var _suppression_value: GUILabel
@@ -142,6 +143,13 @@ func _ready() -> void:
 	_decisions_window = decisions_window
 	if decisions_window:
 		_decisions_listbox = GUINode.get_gui_listbox_from_node(decisions_window.get_node(^"./decision_listbox"))
+		_decisions_empty_label = Label.new()
+		_decisions_empty_label.position = Vector2(30, 56)
+		_decisions_empty_label.size = Vector2(560, 120)
+		_decisions_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_decisions_empty_label.add_theme_color_override(&"font_color", Color(0.1, 0.08, 0.05))
+		_decisions_empty_label.text = "Решений пока нет. Здесь появляется объединение нации (Германия, Италия, Скандинавия…), если у нашей культурной группы есть союз и он ещё не образован."
+		decisions_window.add_child(_decisions_empty_label)
 
 	# Movements
 	var movements_window: Panel = GUINode.get_panel_from_node(politics_menu.get_node(^"./movements_window"))
@@ -205,6 +213,7 @@ func _set_tab(tab: int) -> void:
 	_tab = tab
 	_update_tabs()
 	_update_release_nations()
+	_update_decisions()
 
 
 func _update_tabs() -> void:
@@ -238,8 +247,60 @@ func _update_info() -> void:
 		if _laws_panel:
 			_laws_panel.refresh()
 		_update_release_nations()
+		_update_decisions()
 	else:
 		hide()
+
+
+## The tab "decisions" (version 103): the union of the nations, as the decision form_germany... of Vic2 (an entry decision_entry)
+func _update_decisions() -> void:
+	if not _active or _tab != 2 or _decisions_listbox == null:
+		return
+	var decision: Dictionary = PlayerSingleton.get_union_decision()
+	if _decisions_empty_label:
+		_decisions_empty_label.visible = decision.is_empty()
+	_decisions_listbox.clear_children(0 if decision.is_empty() else 1)
+	if decision.is_empty():
+		return
+	if _decisions_listbox.get_child_count() == 0:
+		var new_entry: Panel = GUINode.generate_gui_element(_gui_file, "decision_entry")
+		if not new_entry:
+			return
+		_decisions_listbox.add_child(new_entry)
+	var entry: Panel = _decisions_listbox.get_child(0)
+	var name_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./decision_name")
+	if name_label:
+		name_label.set_auto_translate(false)
+		name_label.set_text("Образовать: %s" % decision[&"name"])
+	var lines: PackedStringArray = []
+	var unmet: PackedStringArray = []
+	for requirement: Dictionary in decision[&"requirements"]:
+		lines.append(("✓ " if requirement[&"met"] else "✗ ") + String(requirement[&"text"]))
+		if not requirement[&"met"]:
+			unmet.append("✗ " + String(requirement[&"text"]))
+	var desc_label: GUILabel = GUINode.get_gui_label_from_node_and_path(entry, ^"./decision_desc")
+	if desc_label:
+		desc_label.set_auto_translate(false)
+		# (the requirements not met yet under the description, all of them in the tooltip)
+		desc_label.set_text("Наша страна станет %s: имя, флаг и ядра союза, культуры группы — принятые, +%d престижа; малым странам нашей культуры в сфере и субъектам предложат войти.\n%s" % [
+			decision[&"name"], int(decision[&"prestige_gain"]), "\n".join(unmet) if not unmet.is_empty() else "Все условия выполнены!"])
+	var tooltip: String = "Условия:\n" + "\n".join(lines)
+	var requirements_icon: Control = entry.get_node_or_null(^"./requirements") as Control
+	if requirements_icon:
+		requirements_icon.tooltip_text = tooltip
+	var button: GUIIconButton = GUINode.get_gui_icon_button_from_node_and_path(entry, ^"./make_decision")
+	if button:
+		button.disabled = not decision[&"can_form"]
+		button.set_tooltip_string(tooltip)
+		if not entry.has_meta(&"form_connected"):
+			entry.set_meta(&"form_connected", true)
+			button.pressed.connect(func() -> void:
+				if not PlayerSingleton.form_union():
+					push_warning("The union was not formed")
+			)
+	var ignore: Control = entry.get_node_or_null(^"./ignore_checkbox") as Control
+	if ignore:
+		ignore.visible = false
 
 
 ## The tab "release nations" (version 102): an entry of the GUI of Vic2 (vassal_nation) for every nation the player can release

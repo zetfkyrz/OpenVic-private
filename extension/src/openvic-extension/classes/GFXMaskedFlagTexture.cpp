@@ -219,7 +219,8 @@ godot::Error GFXMaskedFlagTexture::set_flag_country(CountryInstance* new_flag_co
 	const StringName new_flag_type =
 	    government_type != nullptr ? StringName { convert_to<String>(government_type->get_flag_type()) } : StringName {};
 
-	return set_flag_country_and_type(&new_flag_country->country_definition, new_flag_type);
+	// (the flag of the union the country formed, version 103)
+	return set_flag_country_and_type(&new_flag_country->get_display_definition(), new_flag_type);
 }
 
 godot::Error GFXMaskedFlagTexture::set_flag_country_name(String const& new_flag_country_name) {

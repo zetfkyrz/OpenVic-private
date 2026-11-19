@@ -52,6 +52,7 @@ func _diplomatic_action(identifier: String) -> String:
 		"cancel_military_access": "отказ от прохода войск",
 		"revoke_military_access": "отзыв права прохода",
 		"annex_subject": "аннексия (мы станем частью сюзерена)",
+		"join_union": "вхождение в объединённую страну",
 	}
 	return actions.get(identifier, identifier)
 
@@ -151,6 +152,19 @@ func _make_text(entry: Dictionary) -> String:
 			if we_first:
 				return "Мы вступаем в войну нашего субъекта %s" % entry[&"other"]
 			return "Наш сюзерен %s вступает в нашу войну" % entry[&"country"]
+		# version 103 (stage D8): the unions of the nations
+		"union_formed":
+			if we_first:
+				return "Мы образовали %s!" % entry[&"country"]
+			return "%s образует %s" % [entry[&"subject"], entry[&"country"]]
+		"union_joined":
+			if we_first:
+				return "%s входит в нашу страну" % entry[&"other"]
+			return "Мы вошли в %s" % entry[&"country"]
+		"hegemony_asserted":
+			if we_first:
+				return "Наша гегемония: страны нашей культуры выходят из сферы %s" % entry[&"other"]
+			return "%s утверждает гегемонию: страны его культуры выходят из нашей сферы" % entry[&"country"]
 		"nation_released":
 			var released_as: String = _subject_kind(entry[&"subject"]) if entry[&"subject"] != "" else "независимой страной"
 			if we_first:

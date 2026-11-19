@@ -43,6 +43,8 @@ const _ACTION_NAMES: Dictionary[String, String] = {
 	"lower_subject_tribute": "Снизить выплаты",
 	"grant_autonomy": "Дать самостоятельность",
 	"subject_join_war": "Принудить к войне",
+	# the union of the nations (version 103)
+	"join_union": "Пригласить в союз",
 }
 ## The kinds of the subjects (version 101)
 const _SUBJECT_NAMES: Dictionary[String, String] = {
@@ -641,6 +643,9 @@ func _describe_relation(relation: Dictionary) -> String:
 	# The casus belli and the justification of a war (docs/WAR_ASSUMPTIONS.md, "Обоснование войны")
 	if relation.get(&"has_casus_belli", false):
 		parts.append("повод для войны: ещё %d дн." % int(relation[&"casus_belli_days"]))
+	elif not relation[&"at_war"] and relation.has(&"unification_reason") and String(relation[&"unification_reason"]) == "":
+		# the war of unification (version 103): no casus belli needed, no infamy
+		parts.append("повод: объединение нации")
 	elif relation.get(&"justifying", false):
 		parts.append("обоснование: %d дн." % int(relation[&"justify_days_left"]))
 	elif not relation[&"at_war"] and not relation[&"allied"] and not relation.get(&"target_overlord_is_us", false) 		and not relation.get(&"we_are_subject_of_target", false):
@@ -681,6 +686,8 @@ func _is_action_available(identifier: String, relation: Dictionary) -> bool:
 				and int(relation.get(&"subject_tribute_pct", 0)) > int(relation.get(&"subject_tribute_min", 0))
 		"subject_join_war":
 			return relation.get(&"subject_war_available", false)
+		"join_union":
+			return relation.get(&"union_join_available", false)
 		"call_ally":
 			# Into our war (docs/WAR_ASSUMPTIONS.md, "Союзники и отдельный мир"); the simulation checks the rest
 			return allied and not at_war and relation.get(&"player_at_war", false)

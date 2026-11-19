@@ -168,6 +168,10 @@ namespace OpenVic {
 		// kind (0 free, 1 puppet, 2 protectorate, 3 colonial subject, 4 crown land, 5 dominion; empty: possible), and the release
 		godot::TypedArray<godot::Dictionary> get_releasable_nations() const;
 		bool release_nation(int32_t nation_index, int32_t type) const;
+		// The union of the nations of the culture of the player (version 103, the tab "decisions" of the politics window): empty when there is
+		// none or it is formed; the name, the requirements (text, met) and whether it can be formed now
+		godot::Dictionary get_union_decision() const;
+		bool form_union() const;
 		// Queues the answer of the player to a proposal
 		bool answer_diplomatic_proposal(int64_t proposal_id, bool accept) const;
 		// The price of every diplomatic action in diplomatic points, by its identifier (version 96)

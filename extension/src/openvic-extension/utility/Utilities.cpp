@@ -306,7 +306,7 @@ godot::String Utilities::get_country_name(godot::Object const& translation_objec
 	GovernmentType const* government_type = country.get_government_type_untracked();
 	if (government_type != nullptr) {
 		const String government_name_key = convert_to<String>(
-		    append_string_views(country.get_identifier(), "_", government_type->get_identifier())
+		    append_string_views(country.get_display_identifier(), "_", government_type->get_identifier())
 		);
 
 		String government_name = translation_object.tr(government_name_key);
@@ -316,7 +316,7 @@ godot::String Utilities::get_country_name(godot::Object const& translation_objec
 		}
 	}
 
-	return translation_object.tr(convert_to<String>(country.get_identifier()));
+	return translation_object.tr(convert_to<String>(country.get_display_identifier()));
 }
 godot::String Utilities::get_country_adjective(godot::Object const& translation_object, CountryInstance const& country) {
 	static constexpr std::string_view adjective = "_ADJ";
@@ -324,7 +324,7 @@ godot::String Utilities::get_country_adjective(godot::Object const& translation_
 	GovernmentType const* government_type = country.get_government_type_untracked();
 	if (government_type != nullptr) {
 		const String government_adjective_key = convert_to<String>(
-		    append_string_views(country.get_identifier(), "_", government_type->get_identifier(), adjective)
+		    append_string_views(country.get_display_identifier(), "_", government_type->get_identifier(), adjective)
 		);
 
 		String government_adjective = translation_object.tr(government_adjective_key);
