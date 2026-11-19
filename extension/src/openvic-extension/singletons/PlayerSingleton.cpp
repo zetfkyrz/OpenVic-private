@@ -15,6 +15,7 @@
 #include <openvic-simulation/diplomacy/DiplomaticAction.hpp>
 #include <openvic-simulation/diplomacy/Subjects.hpp>
 #include <openvic-simulation/diplomacy/Unions.hpp>
+#include <openvic-simulation/diplomacy/Crisis.hpp>
 #include <openvic-simulation/economy/BuildingType.hpp>
 #include <openvic-simulation/economy/credit/Credit.hpp>
 #include <openvic-simulation/economy/production/FactoryInstance.hpp>
@@ -306,6 +307,8 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::release_nation, { "nation_index", "type" });
 	OV_BIND_METHOD(PlayerSingleton::get_union_decision);
 	OV_BIND_METHOD(PlayerSingleton::form_union);
+	OV_BIND_METHOD(PlayerSingleton::crisis_back, { "attackers_side" });
+	OV_BIND_METHOD(PlayerSingleton::crisis_concede);
 	OV_BIND_METHOD(PlayerSingleton::add_war_goal, { "war_id", "goal_type", "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::answer_diplomatic_proposal, { "proposal_id", "accept" });
 	OV_BIND_METHOD(PlayerSingleton::get_diplomatic_action_costs);
@@ -1894,11 +1897,109 @@ Array PlayerSingleton::get_world_wars_info() const {
 	return result;
 }
 
+// The crisis (version 104, docs/DIPLOMACY.md "Кризисы"): the crisis of the world, the role of the player in it, the hottest flashpoints
 Dictionary PlayerSingleton::get_crisis_info() const {
 	Dictionary result;
-	result["available"] = false;
+	result["available"] = true;
 	result["active"] = false;
+	ERR_FAIL_NULL_V(player_country, result);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton const* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	CrisisManager& crises = instance_manager->get_crisis_manager();
+	const auto name = [menu_singleton](CountryInstance const* country) -> String {
+		return country != nullptr ? Utilities::get_country_name(*menu_singleton, *country) : String {};
+	};
+	const auto names = [&name](memory::vector<CountryInstance*> const& list) -> PackedStringArray {
+		PackedStringArray result;
+		for (CountryInstance const* country : list) {
+			result.push_back(name(country));
+		}
+		return result;
+	};
+	const auto state_name = [](State const* state) -> String {
+		if (state == nullptr || state->get_provinces().empty()) {
+			return {};
+		}
+		return province_name_of(state->get_capital() != nullptr ? *state->get_capital() : state->get_provinces().front().get());
+	};
+	CrisisManager::crisis_t const& crisis = crises.get_crisis();
+	DiplomacyDefines const& vic2 = instance_manager->definition_manager.get_define_manager().get_diplomacy_defines();
+	const Date today = instance_manager->get_today();
+	if (crises.had_crisis() && !crisis.active) {
+		result["cooldown_days"] = static_cast<int32_t>(std::max<std::int64_t>(0, (crises.get_last_end() + vic2.get_crisis_cooldown_duration() - today).to_int()));
+	}
+	Array flashpoints;
+	for (CrisisManager::flashpoint_t const& flashpoint : crises.get_hottest(*instance_manager, 5)) {
+		Dictionary entry;
+		entry["state_name"] = state_name(flashpoint.state);
+		entry["owner_name"] = name(flashpoint.state->get_owner());
+		entry["claimant_name"] = name(flashpoint.claimant);
+		entry["liberation"] = flashpoint.liberation;
+		entry["tension"] = static_cast<float>(flashpoint.state->get_crisis_tension());
+		flashpoints.push_back(entry);
+	}
+	result["flashpoints"] = flashpoints;
+	if (!crisis.active) {
+		return result;
+	}
+	result["active"] = true;
+	result["liberation"] = crisis.liberation;
+	result["state_name"] = state_name(crisis.state);
+	result["owner_name"] = name(crisis.owner);
+	result["claimant_name"] = name(crisis.claimant);
+	result["temperature"] = static_cast<float>(crisis.temperature);
+	result["daily_temperature"] = static_cast<float>(crises.get_daily_temperature(*instance_manager));
+	const std::int32_t days = static_cast<std::int32_t>((today - crisis.start).to_int());
+	result["days"] = days;
+	result["backer_days_left"] = std::max(0, instance_manager->definition_manager.get_define_manager().get_openvic_defines().diplomacy.crisis_backer_days - days);
+	result["attacker_leader_name"] = name(crisis.attacker_leader);
+	result["defender_leader_name"] = name(crisis.defender_leader);
+	result["attackers"] = names(crisis.attackers);
+	result["defenders"] = names(crisis.defenders);
+	result["interested"] = names(crisis.interested);
+	const auto has = [](memory::vector<CountryInstance*> const& list, CountryInstance const* country) -> bool {
+		return std::find(list.begin(), list.end(), country) != list.end();
+	};
+	String role = "none";
+	if (crisis.attacker_leader == player_country) {
+		role = "attacker_leader";
+	} else if (crisis.defender_leader == player_country) {
+		role = "defender_leader";
+	} else if (crisis.owner == player_country) {
+		role = "owner";
+	} else if (crisis.claimant == player_country) {
+		role = "claimant";
+	} else if (has(crisis.attackers, player_country)) {
+		role = "attacker";
+	} else if (has(crisis.defenders, player_country)) {
+		role = "defender";
+	} else if (has(crisis.interested, player_country)) {
+		role = "interested";
+	}
+	result["player_role"] = role;
+	result["back_attackers_reason"] = String::utf8(memory::string { crises.get_back_block_reason(*player_country, true) }.c_str());
+	result["back_defenders_reason"] = String::utf8(memory::string { crises.get_back_block_reason(*player_country, false) }.c_str());
+	const std::int32_t years = std::max(0, static_cast<std::int32_t>(today.get_year()) - 1836);
+	result["winner_prestige"] = static_cast<float>(vic2.get_crisis_winner_prestige_factor_base() + vic2.get_crisis_winner_prestige_factor_year() * years);
+	result["stay_out_prestige_pct"] = static_cast<float>((vic2.get_crisis_did_not_take_side_prestige_factor_base()
+		+ vic2.get_crisis_did_not_take_side_prestige_factor_year() * years) * 100);
 	return result;
+}
+
+bool PlayerSingleton::crisis_back(const bool attackers_side) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<crisis_back_argument_t>(player_country->index, attackers_side);
+}
+
+bool PlayerSingleton::crisis_concede() const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<crisis_concede_argument_t>(player_country->index);
 }
 
 Dictionary PlayerSingleton::get_war_overview() const {
@@ -5326,7 +5427,8 @@ Array PlayerSingleton::get_notifications(int64_t after_id) const {
 		// goals of the great powers and their alliances; version 92: the spheres founded and ended)
 		const bool mine = entry.country == player_country || entry.other_country == player_country
 			|| entry.kind == "ai_goal" || entry.kind == "alliance_formed" || entry.kind == "sphere_founded" || entry.kind == "sphere_dissolved"
-			|| entry.kind == "sphere_kind_changed" || entry.kind == "union_formed";
+			|| entry.kind == "sphere_kind_changed" || entry.kind == "union_formed" || entry.kind == "crisis_started" || entry.kind == "crisis_resolved"
+			|| entry.kind == "crisis_fizzled" || entry.kind == "great_war" || entry.kind == "crisis_backed";
 		if (!mine) {
 			continue;
 		}

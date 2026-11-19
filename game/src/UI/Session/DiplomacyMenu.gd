@@ -838,23 +838,157 @@ func _fill_wars() -> void:
 				strength.set_text("")
 
 
+## The crisis (version 104, docs/DIPLOMACY.md "Кризисы"): the frame of the window of Vic2 (its three columns: the claimant, the great powers
+## that did not choose yet, the owner; the title, the status), the texts and the buttons are controls of our own laid over it. Without a
+## crisis its background is hidden and the hottest flashpoints are listed
+const _CRISIS_TEXT_COLOUR: Color = Color(0.15, 0.1, 0.05)
+var _crisis_text: RichTextLabel # without a crisis: the flashpoints, the whole width
+var _crisis_columns: Array[RichTextLabel] = [] # the claimant, the undecided, the owner
+var _crisis_side_names: Array[Label] = [] # on the red bars of the claimant and the owner
+var _crisis_buttons: HBoxContainer
+var _crisis_back_attackers: Button
+var _crisis_back_defenders: Button
+var _crisis_concede: Button
+
+
+func _make_crisis_text(position: Vector2, size: Vector2) -> RichTextLabel:
+	var text := RichTextLabel.new()
+	text.bbcode_enabled = true
+	text.scroll_active = true
+	text.position = position
+	text.size = size
+	text.mouse_filter = Control.MOUSE_FILTER_PASS
+	text.add_theme_color_override(&"default_color", _CRISIS_TEXT_COLOUR)
+	text.add_theme_font_size_override(&"normal_font_size", 12)
+	text.add_theme_font_size_override(&"bold_font_size", 12)
+	_crisis_window.add_child(text)
+	return text
+
+
+func _setup_crisis_controls() -> void:
+	_crisis_text = _make_crisis_text(Vector2(4, 4), Vector2(590, 220))
+	# (the columns of the background of Vic2)
+	_crisis_columns = [
+		_make_crisis_text(Vector2(-14, 104), Vector2(196, 104)),
+		_make_crisis_text(Vector2(196, 80), Vector2(198, 156)),
+		_make_crisis_text(Vector2(408, 104), Vector2(196, 104)),
+	]
+	for x: float in [34.0, 458.0]:
+		var label := Label.new()
+		label.position = Vector2(x, 80)
+		label.size = Vector2(150, 20)
+		label.clip_text = true
+		label.add_theme_color_override(&"font_color", Color(0.98, 0.92, 0.75))
+		label.add_theme_font_size_override(&"font_size", 13)
+		_crisis_window.add_child(label)
+		_crisis_side_names.append(label)
+	_crisis_buttons = HBoxContainer.new()
+	_crisis_buttons.position = Vector2(-10, 212)
+	_crisis_buttons.add_theme_constant_override(&"separation", 6)
+	_crisis_window.add_child(_crisis_buttons)
+	_crisis_back_attackers = Button.new()
+	_crisis_back_attackers.text = "За претендента"
+	_crisis_back_attackers.pressed.connect(func() -> void:
+		PlayerSingleton.crisis_back(true)
+		_update_info()
+	)
+	_crisis_buttons.add_child(_crisis_back_attackers)
+	_crisis_back_defenders = Button.new()
+	_crisis_back_defenders.text = "За владельца"
+	_crisis_back_defenders.pressed.connect(func() -> void:
+		PlayerSingleton.crisis_back(false)
+		_update_info()
+	)
+	_crisis_buttons.add_child(_crisis_back_defenders)
+	_crisis_concede = Button.new()
+	_crisis_concede.pressed.connect(func() -> void:
+		PlayerSingleton.crisis_concede()
+		_update_info()
+	)
+	_crisis_buttons.add_child(_crisis_concede)
+
+
 func _update_crisis() -> void:
 	if _crisis_window == null:
 		return
-	var crisis: Dictionary = PlayerSingleton.get_crisis_info()
+	_show_crisis(PlayerSingleton.get_crisis_info())
+
+
+func _show_crisis(crisis: Dictionary) -> void:
+	if _crisis_text == null:
+		_setup_crisis_controls()
 	var active: bool = crisis.get(&"active", false)
-	# There is no crisis system yet: the window only says so, the parts of a crisis are hidden
+	# (the parts of the window of Vic2 that we do not fill; its background only with a crisis)
 	for part: StringName in [&"attacker_win", &"defender_win", &"fence_sitters_win", &"fence_sitters_label", &"crisis_temperature",
 			&"crisis_temperature_overlay"]:
 		var node: Node = _crisis_window.find_child(String(part), true, false)
 		if node is CanvasItem:
-			(node as CanvasItem).visible = active
+			(node as CanvasItem).visible = false
+	var background: Node = _crisis_window.find_child("crisis_bg", true, false)
+	if background is CanvasItem:
+		(background as CanvasItem).visible = active
+	_crisis_text.visible = not active
+	for column: RichTextLabel in _crisis_columns:
+		column.visible = active
+	for label: Label in _crisis_side_names:
+		label.visible = active
+	_crisis_buttons.visible = active
 	var title: GUILabel = GUINode.get_gui_label_from_node_and_path(_crisis_window, ^"./crisis_title")
-	if title:
-		title.set_text("Кризис")
 	var sub_title: GUILabel = GUINode.get_gui_label_from_node_and_path(_crisis_window, ^"./crisis_sub_title")
-	if sub_title:
-		sub_title.set_text("" if active else "В мире нет кризиса")
 	var status: GUILabel = GUINode.get_gui_label_from_node_and_path(_crisis_window, ^"./crisis_status_label")
+	# (the light titles of Vic2 stand on the red bar of the background: hidden with it)
+	if title:
+		title.visible = active
+	if sub_title:
+		sub_title.visible = active
 	if status:
-		status.set_text("")
+		status.visible = active
+	if not active:
+		var cooldown: int = int(crisis.get(&"cooldown_days", 0))
+		var lines: PackedStringArray = ["[b]В мире нет кризиса[/b]" + ((". Следующий — не раньше чем через %d дн." % cooldown) if cooldown > 0 else ""), "",
+			"[b]Самые напряжённые очаги[/b] (кризис начинается, когда напряжённость дойдёт до 100):"]
+		var flashpoints: Array = crisis.get(&"flashpoints", [])
+		if flashpoints.is_empty():
+			lines.append("— напряжённости пока нет")
+		for flashpoint: Dictionary in flashpoints:
+			lines.append("• %s (%s): %s %s — %.0f" % [flashpoint[&"state_name"], flashpoint[&"owner_name"], flashpoint[&"claimant_name"],
+				"хочет свободы" if flashpoint[&"liberation"] else "претендует", float(flashpoint[&"tension"])])
+		lines.append("")
+		lines.append("Очаг — область с ядрами другой страны или нации без своей страны (карта «Кризис»). Великие державы выбирают сторону; при температуре 100 — великая война.")
+		_crisis_text.text = "\n".join(lines)
+		return
+	var liberation: bool = crisis[&"liberation"]
+	if title:
+		title.set_text("Кризис: %s" % crisis[&"state_name"])
+	if sub_title:
+		sub_title.set_text(("%s требует свободы от %s" if liberation else "%s требует эту землю у %s") % [crisis[&"claimant_name"], crisis[&"owner_name"]])
+	if status:
+		var both: bool = String(crisis[&"attacker_leader_name"]) != "" and String(crisis[&"defender_leader_name"]) != ""
+		status.set_text("Температура: %.0f из 100%s" % [float(crisis[&"temperature"]),
+			(" (+%.2f в день)" % float(crisis[&"daily_temperature"])) if both else " — стороны ищут лидеров"])
+	_crisis_side_names[0].text = String(crisis[&"claimant_name"])
+	_crisis_side_names[1].text = String(crisis[&"owner_name"])
+	var side_text := func(leader: String, members: PackedStringArray) -> String:
+		var others: PackedStringArray = []
+		for member: String in members:
+			if member != leader:
+				others.append(member)
+		return "[b]Лидер:[/b] %s\n[b]За них:[/b] %s" % [leader if leader != "" else "[i]нет[/i]", ", ".join(others) if not others.is_empty() else "—"]
+	_crisis_columns[0].text = side_text.call(String(crisis[&"attacker_leader_name"]), PackedStringArray(crisis[&"attackers"]))
+	_crisis_columns[2].text = side_text.call(String(crisis[&"defender_leader_name"]), PackedStringArray(crisis[&"defenders"]))
+	var interested: PackedStringArray = crisis[&"interested"]
+	var middle: PackedStringArray = ["[b]Ещё не выбрали:[/b]", ", ".join(interested) if not interested.is_empty() else "никто"]
+	var days_left: int = int(crisis[&"backer_days_left"])
+	if days_left > 0:
+		middle.append("Лидеров ищут ещё %d дн.: без лидера претензия угаснет, владелец без защитника уступит." % days_left)
+	middle.append("Победителям +%.0f престижа, оставшимся в стороне %.0f %%." % [float(crisis[&"winner_prestige"]), float(crisis[&"stay_out_prestige_pct"])])
+	_crisis_columns[1].text = "\n".join(middle)
+	# the buttons of the player
+	var role: String = crisis[&"player_role"]
+	_crisis_back_attackers.visible = role == "interested"
+	_crisis_back_defenders.visible = role == "interested"
+	_crisis_back_attackers.tooltip_text = String(crisis[&"back_attackers_reason"])
+	_crisis_back_defenders.tooltip_text = String(crisis[&"back_defenders_reason"])
+	_crisis_concede.visible = role == "attacker_leader" or role == "defender_leader"
+	_crisis_concede.text = "Отступить" if role == "attacker_leader" else "Уступить землю"
+	_crisis_concede.tooltip_text = "Кризис кончается миром: побеждает %s" % ("владелец" if role == "attacker_leader" else "претендент")

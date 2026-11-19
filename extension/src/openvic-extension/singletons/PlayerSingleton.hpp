@@ -172,6 +172,9 @@ namespace OpenVic {
 		// none or it is formed; the name, the requirements (text, met) and whether it can be formed now
 		godot::Dictionary get_union_decision() const;
 		bool form_union() const;
+		// The crisis (version 104): back a side (true: the attackers), give in as the leader of a side
+		bool crisis_back(bool attackers_side) const;
+		bool crisis_concede() const;
 		// Queues the answer of the player to a proposal
 		bool answer_diplomatic_proposal(int64_t proposal_id, bool accept) const;
 		// The price of every diplomatic action in diplomatic points, by its identifier (version 96)

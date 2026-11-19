@@ -152,6 +152,23 @@ func _make_text(entry: Dictionary) -> String:
 			if we_first:
 				return "Мы вступаем в войну нашего субъекта %s" % entry[&"other"]
 			return "Наш сюзерен %s вступает в нашу войну" % entry[&"country"]
+		# version 104 (stage D7): the crises
+		"crisis_started":
+			if entry[&"subject"] == "liberation":
+				return "Кризис: %s требует свободы от %s — великие державы выбирают сторону" % [entry[&"other"], entry[&"country"]]
+			return "Кризис: %s требует землю %s — великие державы выбирают сторону" % [entry[&"other"], entry[&"country"]]
+		"crisis_backed":
+			if we_first:
+				return "Мы поддержали в кризисе %s" % entry[&"other"]
+			return "%s поддерживает в кризисе %s" % [entry[&"country"], entry[&"other"]]
+		"crisis_resolved":
+			if entry[&"subject"] == "attackers":
+				return "Кризис окончен: %s уступает землю (победа %s)" % [entry[&"other"], entry[&"country"]]
+			return "Кризис окончен: %s сохраняет землю (победа %s)" % [entry[&"other"], entry[&"country"]]
+		"crisis_fizzled":
+			return "Кризис из-за земли %s угас" % entry[&"country"]
+		"great_war":
+			return "ВЕЛИКАЯ ВОЙНА: %s против %s!" % [entry[&"country"], entry[&"other"]]
 		# version 103 (stage D8): the unions of the nations
 		"union_formed":
 			if we_first:
