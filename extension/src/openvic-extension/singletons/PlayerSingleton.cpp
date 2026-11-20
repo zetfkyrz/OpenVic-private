@@ -3087,6 +3087,20 @@ Dictionary PlayerSingleton::get_army_details(int64_t army_id) const {
 	result["dig_in_cap"] = static_cast<int32_t>(country.get_dig_in_cap());
 	result["moving"] = army.is_moving();
 	result["in_combat"] = army.is_in_combat();
+	// the speed of the army: of its slowest regiment (stage A1 of docs/PLAN_ARMY_TRAINING.md)
+	result["speed"] = static_cast<float>(army.get_movement_speed());
+	{
+		String slowest;
+		fixed_point_t slowest_speed = fixed_point_t::_0;
+		for (UnitInstance const& unit : army.get_units()) {
+			if (slowest.is_empty() || unit.unit_type.maximum_speed < slowest_speed) {
+				slowest_speed = unit.unit_type.maximum_speed;
+				slowest = MenuSingleton::get_singleton() != nullptr
+					? MenuSingleton::get_singleton()->tr(convert_to<String>(unit.unit_type.get_identifier())) : String {};
+			}
+		}
+		result["slowest_unit"] = slowest;
+	}
 	result["supply"] = static_cast<float>(army.get_supply_level());
 	result["supply_level"] = static_cast<float>(army.get_supply_level());
 	result["supply_delivery"] = static_cast<float>(army.get_supply_delivery());

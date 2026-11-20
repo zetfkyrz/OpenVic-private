@@ -152,7 +152,7 @@ func _ready() -> void:
 	_division_row.add_child(_template_option)
 	_reform_button = Button.new()
 	_reform_button.text = "Переформировать по шаблону"
-	_reform_button.tooltip_text = "Полки выбранной дивизии вне шаблона (или всех дивизий вне шаблона, если ничего не выбрано) складываются в целые дивизии выбранного шаблона; остаток остаётся как был"
+	_reform_button.tooltip_text = "Дивизия шаблона переходит на выбранный шаблон: недостающие полки появляются без людей, и люди дивизии делятся поровну между всеми полками (пополнение доберёт остальное). Полки дивизий вне шаблона складываются в целые дивизии выбранного шаблона"
 	_reform_button.pressed.connect(_on_reform_pressed)
 	_division_row.add_child(_reform_button)
 	_templates_button = Button.new()
@@ -201,7 +201,9 @@ func _ready() -> void:
 	regiment_row.add_theme_constant_override(&"separation", 6)
 	root.add_child(regiment_row)
 	_split_button = Button.new()
-	_split_button.text = "Выделить полк в отдельную армию"
+	# (stage A1 of docs/PLAN_ARMY_TRAINING.md: a regiment never walks alone, its division leaves the army as a whole)
+	_split_button.text = "Выделить дивизию в отдельную армию"
+	_split_button.tooltip_text = "Дивизия выбранного полка уходит в новую армию целиком: полки не ходят по одному"
 	_split_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_split_button.pressed.connect(_on_split_pressed)
 	regiment_row.add_child(_split_button)
@@ -411,6 +413,10 @@ func _make_info_text() -> String:
 		_details[&"province_name"], _details[&"regiments"],
 		roundi(strength_share * 100.0), roundi(float(_details[&"organisation"]) * 100.0),
 	])
+	# (the army moves as a whole, at the speed of its slowest regiment)
+	if _details.has(&"speed"):
+		lines.append("Скорость: %s — по самому медленному полку (%s)." % [GUINode.float_to_string_dp(float(_details[&"speed"]), 1),
+			_details.get(&"slowest_unit", "")])
 
 	var supply: float = _details[&"supply"]
 	lines.append("Снабжение: %d%% (пришло %d%%, запас %.1f из %d дн.). Окопанность: %d из %d." % [
