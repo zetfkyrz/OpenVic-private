@@ -25,6 +25,9 @@ var _stats_box: HBoxContainer
 var _create_button: Button
 var _update_button: Button
 var _delete_button: Button
+var _train_button: Button
+# The window of the recruitment: the button "Обучать" opens its queue of the training with the selected template
+var _recruitment_window: Control = null
 var _suspend_updates: bool = false
 
 
@@ -108,8 +111,17 @@ func _ready() -> void:
 	_delete_button.tooltip_text = "Дивизии шаблона остаются, но вне шаблона"
 	_delete_button.pressed.connect(_on_delete_pressed)
 	button_row.add_child(_delete_button)
+	_train_button = Button.new()
+	_train_button.text = "Обучать"
+	_train_button.tooltip_text = "Открыть очередь обучения с выбранным шаблоном (окно набора войск)"
+	_train_button.pressed.connect(_on_train_pressed)
+	button_row.add_child(_train_button)
 
 	GameSingleton.gamestate_updated.connect(_refresh)
+
+
+func set_recruitment_window(window: Control) -> void:
+	_recruitment_window = window
 
 
 func open_templates() -> void:
@@ -399,6 +411,7 @@ func _update_buttons() -> void:
 	_create_button.disabled = not allowed
 	_update_button.disabled = not allowed or _selected_id == 0
 	_delete_button.disabled = not allowed or _selected_id == 0
+	_train_button.disabled = not allowed or _selected_id == 0 or _recruitment_window == null
 
 
 func _on_item_selected() -> void:
@@ -422,6 +435,11 @@ func _on_create_pressed() -> void:
 
 func _on_update_pressed() -> void:
 	PlayerSingleton.update_division_template(_selected_id, _cells_from_grid())
+
+
+func _on_train_pressed() -> void:
+	if _recruitment_window != null and _selected_id != 0:
+		_recruitment_window.open_for_template(_selected_id)
 
 
 func _on_delete_pressed() -> void:

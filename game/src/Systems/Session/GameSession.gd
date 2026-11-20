@@ -150,6 +150,7 @@ func _ready() -> void:
 	ui.add_child(templates_window)
 	_blocking_windows.append(templates_window)
 	_army_panel.set_templates_window(templates_window)
+	templates_window.set_recruitment_window(_recruitment_window)
 	var tech_window := Control.new()
 	tech_window.set_script(_ArmyTechWindow)
 	ui.add_child(tech_window)

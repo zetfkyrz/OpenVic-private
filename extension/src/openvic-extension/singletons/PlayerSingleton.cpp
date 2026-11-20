@@ -283,6 +283,12 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::get_manpower);
 	OV_BIND_METHOD(PlayerSingleton::get_division_recruitment_info, { "province_number" });
 	OV_BIND_METHOD(PlayerSingleton::start_division_recruitment, { "template_id", "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::get_training_lines);
+	OV_BIND_METHOD(PlayerSingleton::get_training_block_reason, { "template_id", "province_number" });
+	OV_BIND_METHOD(PlayerSingleton::add_training_line, { "template_id", "province_number", "count" });
+	OV_BIND_METHOD(PlayerSingleton::remove_training_line, { "line_id" });
+	OV_BIND_METHOD(PlayerSingleton::move_training_line, { "line_id", "up" });
+	OV_BIND_METHOD(PlayerSingleton::get_player_capital_number);
 
 	OV_BIND_METHOD(PlayerSingleton::get_great_powers_info);
 	OV_BIND_METHOD(PlayerSingleton::get_world_wars_info);
@@ -4657,6 +4663,8 @@ Array PlayerSingleton::get_recruitment_queue() const {
 		entry["mobilisation"] = order.mobilisation;
 		entry["waiting"] = order.waiting;
 		entry["priority"] = static_cast<int32_t>(order.priority);
+		// a division of the queue of the training (stage A2): shown with its line, get_training_lines
+		entry["training_line"] = static_cast<int32_t>(order.training_line);
 		result.push_back(entry);
 	}
 	return result;
@@ -4821,6 +4829,150 @@ bool PlayerSingleton::start_division_recruitment(int32_t template_id, int32_t pr
 	return instance_manager->queue_game_action<start_division_recruitment_argument_t>(
 		player_country->index, static_cast<std::uint32_t>(template_id), province->index
 	);
+}
+
+// The queue of the training (stage A2 of docs/PLAN_ARMY_TRAINING.md)
+Array PlayerSingleton::get_training_lines() const {
+	Array result;
+	ERR_FAIL_NULL_V(player_country, result);
+	GameSingleton* game_singleton = GameSingleton::get_singleton();
+	InstanceManager* instance_manager = game_singleton->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, result);
+	MenuSingleton* menu_singleton = MenuSingleton::get_singleton();
+	ERR_FAIL_NULL_V(menu_singleton, result);
+	UnitInstanceManager const& unit_manager = instance_manager->get_unit_instance_manager();
+	UnitTypeManager const& unit_type_manager = game_singleton->get_definition_manager().get_military_manager().get_unit_type_manager();
+	const std::int64_t free_men = unit_manager.get_manpower(*player_country).free_men;
+	for (TrainingLine const& line : unit_manager.get_training_lines()) {
+		if (line.country != player_country) {
+			continue;
+		}
+		Dictionary entry;
+		entry["id"] = static_cast<int32_t>(line.id);
+		entry["template_id"] = static_cast<int32_t>(line.template_id);
+		entry["template_name"] = Utilities::format(String::utf8("Шаблон %d"), static_cast<int32_t>(line.template_id));
+		entry["province_number"] = static_cast<int32_t>(line.province->province_definition.get_province_number());
+		entry["province_name"] = province_name_of(*line.province);
+		entry["remaining"] = static_cast<int32_t>(line.remaining);
+		// the men of the next division of the line
+		std::int64_t needed_men = 0;
+		if (DivisionTemplate const* const division_template = player_country->find_division_template(line.template_id)) {
+			for (const std::uint8_t cell : division_template->cells) {
+				RegimentType const* const type = cell != 0 ? unit_type_manager.get_regiment_type_by_index(regiment_type_index_t(cell - 1)) : nullptr;
+				if (type != nullptr) {
+					needed_men += unit_manager.get_regiment_men(*type);
+				}
+			}
+		}
+		entry["waiting_men"] = line.remaining > 0 && free_men < needed_men;
+		entry["needed_men"] = static_cast<int64_t>(needed_men);
+		// its divisions in training, in the order they started
+		std::vector<std::uint32_t> divisions;
+		for (RecruitmentOrder const& order : unit_manager.get_recruitment_orders()) {
+			if (order.training_line == line.id && order.country == player_country
+				&& std::find(divisions.begin(), divisions.end(), order.division_id) == divisions.end()) {
+				divisions.push_back(order.division_id);
+			}
+		}
+		Array divisions_array;
+		for (const std::uint32_t division_id : divisions) {
+			Dictionary division;
+			int32_t regiments = 0;
+			int32_t days_left = 0;
+			int32_t days_total = 1;
+			fixed_point_t paid = fixed_point_t::_0;
+			bool stalled = false;
+			std::vector<std::pair<GoodDefinition const*, fixed_point_t>> week;
+			for (RecruitmentOrder const& order : unit_manager.get_recruitment_orders()) {
+				if (order.training_line != line.id || order.division_id != division_id || order.regiment_type == nullptr) {
+					continue;
+				}
+				regiments++;
+				days_left = std::max(days_left, order.days_left);
+				days_total = std::max(days_total, order.days_total);
+				paid += order.goods_paid;
+				stalled = stalled || order.stalled;
+				// the goods of its next week (what is left at the end)
+				const fixed_point_t share = std::min(fixed_point_t::_1 - order.goods_paid, fixed_point_t(7) / std::max(1, order.days_total));
+				for (auto const& [good, quantity] : order.regiment_type->get_build_cost()) {
+					auto it = std::find_if(week.begin(), week.end(), [good](auto const& item) -> bool { return item.first == good; });
+					if (it == week.end()) {
+						week.emplace_back(good, quantity * share);
+					} else {
+						it->second += quantity * share;
+					}
+				}
+			}
+			PackedStringArray missing;
+			if (stalled) {
+				for (auto const& [good, quantity] : week) {
+					const fixed_point_t have = player_country->get_good_data(*good).stockpile_amount;
+					if (have < quantity) {
+						missing.push_back(Utilities::format(
+							String::utf8("%s %s из %s"), menu_singleton->tr(convert_to<String>(good->get_identifier())),
+							Utilities::float_to_string_dp(static_cast<float>(have), 1), Utilities::float_to_string_dp(static_cast<float>(quantity), 1)
+						));
+					}
+				}
+			}
+			division["division_id"] = static_cast<int32_t>(division_id);
+			division["regiments"] = regiments;
+			division["days_left"] = days_left;
+			division["days_total"] = days_total;
+			division["goods_paid"] = regiments > 0 ? static_cast<float>(paid / regiments) : 0.0f;
+			division["stalled"] = stalled;
+			division["missing"] = String(", ").join(missing);
+			divisions_array.push_back(division);
+		}
+		entry["divisions"] = divisions_array;
+		result.push_back(entry);
+	}
+	return result;
+}
+
+String PlayerSingleton::get_training_block_reason(int32_t template_id, int32_t province_number) const {
+	ERR_FAIL_NULL_V(player_country, {});
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, {});
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	if (province == nullptr) {
+		return String::utf8("Выберите провинцию");
+	}
+	return String::utf8(instance_manager->get_unit_instance_manager().get_training_block_reason(
+		*player_country, static_cast<std::uint32_t>(std::max(0, template_id)), *province
+	).c_str());
+}
+
+bool PlayerSingleton::add_training_line(int32_t template_id, int32_t province_number, int32_t count) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ProvinceInstance const* province = instance_manager->get_map_instance().get_province_instance_from_number(province_number);
+	ERR_FAIL_NULL_V(province, false);
+	ERR_FAIL_COND_V(template_id <= 0 || count <= 0, false);
+	return instance_manager->queue_game_action<add_training_line_argument_t>(
+		player_country->index, static_cast<std::uint32_t>(template_id), province->index, static_cast<std::uint32_t>(std::min(count, 100))
+	);
+}
+
+bool PlayerSingleton::remove_training_line(int32_t line_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<remove_training_line_argument_t>(player_country->index, static_cast<std::uint32_t>(line_id));
+}
+
+bool PlayerSingleton::move_training_line(int32_t line_id, bool up) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	return instance_manager->queue_game_action<move_training_line_argument_t>(player_country->index, static_cast<std::uint32_t>(line_id), up);
+}
+
+int32_t PlayerSingleton::get_player_capital_number() const {
+	ERR_FAIL_NULL_V(player_country, 0);
+	ProvinceInstance const* const capital = player_country->get_capital();
+	return capital != nullptr ? static_cast<int32_t>(capital->province_definition.get_province_number()) : 0;
 }
 
 bool PlayerSingleton::cancel_recruitment(int64_t order_id) const {

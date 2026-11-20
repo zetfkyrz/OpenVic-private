@@ -455,6 +455,17 @@ namespace OpenVic {
 		// The templates the player can recruit in the province: [{id, name, regiments, men, days, cost [{good_name, amount, have}], reason}]
 		godot::Array get_division_recruitment_info(int32_t province_number) const;
 		bool start_division_recruitment(int32_t template_id, int32_t province_number) const;
+		// The queue of the training of the player (stage A2 of docs/PLAN_ARMY_TRAINING.md), from the top: [{ id, template_id, template_name,
+		// province_number, province_name, remaining (divisions not started), waiting_men (the men of the country are short for the next one),
+		// divisions: [{ division_id, regiments, days_left, days_total, goods_paid (0..1), stalled, missing (the goods short for the week) }] }]
+		godot::Array get_training_lines() const;
+		// Why a line of the template cannot be added in the province (empty: it can)
+		godot::String get_training_block_reason(int32_t template_id, int32_t province_number) const;
+		bool add_training_line(int32_t template_id, int32_t province_number, int32_t count) const;
+		bool remove_training_line(int32_t line_id) const;
+		bool move_training_line(int32_t line_id, bool up) const;
+		// The number of the capital province of the player (0: none)
+		int32_t get_player_capital_number() const;
 
 		// Diplomacy tabs (country_diplomacy.gui):
 		// "Great powers": [{ index, tag, name, rank (position among the great powers), total_rank, prestige, prestige_rank,
