@@ -457,13 +457,17 @@ namespace OpenVic {
 		bool start_division_recruitment(int32_t template_id, int32_t province_number) const;
 		// The queue of the training of the player (stage A2 of docs/PLAN_ARMY_TRAINING.md), from the top: [{ id, template_id, template_name,
 		// province_number, province_name, remaining (divisions not started), waiting_men (the men of the country are short for the next one),
-		// divisions: [{ division_id, regiments, days_left, days_total, goods_paid (0..1), stalled, missing (the goods short for the week) }] }]
+		// divisions: [{ division_id, order_id (of its first regiment: cancel_recruitment cancels the division), regiments, days_left, days_total,
+		// goods_paid (0..1), stalled, missing (the goods short for the week), release_strength, release_organisation (shares a release now gives),
+		// released (it comes out the next day) }] }]
 		godot::Array get_training_lines() const;
 		// Why a line of the template cannot be added in the province (empty: it can)
 		godot::String get_training_block_reason(int32_t template_id, int32_t province_number) const;
 		bool add_training_line(int32_t template_id, int32_t province_number, int32_t count) const;
 		bool remove_training_line(int32_t line_id) const;
 		bool move_training_line(int32_t line_id, bool up) const;
+		// The early release of a division in training (stage A3): it comes out the next day with the equipment and the training it got
+		bool release_training_division(int32_t division_id) const;
 		// The number of the capital province of the player (0: none)
 		int32_t get_player_capital_number() const;
 

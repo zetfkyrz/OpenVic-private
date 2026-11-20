@@ -28,6 +28,9 @@ var _recruit_button: Button
 var _queue_tree: Tree
 var _cancel_button: Button
 var _up_button: Button
+var _release_button: Button
+# The selected division in training (stage A3): its id, its line and what a release now gives (metadata 4 of its row)
+var _selected_division: Dictionary = {}
 var _down_button: Button
 var _priority_option: OptionButton
 # The selected line of the queue: a line of the training (its id) or an order (a ship, a regiment of the mobilisation)
@@ -137,6 +140,10 @@ func _ready() -> void:
 	_down_button.text = "Вниз"
 	_down_button.pressed.connect(_on_move_pressed.bind(false))
 	order_row.add_child(_down_button)
+	_release_button = Button.new()
+	_release_button.text = "Выпустить досрочно"
+	_release_button.pressed.connect(_on_release_pressed)
+	order_row.add_child(_release_button)
 	# The priority of the selected order (a ship, an order of the monthly limit)
 	var priority_caption := Label.new()
 	priority_caption.text = "Приоритет:"
@@ -360,23 +367,33 @@ func _update_queue() -> void:
 		item.set_metadata(1, "line")
 		item.set_metadata(2, index == 0)
 		item.set_metadata(3, index == lines.size() - 1)
-		if int(line[&"id"]) == _selected_line_id:
+		if int(line[&"id"]) == _selected_line_id and _selected_division.is_empty():
 			to_select = item
 		for division: Dictionary in divisions:
 			var child: TreeItem = _queue_tree.create_item(item)
 			child.set_text(0, "Дивизия, %d полков" % int(division[&"regiments"]))
 			child.set_text(2, "%d из %d дн." % [int(division[&"days_left"]), int(division[&"days_total"])])
 			child.set_text(3, "%d %%" % roundi(float(division[&"goods_paid"]) * 100.0))
-			if bool(division[&"stalled"]):
+			if bool(division.get(&"released", false)):
+				child.set_text(4, "выпускается досрочно")
+				child.set_custom_color(4, _WARN_COLOR)
+			elif bool(division[&"stalled"]):
 				child.set_text(4, "стоит: нет %s" % division[&"missing"] if String(division[&"missing"]) != "" else "стоит: нет товаров")
 				child.set_tooltip_text(4, "Не хватает на неделю обучения (на складе из нужного): %s" % division[&"missing"])
 				child.set_custom_color(4, _STOP_COLOR)
 			else:
 				child.set_text(4, "обучается")
 			child.set_metadata(0, int(line[&"id"]))
-			child.set_metadata(1, "line")
+			child.set_metadata(1, "division")
 			child.set_metadata(2, index == 0)
 			child.set_metadata(3, index == lines.size() - 1)
+			child.set_metadata(4, {
+				&"division_id": int(division[&"division_id"]), &"order_id": int(division.get(&"order_id", 0)), &"line_id": int(line[&"id"]),
+				&"strength": float(division.get(&"release_strength", 0.0)), &"organisation": float(division.get(&"release_organisation", 0.0)),
+				&"released": bool(division.get(&"released", false)),
+			})
+			if not _selected_division.is_empty() and int(_selected_division[&"division_id"]) == int(division[&"division_id"]):
+				to_select = child
 
 	# The other orders: ships, the regiments of the mobilisation
 	var queue: Array = PlayerSingleton.get_recruitment_queue()
@@ -410,7 +427,7 @@ func _update_queue() -> void:
 		item.set_metadata(0, order[&"id"])
 		item.set_metadata(1, "mobilisation" if mobilisation else ("ship" if bool(order.get(&"is_ship", false)) else "order"))
 		item.set_metadata(2, int(order.get(&"priority", 0)))
-		if _selected_line_id == 0 and order[&"id"] == _selected_order_id:
+		if _selected_line_id == 0 and _selected_division.is_empty() and order[&"id"] == _selected_order_id:
 			to_select = item
 	if to_select != null:
 		to_select.select(0)
@@ -418,6 +435,7 @@ func _update_queue() -> void:
 	else:
 		_selected_line_id = 0
 		_selected_order_id = 0
+		_selected_division = {}
 		_update_order_controls(null)
 
 
@@ -427,11 +445,19 @@ func _update_order_controls(item: TreeItem) -> void:
 	var kind: String = String(item.get_metadata(1)) if item != null else ""
 	_selected_mobilisation = kind == "mobilisation"
 	var is_line: bool = kind == "line"
-	_up_button.disabled = not is_line or bool(item.get_metadata(2))
-	_down_button.disabled = not is_line or bool(item.get_metadata(3))
+	var is_division: bool = kind == "division"
+	_up_button.disabled = not (is_line or is_division) or bool(item.get_metadata(2))
+	_down_button.disabled = not (is_line or is_division) or bool(item.get_metadata(3))
+	# the early release of a division in training: the equipment and the training it got, the reinforcement adds the rest
+	var release: Dictionary = item.get_metadata(4) if is_division else {}
+	_release_button.disabled = not is_division or bool(release.get(&"released", false))
+	_release_button.tooltip_text = ("Дивизия выйдет завтра: сила %d %% (доля полученного снаряжения), организация %d %% (доля пройденного обучения).\n" +
+		"Остальное доберёт пополнение — из свободных людей и товаров склада.") % [
+		roundi(float(release.get(&"strength", 0.0)) * 100.0), roundi(float(release.get(&"organisation", 0.0)) * 100.0)] if is_division \
+		else "Выберите дивизию в обучении (строку под строкой очереди)"
 	_cancel_button.disabled = item == null or _selected_mobilisation
-	_cancel_button.text = "Убрать строку (товары за обучение возвращаются)" if is_line else "Отменить"
-	_cancel_button.tooltip_text = "Мобилизованные полки отменяет только демобилизация" if _selected_mobilisation else ""
+	_cancel_button.text = "Убрать строку" if is_line else ("Отменить дивизию" if is_division else "Отменить")
+	_cancel_button.tooltip_text = "Мобилизованные полки отменяет только демобилизация" if _selected_mobilisation 		else ("Люди свободны, оплаченная доля товаров возвращается на склад" if is_line or is_division else "")
 	_priority_option.disabled = kind != "order"
 	if kind == "order":
 		_priority_option.select(clampi(int(item.get_metadata(2)), 0, 2))
@@ -454,7 +480,9 @@ func _on_recruit_pressed() -> void:
 
 func _on_order_selected() -> void:
 	var item: TreeItem = _queue_tree.get_selected()
-	if item != null and String(item.get_metadata(1)) == "line":
+	var kind: String = String(item.get_metadata(1)) if item != null else ""
+	_selected_division = item.get_metadata(4) if kind == "division" else {}
+	if kind == "line" or kind == "division":
 		_selected_line_id = int(item.get_metadata(0))
 		_selected_order_id = 0
 	else:
@@ -467,6 +495,7 @@ func _on_order_deselected() -> void:
 	_queue_tree.deselect_all()
 	_selected_line_id = 0
 	_selected_order_id = 0
+	_selected_division = {}
 	_update_order_controls(null)
 
 
@@ -480,7 +509,16 @@ func _on_priority_selected(index: int) -> void:
 		PlayerSingleton.set_recruitment_priority(_selected_order_id, index)
 
 
+func _on_release_pressed() -> void:
+	if not _selected_division.is_empty():
+		PlayerSingleton.release_training_division(int(_selected_division[&"division_id"]))
+
+
 func _on_cancel_pressed() -> void:
+	if not _selected_division.is_empty():
+		PlayerSingleton.cancel_recruitment(int(_selected_division[&"order_id"]))
+		_selected_division = {}
+		return
 	if _selected_line_id != 0:
 		PlayerSingleton.remove_training_line(_selected_line_id)
 		_selected_line_id = 0

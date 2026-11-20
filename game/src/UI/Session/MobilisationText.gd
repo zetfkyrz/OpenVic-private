@@ -45,6 +45,11 @@ static func tooltip(mobilisation: Dictionary) -> String:
 			lines.append("§RДемобилизоваться нельзя: %s§W" % demobilise_reason)
 	else:
 		lines.append("Мобилизация: %d полков (%s чел.)" % [int(mobilisation[&"pool_regiments"]), thousands(int(mobilisation[&"pool_men"]))])
+		# (stage A3) the regiments gather in divisions of the cheapest template without cavalry and artillery
+		var division_size: int = maxi(1, int(mobilisation.get(&"division_size", 1)))
+		var template_id: int = int(mobilisation.get(&"division_template_id", 0))
+		lines.append("  дивизиями по %d полков: %s" % [division_size,
+			("шаблон %d (самый дешёвый без кавалерии и артиллерии)" % template_id) if template_id > 0 else "пехота вне шаблонов (нет шаблона без кавалерии и артиллерии)"])
 		lines.append("  из бедного населения своих провинций (крестьяне, рабочие, ремесленники): %s чел. × %s %%" % [
 			thousands(int(mobilisation[&"pop_men"])), str(roundi(float(mobilisation[&"share"]) * 1000.0) / 10.0)])
 		lines.append("  на ненациональной земле (не ядра страны) в 100 раз меньше; с региона — не больше 25 % его населения (ненационального — 0.25 %)")

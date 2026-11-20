@@ -288,6 +288,7 @@ void PlayerSingleton::_bind_methods() {
 	OV_BIND_METHOD(PlayerSingleton::add_training_line, { "template_id", "province_number", "count" });
 	OV_BIND_METHOD(PlayerSingleton::remove_training_line, { "line_id" });
 	OV_BIND_METHOD(PlayerSingleton::move_training_line, { "line_id", "up" });
+	OV_BIND_METHOD(PlayerSingleton::release_training_division, { "division_id" });
 	OV_BIND_METHOD(PlayerSingleton::get_player_capital_number);
 
 	OV_BIND_METHOD(PlayerSingleton::get_great_powers_info);
@@ -4718,6 +4719,22 @@ Dictionary PlayerSingleton::get_mobilisation() const {
 	OpenVicWarDefines const& war_defines = instance_manager->definition_manager.get_define_manager().get_openvic_defines().war;
 	const Mobilisation mobilisation = unit_manager.get_mobilisation(*player_country);
 	result["is_mobilised"] = player_country->is_mobilised();
+	// the divisions of the mobilisation (stage A3): their template (0: the infantry out of the templates) and the regiments of one
+	{
+		DivisionTemplate const* const division_template = unit_manager.find_mobilisation_template(*player_country);
+		int32_t division_size = 0;
+		if (division_template != nullptr) {
+			for (const std::uint8_t cell : division_template->cells) {
+				division_size += cell != 0;
+			}
+		} else if (!player_country->get_division_templates().empty()) {
+			for (const std::uint8_t cell : player_country->get_division_templates().front().cells) {
+				division_size += cell != 0;
+			}
+		}
+		result["division_template_id"] = division_template != nullptr ? static_cast<int32_t>(division_template->id) : 0;
+		result["division_size"] = std::max(1, division_size);
+	}
 	result["mobilise_reason"] = String::utf8(std::string { unit_manager.get_mobilise_block_reason(*player_country) }.c_str());
 	result["demobilise_reason"] = String::utf8(std::string { unit_manager.get_demobilise_block_reason(*player_country) }.c_str());
 	result["pop_men"] = static_cast<int64_t>(mobilisation.pop_men);
@@ -4882,11 +4899,19 @@ Array PlayerSingleton::get_training_lines() const {
 			int32_t days_total = 1;
 			fixed_point_t paid = fixed_point_t::_0;
 			bool stalled = false;
+			bool released = false;
+			int64_t order_id = 0;
+			std::pair<fixed_point_t, fixed_point_t> release { fixed_point_t::_0, fixed_point_t::_0 };
 			std::vector<std::pair<GoodDefinition const*, fixed_point_t>> week;
 			for (RecruitmentOrder const& order : unit_manager.get_recruitment_orders()) {
 				if (order.training_line != line.id || order.division_id != division_id || order.regiment_type == nullptr) {
 					continue;
 				}
+				if (regiments == 0) {
+					order_id = static_cast<int64_t>(order.id);
+					release = unit_manager.get_release_shares(order);
+				}
+				released = released || order.early_release;
 				regiments++;
 				days_left = std::max(days_left, order.days_left);
 				days_total = std::max(days_total, order.days_total);
@@ -4921,6 +4946,10 @@ Array PlayerSingleton::get_training_lines() const {
 			division["days_total"] = days_total;
 			division["goods_paid"] = regiments > 0 ? static_cast<float>(paid / regiments) : 0.0f;
 			division["stalled"] = stalled;
+			division["order_id"] = order_id;
+			division["released"] = released;
+			division["release_strength"] = static_cast<float>(release.first);
+			division["release_organisation"] = static_cast<float>(release.second);
 			division["missing"] = String(", ").join(missing);
 			divisions_array.push_back(division);
 		}
@@ -4967,6 +4996,14 @@ bool PlayerSingleton::move_training_line(int32_t line_id, bool up) const {
 	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
 	ERR_FAIL_NULL_V(instance_manager, false);
 	return instance_manager->queue_game_action<move_training_line_argument_t>(player_country->index, static_cast<std::uint32_t>(line_id), up);
+}
+
+bool PlayerSingleton::release_training_division(int32_t division_id) const {
+	ERR_FAIL_NULL_V(player_country, false);
+	InstanceManager* instance_manager = GameSingleton::get_singleton()->get_instance_manager();
+	ERR_FAIL_NULL_V(instance_manager, false);
+	ERR_FAIL_COND_V(division_id <= 0, false);
+	return instance_manager->queue_game_action<release_training_division_argument_t>(player_country->index, static_cast<std::uint32_t>(division_id));
 }
 
 int32_t PlayerSingleton::get_player_capital_number() const {
