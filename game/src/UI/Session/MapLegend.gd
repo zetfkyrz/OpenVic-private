@@ -1,9 +1,47 @@
 extends PanelContainer
-## The legend of the map modes of the diplomacy (version 104, stage D9 of docs/PLAN_DIPLOMACY_VIC2.md): what the colours of the maps
+## The legend of the map modes (stage D9 of docs/PLAN_DIPLOMACY_VIC2.md and the other modes of Vic2): what the colours of the maps
 ## "Дипломатия", "Отношения" and "Кризис" mean. Shown at the left of the screen while one of them is on; the colours are the ones of
 ## openvic-simulation/map/Mapmode.cpp.
 
 const _LEGENDS: Dictionary = {
+	# the map modes of Vic2 that were placeholders (2026-11-20)
+	"mapmode_militancy": {
+		&"title": "Воинственность",
+		&"hint": "Средняя воинственность населения провинции.",
+		&"rows": [[Color8(0xE8, 0xE0, 0xC8), "0"], [Color8(0xAB, 0x75, 0x69), "5"], [Color8(0x6E, 0x0A, 0x0A), "10"]],
+	},
+	"mapmode_colonial": {
+		&"title": "Колонии",
+		&"hint": "Синяя полоса — наши колонии и протектораты.",
+		&"rows": [[Color8(0x4F, 0xA8, 0x4A), "ничья земля (колонизировать)"], [Color8(0xE6, 0xC8, 0x4A), "колония"],
+			[Color8(0xE0, 0x8A, 0x3A), "протекторат"], [Color8(0xC9, 0xC4, 0xB4), "государственная земля"]],
+	},
+	"mapmode_recruitment": {
+		&"title": "Набор войск",
+		&"hint": "Сколько полков могут дать наши провинции (по солдатам); чужая земля серая.",
+		&"rows": [[Color8(0x14, 0x5A, 0x28), "больше всего"], [Color8(0xC8, 0xE6, 0xB0), "мало"], [Color8(0xD8, 0xD0, 0xB8), "нет солдат"]],
+	},
+	"mapmode_national_focus": {
+		&"title": "Приоритет администрации",
+		&"hint": "Область приоритета администрации каждой страны (вместо национального фокуса Vic2). Синяя полоса — наша земля.",
+		&"rows": [[Color8(0xE0, 0xB0, 0x30), "область приоритета"], [Color8(0xC9, 0xC4, 0xB4), "остальная земля"]],
+	},
+	"mapmode_party_loyalty": {
+		&"title": "Идеологии",
+		&"hint": "Идеология с наибольшей поддержкой в провинции (её цвет); полоса — вторая, если у неё не меньше трети.",
+		&"rows": [],
+	},
+	"mapmode_ranking": {
+		&"title": "Рейтинг",
+		&"hint": "Место страны в мировом рейтинге.",
+		&"rows": [[Color8(0xE0, 0xB0, 0x30), "великая держава"], [Color8(0xB8, 0xC0, 0xC8), "второстепенная держава"],
+			[Color8(0x8F, 0xA8, 0x6A), "цивилизованная страна"], [Color8(0x6E, 0x50, 0x38), "нецивилизованная"]],
+	},
+	"mapmode_migration": {
+		&"title": "Рост населения",
+		&"hint": "Изменение населения за прошлый месяц (рождения, смерти, миграция). Самый тёмный цвет — 2 % в месяц.",
+		&"rows": [[Color8(0x14, 0x6B, 0x2A), "растёт"], [Color8(0xE8, 0xE0, 0xC8), "без изменений"], [Color8(0xA0, 0x20, 0x1C), "убывает"]],
+	},
 	"mapmode_diplomatic": {
 		&"title": "Дипломатия",
 		&"hint": "Страна выбранной провинции (без выбора — наша). Полосы: кто занял землю; её ядра на чужой земле — зелёные.",
